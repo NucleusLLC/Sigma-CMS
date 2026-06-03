@@ -5,5 +5,8 @@
   Permissions-Policy: geolocation=(self), camera=(self), microphone=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
 
+/
+  Cache-Control: no-store, must-revalidate
+
 /index.html
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: no-store, must-revalidate
