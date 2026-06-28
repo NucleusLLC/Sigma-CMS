@@ -1,9 +1,9 @@
-# SIGMA
+# Sigma-CMS
 
-Real-estate appraisal report generator. Single-file HTML app, Supabase backend.
+Appraisal Intelligent CMS — real-estate appraisal report generator. Single-file HTML app, Supabase backend.
 
 **Live:** auto-deployed to Cloudflare Pages from this repo.
-**Repo:** https://github.com/greglacle/Sigma
+**Repo:** https://github.com/NucleusLLC/Sigma-CMS
 
 ## Contents
 
