@@ -25165,6 +25165,34 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   right = thumbnail (localStorage doc_{oid}_3 = Floor Plan first-page image)
   //   below = appraiser-editable observations (inspData.s11.s11floorInfoText — new
   //           field, UI wiring lands in v1.858+).
+  // ═══ §SECTION-ORDER DRIVER (v2.222-beta) — opt-in per-order section placement ═══
+  //   When order.sectionLayout is set, the movable sections render per the saved
+  //   {p3,p4,p5} layout via _renderSecsFor(pg); their INLINE renders are suppressed
+  //   (gated on _secCustom). When unset, _secCustom is null → every inline block
+  //   renders exactly as before and the driver emits nothing → byte-identical output.
+  var _secCustom = (typeof _orderSectionLayout==='function') ? _orderSectionLayout(order) : null;
+  function _secOpBox(title, sub, body, accent){
+    return '<div class="sec-h" style="margin-top:8px;margin-bottom:3px;">'+title+'</div>'
+      + (sub?'<div class="sec-sub" style="margin-bottom:4px;">'+sub+'</div>':'')
+      + '<div style="border:1px solid #d4c9b0;border-left:3px solid '+(accent||RC.rcAccentColor)+';padding:5px 8px;">'+body+'</div>';
+  }
+  function _secS12(keys){ var d=(order.inspData&&order.inspData.s12)||{};
+    try{var _l=localStorage.getItem('insp_'+order.id+'_12');if(_l)Object.assign(d,JSON.parse(_l));}catch(e){}
+    for(var i=0;i<keys.length;i++){ var v=((d[keys[i]]||order[keys[i]]||'')+'').trim(); if(v) return v; } return ''; }
+  function _secFpTxt(){ var t='';
+    try{var r=localStorage.getItem('insp_'+order.id+'_11');if(r){var o=JSON.parse(r);t=(o.s11f3||'').trim();}}catch(e){}
+    if(!t){try{if(order.inspData&&order.inspData.s11)t=(order.inspData.s11.s11f3||'').trim();}catch(e){}} return t; }
+  var _SEC_RENDER = {
+    fpOpinion:      function(){ var t=_secFpTxt(); return _secOpBox('Opinion of Floor Plan','Spatial layout · circulation · functional efficiency', t?'<div class="rep-op">'+esc(t)+'</div>':'<div style="font-size:10px;color:#aaa;font-style:italic;">No floor plan opinion entered.</div>'); },
+    renovNotes:     function(){ var t=_secS12(['renovNotes']); return t?_secOpBox('Renovation Notes &amp; Remarks','Renovation scope · works · materials &amp; finishes · impact on value','<div class="rep-op">'+esc(t)+'</div>'):''; },
+    condMatrix:     function(){ return '<div class="sec-h" style="margin-top:8px;margin-bottom:3px;">Condition Assessment Matrix</div><div class="sec-sub" style="margin-bottom:3px;">Summary of all condition assessments across all inspection sections</div><div style="overflow:hidden;width:100%;">'+((typeof _condMatrixHtml==='function')?_condMatrixHtml():'')+'</div>'; },
+    buildingOpinion:function(){ var t=_secS12(['opBuildingText']); return _secOpBox('Opinions of Building, Equipment &amp; Finishes','Based on on-site inspection data · materials · equipment · condition assessments', t?'<div class="rep-op">'+esc(t)+'</div>':'<div style="font-size:9px;color:#aaa;font-style:italic;">No building opinion entered.</div>'); },
+    locationOpinion:function(){ var t=_secS12(['opLocationText','locationOpinion']); return t?_secOpBox('Opinion of the Location','Neighbourhood · amenities · access · location quality','<div class="rep-op">'+esc(t)+'</div>'):''; },
+    ropv:           function(){ var t=_secS12(['opRopvText']); return t?_secOpBox('R.O.P.V. — Spatial Planning Regulations','Zoning · permitted use · spatial planning','<div class="rep-op">'+esc(t)+'</div>'):''; }
+  };
+  function _renderSecsFor(pg){ if(!_secCustom||!_secCustom[pg]) return '';
+    return _secCustom[pg].map(function(id){ try{ return (_SEC_RENDER[id]?_SEC_RENDER[id]():''); }catch(e){ return ''; } }).join(''); }
+
   if(RC.rcPageProjInsp1!==false && _tplVariant==='T2'){
     var _piM3={}; try{ _piM3=(order.inspData)||{}; for(var _pj=0;_pj<14;_pj++){ try{var _pld3=localStorage.getItem('insp_'+order.id+'_'+_pj); if(_pld3){var _pld3d=JSON.parse(_pld3); _piM3['s'+_pj]=Object.assign(_piM3['s'+_pj]||{},_pld3d);}}catch(e){} } }catch(e){ _piM3={}; }
     var _roadFront3=(_piM3.s0 && (_piM3.s0.s0f3||_piM3.s0['Road In Front of Real Estate']))||order.roadFront||'—';
@@ -25560,7 +25588,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       // §T1-GRND-FPOP (v2.056) — the GrndFLR template is the exception: it shows the
       //   Opinion of Floor Plan HERE, directly under Floorplan Info (and drops it from
       //   page 4). Reuses the same s11f3 opinion text (_fpInfoTxt3).
-      + ((RC._grndFpUnderInfo||RC._mbLayout||RC._suppressFpOpinionP4)   // §MB-LAYOUT — MultiBuilding shows Opinion of Floor Plan here; §2LVL-FP-FIX (v2.219) — 2LevelFLR suppresses it on page 4 so it MUST render here on page 3 (was appearing nowhere)
+      + ((!_secCustom && (RC._grndFpUnderInfo||RC._mbLayout||RC._suppressFpOpinionP4))   /* §SECTION-ORDER: suppress inline FP-opinion when a custom layout drives page 3 */   // §MB-LAYOUT — MultiBuilding shows Opinion of Floor Plan here; §2LVL-FP-FIX (v2.219) — 2LevelFLR suppresses it on page 4 so it MUST render here on page 3 (was appearing nowhere)
           ? ('<div class="sec-h" style="margin-top:'+(RC._isGrndFLR?'8px':'10px')+';margin-bottom:3px;">Opinion of Floor Plan</div>'
              +'<div class="sec-sub" style="margin-bottom:4px;">Spatial layout · circulation · functional efficiency</div>'
              +'<div style="border:1px solid #d4c9b0;border-left:3px solid '+RC.rcAccentColor+';padding:5px 8px;">'
@@ -25574,6 +25602,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
              + (['2026-058'].indexOf(String(order.id))!==-1 ? (function(){var _s12b=(order.inspData&&order.inspData.s12)||{};try{var _l=localStorage.getItem('insp_'+order.id+'_12');if(_l)Object.assign(_s12b,JSON.parse(_l));}catch(e){}var _ob=(_s12b.opBuildingText||order.opBuildingText||'').trim();return '<div class="sec-h" style="margin-top:10px;margin-bottom:3px;">Opinions of Building, Equipment &amp; Finishes</div>'+'<div class="sec-sub" style="margin-bottom:4px;">Based on on-site inspection data · materials · equipment · condition assessments</div>'+'<div style="border:1px solid #d4c9b0;border-left:3px solid '+RC.rcAccentColor+';padding:5px 8px;">'+(_ob?'<div class="rep-op">'+_ob+'</div>':'<div style="font-size:9px;color:#aaa;font-style:italic;">No building opinion entered.</div>')+'</div>';})() : ''))
           : '')
       ) )
+      + (_secCustom ? _renderSecsFor('p3') : '')   /* §SECTION-ORDER: custom layout renders page-3 sections here */
       +'</div>'+pgFtr('pT2_3')+'</div></div>';
   }
 
