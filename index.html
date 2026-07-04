@@ -13166,6 +13166,118 @@ function _orderPropTypeLabel(o){
     return o.type||'';
   }catch(e){ return (o&&o.type)||''; }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// §SECTION-ORDER (v2.219-beta) — per-order drag/up-down reordering of the movable
+//   report sections. Each section has BOTH a target page (3/4/5) and an order
+//   within that page. Cover (p1) and Index (p2) are fixed and never movable.
+//   OPT-IN: when order.sectionLayout is unset the report renders exactly as before
+//   (zero change). The Index auto-derives from the SAME layout so it can't drift.
+// ═══════════════════════════════════════════════════════════════════════════
+var _SECTION_REGISTRY = [
+  { id:'fpOpinion',       title:'Opinion of Floor Plan' },
+  { id:'renovNotes',      title:'Renovation Notes & Remarks' },
+  { id:'condMatrix',      title:'Condition Assessment Matrix' },
+  { id:'buildingOpinion', title:'Opinions of Building, Equipment & Finishes' },
+  { id:'locationOpinion', title:'Opinion of the Location' },
+  { id:'ropv',            title:'R.O.P.V. — Spatial Planning Regulations' }
+];
+var _SECTION_PAGES = ['p3','p4','p5'];
+var _SECTION_PAGE_LABELS = { p3:'Page 3', p4:'Page 4', p5:'Page 5' };
+// Default page assignment mirrors the current default arrangement so a freshly
+//   customised order starts from a familiar layout.
+var _SECTION_DEFAULT_PAGES = { fpOpinion:'p3', renovNotes:'p3', condMatrix:'p4', buildingOpinion:'p4', locationOpinion:'p5', ropv:'p5' };
+
+function _sectionTitle(id){ for(var i=0;i<_SECTION_REGISTRY.length;i++){ if(_SECTION_REGISTRY[i].id===id) return _SECTION_REGISTRY[i].title; } return id; }
+function _sectionIsKnown(id){ return _SECTION_REGISTRY.some(function(s){ return s.id===id; }); }
+
+// The default {p3:[…],p4:[…],p5:[…]} layout (registry order within each page).
+function _sectionDefaultLayout(){
+  var out={p3:[],p4:[],p5:[]};
+  _SECTION_REGISTRY.forEach(function(s){ var p=_SECTION_DEFAULT_PAGES[s.id]||'p4'; (out[p]||out.p4).push(s.id); });
+  return out;
+}
+// The order's saved custom layout, sanitised, or null when not customised.
+//   Guarantees every known section id appears exactly once across the 3 pages
+//   (missing ids are appended to their default page; unknown/duplicate ids dropped).
+function _orderSectionLayout(order){
+  try{
+    var raw = order && order.sectionLayout;
+    if(!raw || typeof raw!=='object') return null;
+    var out={p3:[],p4:[],p5:[]}, seen={};
+    _SECTION_PAGES.forEach(function(p){
+      if(Array.isArray(raw[p])) raw[p].forEach(function(id){ if(_sectionIsKnown(id) && !seen[id]){ seen[id]=1; out[p].push(id); } });
+    });
+    // any known section not placed yet → its default page (keeps report complete)
+    _SECTION_REGISTRY.forEach(function(s){ if(!seen[s.id]){ seen[s.id]=1; (out[_SECTION_DEFAULT_PAGES[s.id]]||out.p4).push(s.id); } });
+    return out;
+  }catch(e){ return null; }
+}
+window._orderSectionLayout=_orderSectionLayout; window._sectionDefaultLayout=_sectionDefaultLayout;
+
+// §SECTION-ORDER UI — per-order modal: assign each movable section a page (3/4/5)
+//   and an order within that page, via up/down + a page selector. Saves to
+//   order.sectionLayout and persists. Open with openSectionOrder(orderId).
+function openSectionOrder(orderId){
+  try{
+    var order=(window.ORDERS||[]).find(function(o){return o.id===orderId;});
+    if(!order){ try{alert('Order not found.');}catch(e){} return; }
+    var _L=_orderSectionLayout(order)||_sectionDefaultLayout();
+    var _btnCss='width:26px;height:22px;border:1px solid var(--border,#ccc);border-radius:4px;background:var(--surface,#fff);cursor:pointer;font-size:11px;line-height:1;';
+    function _e(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    var existing=document.getElementById('secOrderOverlay'); if(existing) existing.remove();
+    var ov=document.createElement('div'); ov.id='secOrderOverlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(10,8,4,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:24px;';
+    var box=document.createElement('div');
+    box.style.cssText='background:var(--surface,#fff);color:var(--ink,#111);border-radius:12px;max-width:920px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);';
+    ov.appendChild(box);
+    function build(){
+      var h='<div style="padding:16px 20px;border-bottom:1px solid var(--border,#e5e0d5);display:flex;align-items:center;justify-content:space-between;gap:12px;">'
+        +'<div><div style="font-family:Sora,sans-serif;font-weight:800;font-size:15px;">Report Section Order — '+_e(order.id)+'</div>'
+        +'<div style="font-size:11px;color:var(--muted,#888);margin-top:2px;max-width:640px;">Assign each section to a page and order it with ↑ ↓. Cover = page 1 and Index = page 2 are fixed. The report’s Index follows this order automatically.</div></div>'
+        +'<button onclick="document.getElementById(\'secOrderOverlay\').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted,#888);line-height:1;">✕</button></div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:16px 20px;">';
+      _SECTION_PAGES.forEach(function(p){
+        h+='<div style="border:1px solid var(--border,#e5e0d5);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;">'
+          +'<div style="padding:8px 12px;background:rgba(200,146,42,.10);font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--au,#c8922a);">'+_SECTION_PAGE_LABELS[p]+'</div>'
+          +'<div style="padding:8px;display:flex;flex-direction:column;gap:6px;min-height:70px;flex:1;">';
+        if(!_L[p].length) h+='<div style="font-size:10px;color:var(--muted,#aaa);font-style:italic;padding:6px;text-align:center;">— empty —</div>';
+        _L[p].forEach(function(id,i){
+          h+='<div style="border:1px solid var(--border,#e5e0d5);border-radius:6px;padding:6px 8px;background:var(--surface-2,#faf8f3);">'
+            +'<div style="font-weight:600;font-size:11.5px;margin-bottom:5px;line-height:1.25;">'+_e(_sectionTitle(id))+'</div>'
+            +'<div style="display:flex;gap:4px;align-items:center;">'
+            +'<button title="Move up" onclick="_secOrderMove(\''+id+'\',\''+p+'\',-1)" '+(i===0?'disabled':'')+' style="'+_btnCss+'">↑</button>'
+            +'<button title="Move down" onclick="_secOrderMove(\''+id+'\',\''+p+'\',1)" '+(i===_L[p].length-1?'disabled':'')+' style="'+_btnCss+'">↓</button>'
+            +'<select title="Move to page" onchange="_secOrderPage(\''+id+'\',this.value)" style="margin-left:auto;font-size:10.5px;padding:2px 4px;border:1px solid var(--border,#ccc);border-radius:4px;background:var(--surface,#fff);color:var(--ink,#111);cursor:pointer;">'
+            +_SECTION_PAGES.map(function(pp){return '<option value="'+pp+'"'+(pp===p?' selected':'')+'>'+_SECTION_PAGE_LABELS[pp]+'</option>';}).join('')
+            +'</select></div></div>';
+        });
+        h+='</div></div>';
+      });
+      h+='</div><div style="padding:14px 20px;border-top:1px solid var(--border,#e5e0d5);display:flex;justify-content:space-between;align-items:center;gap:10px;">'
+        +'<button onclick="_secOrderReset()" style="background:none;border:1px solid var(--border,#ccc);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;color:var(--muted,#666);">Reset to default</button>'
+        +'<div style="display:flex;gap:8px;"><button onclick="document.getElementById(\'secOrderOverlay\').remove()" style="background:none;border:1px solid var(--border,#ccc);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;color:var(--ink,#111);">Cancel</button>'
+        +'<button onclick="_secOrderSave()" style="background:var(--au,#c8922a);border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;">Save</button></div></div>';
+      box.innerHTML=h;
+    }
+    window._secOrderMove=function(id,p,dir){ var a=_L[p]; var i=a.indexOf(id); if(i<0)return; var j=i+dir; if(j<0||j>=a.length)return; a.splice(i,1); a.splice(j,0,id); build(); };
+    window._secOrderPage=function(id,toP){ _SECTION_PAGES.forEach(function(p){ var i=_L[p].indexOf(id); if(i>=0)_L[p].splice(i,1); }); if(_L[toP]) _L[toP].push(id); build(); };
+    window._secOrderReset=function(){ _L=_sectionDefaultLayout(); build(); };
+    window._secOrderSave=function(){
+      try{
+        order.sectionLayout={p3:_L.p3.slice(),p4:_L.p4.slice(),p5:_L.p5.slice()};
+        try{ if(typeof persistOrders==='function') persistOrders(order.id); }catch(e){}
+        var el=document.getElementById('secOrderOverlay'); if(el) el.remove();
+        try{ alert('Section order saved for '+order.id+'. Re-generate the report to see it.'); }catch(e){}
+      }catch(e){ try{alert('Save failed: '+(e&&e.message));}catch(_){} }
+    };
+    build();
+    ov.addEventListener('click',function(ev){ if(ev.target===ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }catch(e){ try{alert('Could not open section order: '+(e&&e.message));}catch(_){} }
+}
+window.openSectionOrder=openSectionOrder;
+
 function _orderThumbSrc(order) {
   try {
     var s10 = order.inspData && order.inspData.s10;
@@ -30146,7 +30258,7 @@ function _toRow(o) {
       //   so the Cost tab can show "Invoiced — QB #N" + a View-in-QuickBooks link.
       qbInvoiceId:o.qbInvoiceId||'', qbInvoiceNo:o.qbInvoiceNo||'', qbInvoiceUrl:o.qbInvoiceUrl||'',
       internalNotes:o.internalNotes||'', revision:o.revision||'',
-      comps:o.comps||'', flag:o.flag||'', flagOther:o.flagOther||'', propCategory:o.propCategory||'', propCategoryOther:o.propCategoryOther||'',
+      comps:o.comps||'', flag:o.flag||'', flagOther:o.flagOther||'', propCategory:o.propCategory||'', propCategoryOther:o.propCategoryOther||'', sectionLayout:(o.sectionLayout&&typeof o.sectionLayout==='object')?o.sectionLayout:undefined,
       owner:o.owner||'',
       purpose:o.purpose||'', finInst:o.finInst||'',
       ropvZone:o.ropvZone||'', propType:o.propType||'',
@@ -30369,6 +30481,7 @@ function _fromRow(row, order) {
       if (x.flag)           order.flag           = x.flag;
       if (x.flagOther)      order.flagOther      = x.flagOther;
       if (x.propCategory)      order.propCategory      = x.propCategory;
+      if (x.sectionLayout && typeof x.sectionLayout==='object') order.sectionLayout = x.sectionLayout; // §SECTION-ORDER (v2.219-beta)
       if (x.propCategoryOther) order.propCategoryOther = x.propCategoryOther;
       if (x.apprType)       order.apprType       = x.apprType;
       // §EDIT-PERSIST (v1.932) — restore Building Info extras + Cost checklist.
