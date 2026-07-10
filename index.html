@@ -13279,7 +13279,7 @@ function openSectionOrder(orderId){
             +'<select title="Move to page" onchange="_secOrderPage(\''+id+'\',this.value)" style="margin-left:auto;font-size:10.5px;padding:2px 4px;border:1px solid var(--border,#ccc);border-radius:4px;background:var(--surface,#fff);color:var(--ink,#111);cursor:pointer;">'
             +_SECTION_PAGES.map(function(pp){return '<option value="'+pp+'"'+(pp===p?' selected':'')+'>'+_SECTION_PAGE_LABELS[pp]+'</option>';}).join('')
             +'</select>'
-            +((id==='condMatrix'||id==='buildingOpinion'||id==='inspDetails') ? ('<select title="Vertical spacing on the page" onchange="_secOrderSpacing(\''+id+'\',this.value)" style="margin-left:4px;font-size:10.5px;padding:2px 4px;border:1px solid var(--border,#ccc);border-radius:4px;background:var(--surface,#fff);color:var(--ink,#111);cursor:pointer;">'+[['compact','Tight'],['normal','Normal'],['spacious','Loose']].map(function(sv){var cur=(_Sp&&_Sp[id])||'compact';return '<option value="'+sv[0]+'"'+(sv[0]===cur?' selected':'')+'>'+sv[1]+'</option>';}).join('')+'</select>') : '')
+            +((['condMatrix','buildingOpinion','inspDetails','fpOpinion','renovNotes','locationOpinion','ropv','floorplan'].indexOf(id)!==-1) ? ('<select title="Spacing — Tight / Normal / Loose (section gap + text)" onchange="_secOrderSpacing(\''+id+'\',this.value)" style="margin-left:4px;font-size:10.5px;padding:2px 4px;border:1px solid var(--border,#ccc);border-radius:4px;background:var(--surface,#fff);color:var(--ink,#111);cursor:pointer;">'+[['compact','Tight'],['normal','Normal'],['spacious','Loose']].map(function(sv){var cur=(_Sp&&_Sp[id])||'compact';return '<option value="'+sv[0]+'"'+(sv[0]===cur?' selected':'')+'>'+sv[1]+'</option>';}).join('')+'</select>') : '')
             +'</div></div>';
         });
         h+='</div></div>';
@@ -13290,7 +13290,7 @@ function openSectionOrder(orderId){
         +'<button onclick="_secOrderSave()" style="background:var(--au,#c8922a);border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;">Save</button></div></div>';
       box.innerHTML=h;
     }
-    var _Sp=Object.assign({condMatrix:'compact',buildingOpinion:'compact',inspDetails:'compact'}, (order.sectionSpacing&&typeof order.sectionSpacing==='object')?order.sectionSpacing:{});
+    var _Sp=Object.assign({condMatrix:'compact',buildingOpinion:'compact',inspDetails:'compact',fpOpinion:'normal',renovNotes:'normal',locationOpinion:'normal',ropv:'normal',floorplan:'normal'}, (order.sectionSpacing&&typeof order.sectionSpacing==='object')?order.sectionSpacing:{});
     window._secOrderSpacing=function(id,val){ _Sp[id]=val; };   // §SEC-SPACING (v2.225)
     // §SEC-PREVIEW (v2.231) — per-page preview: shows the movable sections for a page in the
     //   CURRENT (unsaved) order, each with a snippet of its real content, so the user can eyeball
@@ -13756,7 +13756,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.245';
+var APP_VERSION = 'v2.246';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -13794,6 +13794,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.246',type:'feature',date:'07-10-2026',ts:'07-10-2026 09:00',_static:true,title:'Section Order: Tight / Normal / Loose spacing for every opinion section',desc:'The per-order Report Section Order tool now offers a Tight / Normal / Loose spacing dropdown on each movable opinion section — Floorplan & Dimensions, Opinion of Floor Plan, Opinions of Building/Equipment & Finishes, Opinion of the Location, R.O.P.V. Spatial Planning, and Renovation Notes & Remarks — matching the control the Condition Matrix and Inspection Details already had. Choosing Tight both pulls the section closer to its neighbours (smaller header gap and box padding) and tightens the body text vertically (reduced line-height); Loose does the opposite. Normal reproduces the previous look exactly, so any order you have not touched is unchanged.'},
   {v:'v2.245',type:'fix',date:'07-08-2026',ts:'07-08-2026 12:00',_static:true,title:'Reverted the report force-refresh that made blanked orders look empty',desc:'A recent change forced every report to re-read its data straight from the database. That change never deleted anything (it is a read, not a write), but it exposed orders whose database rows had been blanked earlier by an out-of-date browser tab, instead of quietly rendering the good copy the app already had in memory. Reverting it restores the prior behavior where the report uses the loaded in-memory data plus the local and cloud-storage recovery layers. The real cause of blanked rows is an old browser tab overwriting data; keep every tab updated, and use the photo re-link routine to restore any order whose row was blanked.'},
   {v:'v2.244',type:'fix',date:'07-08-2026',ts:'07-08-2026 10:30',_static:true,title:'Fix: Floorplan Info section rendered blank on page 3 (Section Order)',desc:'A parenthesis bug in the report builder caused the Floorplan Info block to be computed and then thrown away: the cache that the Section Order uses to place Floorplan on page 3 was being assigned an empty value instead of the floorplan HTML. As a result, an order that placed Floorplan on page 3 (and had floor-plan data) showed nothing there, while the Opinion of Floor Plan still appeared. Corrected the grouping so the cache receives the floorplan block; page-3 placement of Floorplan now renders for every template, and inline (non-Section-Order) reports are unchanged.'},
   {v:'v2.242',type:'fix',date:'07-08-2026',ts:'07-08-2026 09:00',_static:true,title:'Fix: Floorplan and other page-3 sections not showing on T1-suffixed templates',desc:'Templates named with a .T1 or .T2 suffix are meant to use the extended (Type-2) 14-page layout, which is the only layout that renders the Report Section Order on PAGE 3 and builds the Floorplan Info block. If such a template kept a stale layout setting, the report fell back to the older layout and silently dropped the Floorplan (and anything else placed on page 3 in the Section Order), even though it was ticked and ordered correctly. The report now re-derives the layout from the template name at generation time, so a T1 or T2 template always uses the correct layout and its page-3 sections render.'},
@@ -25359,10 +25360,38 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   renderers can emit the exact same HTML. Empty until assigned.
   var _fpBlockCache='', _locBlockCache='', _inspBlockCache='', _valBlockCache='', _conclBlockCache='';
   var _secEmitted={};   // §SEC-DEDUP (v2.228) — render-once guard: a movable section can never print twice
-  function _secOpBox(title, sub, body, accent, pad){
-    return '<div class="sec-h" style="margin-top:8px;margin-bottom:3px;">'+title+'</div>'
-      + (sub?'<div class="sec-sub" style="margin-bottom:4px;">'+sub+'</div>':'')
-      + '<div style="border:1px solid #d4c9b0;border-left:3px solid '+(accent||RC.rcAccentColor)+';padding:'+(pad||'5px 8px')+';">'+body+'</div>';
+  // §SEC-SPACING-ALL (v2.246) — per-section Tight/Normal/Loose applied to ALL movable
+  //   opinion sections. Controls BOTH the between-section gap (header margins, sub margin,
+  //   box padding) AND the text vertical rhythm (.rep-op line-height). Default 'normal'
+  //   reproduces the prior look exactly (pad 5px 8px, inherited op line-height 1.6); the
+  //   three legacy sections keep their prior 'compact' default so existing custom orders
+  //   are unchanged. Spacing is derived from the section TITLE so the renderers below need
+  //   no signature change (avoids touching their ·/— lines).
+  function _secSpace(id){
+    var _def={condMatrix:'compact',buildingOpinion:'compact',inspDetails:'compact'};
+    var v=(order.sectionSpacing&&order.sectionSpacing[id])||_def[id]||'normal';
+    if(v!=='compact'&&v!=='spacious') v='normal';
+    return ({
+      compact:  {mt:'2px',  hmb:'1px', smb:'2px', pad:'3px 6px',   lh:'1.2'},
+      normal:   {mt:'8px',  hmb:'3px', smb:'4px', pad:'5px 8px',   lh:''   },
+      spacious: {mt:'16px', hmb:'5px', smb:'9px', pad:'11px 12px', lh:'1.9'}
+    })[v];
+  }
+  function _secBoxId(title){
+    title=String(title||'');
+    if(title.indexOf('Opinion of Floor Plan')===0) return 'fpOpinion';
+    if(title.indexOf('Renovation Notes')===0)      return 'renovNotes';
+    if(title.indexOf('Opinions of Building')===0)  return 'buildingOpinion';
+    if(title.indexOf('Opinion of the Location')===0) return 'locationOpinion';
+    if(title.indexOf('R.O.P.V.')===0)              return 'ropv';
+    return '';
+  }
+  function _secOpBox(title, sub, body, accent, _ignoredPad){
+    var sp=_secSpace(_secBoxId(title));
+    if(sp.lh) body=String(body).replace('class="rep-op"','class="rep-op" style="line-height:'+sp.lh+';"');
+    return '<div class="sec-h" style="margin-top:'+sp.mt+';margin-bottom:'+sp.hmb+';">'+title+'</div>'
+      + (sub?'<div class="sec-sub" style="margin-bottom:'+sp.smb+';">'+sub+'</div>':'')
+      + '<div style="border:1px solid #d4c9b0;border-left:3px solid '+(accent||RC.rcAccentColor)+';padding:'+sp.pad+';">'+body+'</div>';
   }
   function _secS12(keys){ var d=(order.inspData&&order.inspData.s12)||{};
     try{var _l=localStorage.getItem('insp_'+order.id+'_12');if(_l)Object.assign(d,JSON.parse(_l));}catch(e){}
@@ -25373,11 +25402,11 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   var _SEC_RENDER = {
     fpOpinion:      function(){ var t=_secFpTxt(); return _secOpBox('Opinion of Floor Plan','Spatial layout · circulation · functional efficiency', t?'<div class="rep-op">'+esc(t)+'</div>':'<div style="font-size:10px;color:#aaa;font-style:italic;">No floor plan opinion entered.</div>'); },
     renovNotes:     function(){ var t=_secS12(['renovNotes']); return t?_secOpBox('Renovation Notes &amp; Remarks','Renovation scope · works · materials &amp; finishes · impact on value','<div class="rep-op">'+esc(t)+'</div>'):''; },
-    condMatrix:     function(){ return '<div class="sec-h" style="margin-top:8px;margin-bottom:3px;">Condition Assessment Matrix</div><div class="sec-sub" style="margin-bottom:3px;">Summary of all condition assessments across all inspection sections</div><div style="overflow:hidden;width:100%;">'+((typeof _condMatrixHtml==='function')?_condMatrixHtml():'')+'</div>'; },
+    condMatrix:     function(){ var _cs=_secSpace('condMatrix'); return '<div class="sec-h" style="margin-top:'+_cs.mt+';margin-bottom:'+_cs.hmb+';">Condition Assessment Matrix</div><div class="sec-sub" style="margin-bottom:'+_cs.smb+';">Summary of all condition assessments across all inspection sections</div><div style="overflow:hidden;width:100%;">'+((typeof _condMatrixHtml==='function')?_condMatrixHtml():'')+'</div>'; },
     buildingOpinion:function(){ var t=_secS12(['opBuildingText']); var _bs=(order.sectionSpacing&&order.sectionSpacing.buildingOpinion)||'compact'; var _bp=(_bs==='spacious'?'11px 12px':(_bs==='normal'?'6px 8px':'3px 6px')); return _secOpBox('Opinions of Building, Equipment &amp; Finishes','Based on on-site inspection data · materials · equipment · condition assessments', t?'<div class="rep-op">'+esc(t)+'</div>':'<div style="font-size:9px;color:#aaa;font-style:italic;">No building opinion entered.</div>', RC.rcAccentColor, _bp); },
     locationOpinion:function(){ var t=_secS12(['opLocationText','locationOpinion']); return t?_secOpBox('Opinion of the Location','Neighbourhood · amenities · access · location quality','<div class="rep-op">'+esc(t)+'</div>'):''; },
     ropv:           function(){ var t=_secS12(['opRopvText']); return t?_secOpBox('R.O.P.V. — Spatial Planning Regulations','Zoning · permitted use · spatial planning','<div class="rep-op">'+esc(t)+'</div>'):''; },
-    floorplan:      function(){ return _fpBlockCache||''; },
+    floorplan:      function(){ if(!_fpBlockCache) return ''; var _fs=_secSpace('floorplan'); return '<div style="margin-top:'+_fs.mt+';'+(_fs.lh?'line-height:'+_fs.lh+';':'')+'">'+_fpBlockCache+'</div>'; },
     location:       function(){ return _locBlockCache||''; },
     inspDetails:    function(){ return _inspBlockCache||''; },
     conclusion:     function(){ return _conclBlockCache||''; },
