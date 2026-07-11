@@ -7361,6 +7361,7 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
       <option>Single Family</option><option>Condo</option><option>Multi-Family</option><option>Commercial</option>
     </select>
     <button class="btn-sec" onclick="resetFilters()">↺ Reset</button>
+    <button class="btn-sec" id="invPendBtn" onclick="_invTogglePending()" title="Show only orders whose invoice was deferred (Handle later)">⚠ Pending Invoices</button>
     <button class="btn-sec" onclick="sbLiveOrders()" title="Fetch orders directly from the Supabase database, ignoring local cache" style="border-color:#2dd4bf;color:#2dd4bf;">↻ Live from DB</button>
     <button class="btn-sec" onclick="sbPushAll()" title="Push the orders in this browser into the Supabase database" style="border-color:#c8922a;color:#c8922a;">⇧ Push to DB</button>
     </div><!-- /filters -->
@@ -11327,10 +11328,8 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
     </div>
     <div class="efg">
       <label>Fee Status</label>
-      <select id="eFeeStatus">
-        <option>Unpaid</option><option>Invoiced</option>
-        <option>Paid</option><option>Waived</option>
-      </select>
+      <!-- §INVOICE-STEP (v2.248) — status is now driven by the invoice flow (read-only badge). -->
+      <div id="eFeeStatusView" style="padding:9px 12px;border:1px solid var(--bd);border-radius:var(--r);font-size:13px;font-weight:700;color:var(--muted);background:var(--surface-2);">—</div>
     </div>
   </div>
 
@@ -11374,17 +11373,9 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
             </svg>
             Create Invoice in QB
           </button>
-          <button onclick="editQBConnect()" style="display:flex;align-items:center;gap:8px;
-                     padding:7px 18px;border:1.5px solid var(--bd);border-radius:var(--r);
-                     background:var(--surface);color:var(--muted);
-                     font-family:var(--font);font-size:12px;font-weight:500;
-                     cursor:pointer;white-space:nowrap;transition:all .15s;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-            </svg>
-            Connect QuickBooks
-          </button>
+          <!-- §INVOICE-STEP (v2.248) — removed the duplicate "Connect QuickBooks" button.
+               Connecting is offered automatically inside the guided Invoice Step when QuickBooks
+               isn't linked yet (the "Connect now?" prompt on send). -->
         </div>
       </div>
 
@@ -13534,6 +13525,7 @@ function filterOrders(){
   var wfSet = wf ? (window._wfBuckets[wf] || [String(wf).toLowerCase()]) : null;
   fil = ORDERS.filter(o => {
     if (o && o.archived) return false;   // §ARCHIVE-SAFE (v2.148) — archived orders stay in the DB but are hidden from the active list
+    if (window._invPendingOnly && !(o && o.invoiceStatus==='pending')) return false;   // §INVOICE-STEP (v2.248) — "Pending Invoices" filter
     const m = !q || [o.address,o.id,o.appraiser,o.client||'']
                     .some(v=>(v||'').toLowerCase().includes(q));
     var sv = String(o.status||'').trim().toLowerCase();
@@ -13553,10 +13545,19 @@ function filterOrders(){
   if(wf){ try{ console.log('[WF-FILTER] stage='+wf+' bucket='+JSON.stringify(wfSet)+' total='+ORDERS.length+' matched='+fil.length+' sample='+JSON.stringify(ORDERS.slice(0,25).map(function(o){return (o.id||'?')+':'+(o.status||'-')+(o.approved?'/locked':'');}))); }catch(e){} }
   pg=1; renderOrders();
 }
+// §INVOICE-STEP (v2.248) — toggle the "Pending Invoices" filter (orders with a deferred invoice).
+function _invTogglePending(){
+  window._invPendingOnly=!window._invPendingOnly;
+  var b=document.getElementById('invPendBtn');
+  if(b){ var on=window._invPendingOnly; b.style.borderColor=on?'#e0a93c':''; b.style.color=on?'#e0a93c':''; b.style.background=on?'rgba(224,169,60,.12)':''; }
+  filterOrders();
+}
+window._invTogglePending=_invTogglePending;
 
 function resetFilters(sf2){
   try{ console.log('[DIAG resetFilters] ORDERS.length='+ORDERS.length+' fil.length='+fil.length+' sf2='+sf2); }catch(e){}
   if(!sf2){ window._wfActive=''; }   // §WORKFLOW-FILTER (v2.022) — full reset clears the workflow stage too
+  window._invPendingOnly=false; var _ipb=document.getElementById('invPendBtn'); if(_ipb){_ipb.style.borderColor='';_ipb.style.color='';_ipb.style.background='';}   // §INVOICE-STEP (v2.248)
   var _si=document.getElementById('searchInput'); if(_si) _si.value='';
   var _st=document.getElementById('statusFilter'); if(_st) _st.value='';
   var _ty=document.getElementById('typeFilter'); if(_ty) _ty.value='';
@@ -13645,8 +13646,16 @@ function _orderEmailBtn(o, full){
 // Gold "QB #N" pill — rendered ONLY when the order already has a QuickBooks invoice
 //   (so rows without one stay clean). Click opens that exact invoice in QuickBooks.
 function _orderInvoiceBtn(o, full){
-  if (!(o && o.qbInvoiceId)) return '';
   var sid = String(o.id).replace(/'/g,"\\'");
+  // §INVOICE-STEP (v2.248) — amber "Invoice pending" badge when the invoice was deferred
+  //   (order has captured billing data but no QuickBooks invoice yet). Click = 1-click create.
+  if (o && !o.qbInvoiceId && o.invoiceStatus==='pending'){
+    var pBase='display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1px solid #e0a93c;background:rgba(224,169,60,.12);color:#e0a93c;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;font-family:inherit;';
+    var pStyle=full ? (pBase+'width:100%;justify-content:center;box-sizing:border-box;margin:4px 0 0;') : pBase;
+    var pSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    return '<button style="'+pStyle+'" title="Invoice pending — click to create it in QuickBooks (or defer again)" onclick="event.stopPropagation();_invoiceOpenFor(\''+sid+'\')">'+pSvg+'<span>Invoice pending</span></button>';
+  }
+  if (!(o && o.qbInvoiceId)) return '';
   var no  = (o.qbInvoiceNo!=null && o.qbInvoiceNo!=='') ? ('#'+o.qbInvoiceNo) : '';
   var svg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>';
   var fullStyle = full ? ' style="display:flex;width:100%;justify-content:center;box-sizing:border-box;margin:4px 0 0;padding:6px 8px;"' : '';
@@ -13802,7 +13811,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.247';
+var APP_VERSION = 'v2.248';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -13840,6 +13849,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.248',type:'feature',date:'07-11-2026',ts:'07-11-2026 16:00',_static:true,title:'Invoicing, finalized: a guided billing step right after you create an order',desc:'Billing is no longer scattered. As soon as you create a new order (client + cost), a single "Finalize Billing" step appears showing the invoice — Bill To, the checked services and the total — with two clear choices: "Create Invoice in QuickBooks" (invoice # = order #) or "Handle invoice later". If QuickBooks is not connected or errors out, you are never stuck: choosing "Handle later" saves all the invoice details on the order and continues, and the order gets an amber "Invoice pending" badge. You can create that invoice in one click later — from the badge, from QuickView’s Invoice button, or filter the whole list to just pending invoices with the new "⚠ Pending Invoices" button. QuickView and the badge all use the same single step now. On the Project Data → Cost tab, the manual "Fee Status" dropdown is replaced by an automatic status badge (Unpaid / Invoice pending / Invoiced · QB #), and the duplicate "Connect QuickBooks" button was removed (connecting is offered automatically when you first send an invoice). Nothing about existing invoiced orders changes.'},
   {v:'v2.247',type:'feature',date:'07-11-2026',ts:'07-11-2026 10:00',_static:true,title:'Section Order: 4 pages side-by-side + Show-on-report checkboxes synced to the inputs',desc:'Two improvements to how report sections are arranged. (1) The Section Order window now lays out all four pages (3, 4, 5 and 6) in a single horizontal row instead of wrapping Page 6 onto a second line, so you can see the whole report layout at a glance. (2) Every movable opinion section now has a "Show on report" checkbox that appears BOTH on its data-entry field (Opinion of Floor Plan, Building/Equipment, R.O.P.V., Location, Renovation Notes, Conclusion) AND on its card in the Section Order window — tick it in either place and it stays in sync. Renovation Notes & Remarks previously had no input on most templates (it was locked to renovation/new-construction jobs); it now appears on every template by default and prints when you fill it in. Unticking a section hides it from the report even if it has text. All sections are ticked by default, so existing reports are unchanged.'},
   {v:'v2.246',type:'feature',date:'07-10-2026',ts:'07-10-2026 09:00',_static:true,title:'Section Order: Tight / Normal / Loose spacing for every opinion section',desc:'The per-order Report Section Order tool now offers a Tight / Normal / Loose spacing dropdown on each movable opinion section — Floorplan & Dimensions, Opinion of Floor Plan, Opinions of Building/Equipment & Finishes, Opinion of the Location, R.O.P.V. Spatial Planning, and Renovation Notes & Remarks — matching the control the Condition Matrix and Inspection Details already had. Choosing Tight both pulls the section closer to its neighbours (smaller header gap and box padding) and tightens the body text vertically (reduced line-height); Loose does the opposite. Normal reproduces the previous look exactly, so any order you have not touched is unchanged.'},
   {v:'v2.245',type:'fix',date:'07-08-2026',ts:'07-08-2026 12:00',_static:true,title:'Reverted the report force-refresh that made blanked orders look empty',desc:'A recent change forced every report to re-read its data straight from the database. That change never deleted anything (it is a read, not a write), but it exposed orders whose database rows had been blanked earlier by an out-of-date browser tab, instead of quietly rendering the good copy the app already had in memory. Reverting it restores the prior behavior where the report uses the loaded in-memory data plus the local and cloud-storage recovery layers. The real cause of blanked rows is an old browser tab overwriting data; keep every tab updated, and use the photo re-link routine to restore any order whose row was blanked.'},
@@ -18509,6 +18519,9 @@ function _submitOrderImpl() {
       setTimeout(function(){r.style.background='';},1800);
     }
   },150);
+  // §INVOICE-STEP (v2.248) — the order is now saved; force the billing hand-off. If QuickBooks
+  //   is down you can defer, which captures the invoice on the order (nothing is lost).
+  setTimeout(function(){ try{ if(typeof _invoiceStep==='function') _invoiceStep(newOrder, { context:'create' }); }catch(e){ console.warn('[invoice-step] failed', e); } }, 220);
 }
 
 
@@ -19178,6 +19191,21 @@ function genIntroNote() {
 }
 // ── End AI Introductory Note Generator ──────────────────────────────────────────────────
 
+// §INVOICE-STEP (v2.248) — render the read-only Fee Status badge on the Cost tab from the
+//   order's live invoice state (replaces the old manual dropdown).
+function _eRenderFeeStatus(order){
+  try{
+    var el=document.getElementById('eFeeStatusView'); if(!el) return;
+    var txt='Unpaid', col='var(--muted)', bg='var(--surface-2)', bd='var(--bd)';
+    if(order){
+      if(order.qbInvoiceId){ txt='Invoiced'+(order.qbInvoiceNo?(' · QB #'+order.qbInvoiceNo):''); col='#1c7d12'; bg='rgba(44,160,28,.10)'; bd='rgba(44,160,28,.35)'; }
+      else if(order.invoiceStatus==='pending'){ txt='Invoice pending'; col='#b7791f'; bg='rgba(224,169,60,.12)'; bd='rgba(224,169,60,.5)'; }
+      else if(order.feeStatus){ txt=order.feeStatus; }
+    }
+    el.textContent=txt; el.style.color=col; el.style.background=bg; el.style.borderColor=bd;
+  }catch(e){}
+}
+window._eRenderFeeStatus=_eRenderFeeStatus;
 function openEdit(order) {
   editingOrder = order;
   editTabIdx   = 0;
@@ -19239,7 +19267,7 @@ function openEdit(order) {
   ss('ePurpose', order.purpose || '');
   ss('eFinInst', order.finInst || '');
   sv('eFee',     order.fee     != null ? order.fee : '');
-  ss('eFeeStatus',order.feeStatus || 'Unpaid');
+  _eRenderFeeStatus(order);   // §INVOICE-STEP (v2.248) — read-only, flow-driven status badge
   ss('eFlag',    order.flag    || '');
   sv('eFlagOther', order.flagOther || ''); if(typeof _eFlagToggle==='function') _eFlagToggle(); // §FLAG-OTHER (v2.212)
   sv('eLoanAmt', order.loanAmt || '');
@@ -21384,7 +21412,15 @@ function openQV(order) {
   // §QV-SCHEDULE (v2.162) — schedule the inspection (date/time/assignee) onto the Calendar
   try{ var _qsb=e('qvBtnSchedule'); if(_qsb) _qsb.onclick=function(){ _qvLastOrder=order; qvScheduleInspection(order); }; }catch(_e){}
   // §QV-INVOICE (v2.169) — create a QuickBooks invoice from this order's client + cost items
-  try{ var _qib=e('qvBtnInvoice'); if(_qib) _qib.onclick=function(){ _qvLastOrder=order; qvCreateInvoice(order); }; }catch(_e){}
+  // §INVOICE-STEP (v2.248) — route QuickView's Invoice button through the unified guided step
+  //   and reflect the order's invoice state on the button.
+  try{ var _qib=e('qvBtnInvoice'); if(_qib){ _qib.onclick=function(){ _qvLastOrder=order; if(typeof _invoiceStep==='function') _invoiceStep(order,{context:'qv'}); else qvCreateInvoice(order); };
+      try{ var _lbl=_qib.querySelector('.qv-ab-lbl');
+        if(order.qbInvoiceId){ if(_lbl)_lbl.textContent='Invoiced'; _qib.title='Invoiced in QuickBooks #'+(order.qbInvoiceNo||order.qbInvoiceId)+' — click to view/create'; }
+        else if(order.invoiceStatus==='pending'){ if(_lbl)_lbl.textContent='Invoice ⚠'; _qib.title='Invoice pending — click to create it in QuickBooks'; }
+        else { if(_lbl)_lbl.textContent='Invoice'; _qib.title='Create a QuickBooks invoice for this order'; }
+      }catch(_e2){}
+  } }catch(_e){}
   e('qvBtnVal').onclick  = () => { _qvLastOrder=order; closeQV(); setTimeout(() => openValModal(order), 50); };
   e('qvBtnRpt').onclick  = () => { var _oid = order.id; closeQV(); setTimeout(function(){ reportCheckRun(_oid); }, 50); };
   // §QV-SECORDER (v2.232) — open the Report Section Order tool straight from Quick-View.
@@ -30688,6 +30724,9 @@ function _toRow(o) {
       // §QB-LINK (v2.134) — remember the QuickBooks invoice this order produced,
       //   so the Cost tab can show "Invoiced — QB #N" + a View-in-QuickBooks link.
       qbInvoiceId:o.qbInvoiceId||'', qbInvoiceNo:o.qbInvoiceNo||'', qbInvoiceUrl:o.qbInvoiceUrl||'',
+      // §INVOICE-STEP (v2.248) — invoiceStatus: ''|'pending'|'invoiced'; pendingInvoice holds the
+      //   captured payload so a deferred invoice can be created later with nothing re-typed.
+      invoiceStatus:o.invoiceStatus||'', pendingInvoice:(o.pendingInvoice&&typeof o.pendingInvoice==='object')?o.pendingInvoice:undefined,
       internalNotes:o.internalNotes||'', revision:o.revision||'',
       comps:o.comps||'', flag:o.flag||'', flagOther:o.flagOther||'', propCategory:o.propCategory||'', propCategoryOther:o.propCategoryOther||'', sectionLayout:(o.sectionLayout&&typeof o.sectionLayout==='object')?o.sectionLayout:undefined, sectionSpacing:(o.sectionSpacing&&typeof o.sectionSpacing==='object')?o.sectionSpacing:undefined, sectionEnabled:(o.sectionEnabled&&typeof o.sectionEnabled==='object')?o.sectionEnabled:undefined,
       owner:o.owner||'',
@@ -30910,6 +30949,8 @@ function _fromRow(row, order) {
       if (x.email)          order.email          = x.email;
       if (x.feeStatus)      order.feeStatus      = x.feeStatus;
       if (x.qbInvoiceId)    order.qbInvoiceId    = x.qbInvoiceId;   // §QB-LINK (v2.134)
+      if (x.invoiceStatus)  order.invoiceStatus  = x.invoiceStatus; // §INVOICE-STEP (v2.248)
+      if (x.pendingInvoice && typeof x.pendingInvoice==='object') order.pendingInvoice = x.pendingInvoice;
       if (x.qbInvoiceNo)    order.qbInvoiceNo    = x.qbInvoiceNo;
       if (x.qbInvoiceUrl)   order.qbInvoiceUrl   = x.qbInvoiceUrl;   // §QB-LINK (v2.136)
       if (Array.isArray(x.parcels)) order.parcels = x.parcels;       // §MULTI-PARCEL (v2.140)
@@ -37450,7 +37491,10 @@ function _showQBPreview(p){
 }
 
 // §QB-REAL (v2.128) — actually create the invoice in QuickBooks via the edge function.
-function _qbSendInvoice(overlayId){
+// §INVOICE-STEP (v2.248) — optional `done(ok)` callback lets the guided Invoice Step continue
+//   the flow (ok=true) after a successful create; on error the step stays open so the user can
+//   defer ("Handle invoice later") instead of being stuck.
+function _qbSendInvoice(overlayId, done){
   var pay = window._qbPendingInvoice;
   if(!pay){ alert('Nothing to send.'); return; }
   if (typeof _sb === 'undefined' || !_sb || !_sb.functions){ alert('Cloud is off — cannot reach QuickBooks right now.'); return; }
@@ -37465,7 +37509,7 @@ function _qbSendInvoice(overlayId){
     }
     if (d && d.ok){
       var ov2=document.getElementById(overlayId); if(ov2)ov2.remove();
-      var fs=document.getElementById('eFeeStatus'); if(fs)fs.value='Invoiced';
+      try{ if(editingOrder) _eRenderFeeStatus(editingOrder); }catch(e){}   // §INVOICE-STEP (v2.248) — refresh the read-only status badge
       var st=document.getElementById('eQBStatus'); if(st)st.style.display='flex';
       // §QB-LINK (v2.134) — remember the invoice on the order, persist it to the DB,
       //   and surface the "View in QuickBooks" link on the Cost tab.
@@ -37496,6 +37540,7 @@ function _qbSendInvoice(overlayId){
         _msg += '  (qb fn '+d.fnVersion+')';
       }
       alert(_msg);
+      try{ if(typeof done==='function') done(true); }catch(e){}   // §INVOICE-STEP (v2.248) — let the guided step continue
       return;
     }
     var reason = d ? (d.detail ? (typeof d.detail==='string'?d.detail:JSON.stringify(d.detail)) : (d.error || JSON.stringify(d))) : 'unknown error';
@@ -37516,6 +37561,106 @@ function _qbSendInvoice(overlayId){
     _finish(res && res.data);
   }).catch(function(e){ alert('QuickBooks request failed: ' + (e && e.message || e)); _reset(); });
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// §INVOICE-STEP (v2.248) — the ONE guided billing hand-off. Fired right after an order
+//   is created, and re-openable from the "Invoice pending" badge. It reuses the existing
+//   QuickBooks engine; if QB is down / not connected you can DEFER, which captures the
+//   invoice data onto the order (order.pendingInvoice + invoiceStatus='pending') so it can
+//   be created later with one click and nothing re-typed. The order itself is always saved
+//   first, so you can always continue regardless of what happens here.
+// ══════════════════════════════════════════════════════════════════════════════
+function _invoiceBuildPayload(order){
+  var apprT=order.apprType||2;
+  var ci=order.costItems||null;
+  var lineItems=(getCostItems(apprT)||[]).filter(function(it){ return (ci&&(it.id in ci))?!!ci[it.id]:(it.label==='Report'); }).map(function(it){ return { label:it.label, amount:Number(it.amount)||0 }; });
+  var total=lineItems.reduce(function(s,x){return s+x.amount;},0);
+  var client=((order.clientFirst||'')+(order.clientLast?' '+order.clientLast:'')).trim()||(order.client||'').trim();
+  var dueISO=''; try{ if(order.due){ var _d=new Date(order.due); if(!isNaN(_d)) dueISO=_d.toISOString().slice(0,10); } }catch(e){}
+  var _rawEmail=(order.clientEmail||order.email||'').trim();
+  var _validEmail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_rawEmail)?_rawEmail:'';
+  return { client:client||'Unknown Client', email:_validEmail, items:lineItems, total:total, dueDate:dueISO, docNumber:String(order.id||''), memo:'SIGMA Job '+order.id+(order.address?(' — '+order.address):'') };
+}
+window._invoiceBuildPayload=_invoiceBuildPayload;
+function _invById(oid){ return ((typeof ORDERS!=='undefined'&&ORDERS)||[]).find(function(o){return String(o.id)===String(oid);})||null; }
+// Defer: capture the invoice data on the order + flag it pending, then continue.
+function _invoiceStepDefer(oid){
+  try{
+    var order=_invById(oid);
+    if(order){
+      order.pendingInvoice=_invoiceBuildPayload(order);
+      order.invoiceStatus='pending';
+      if(!order.feeStatus) order.feeStatus='Unpaid';
+      try{ if(typeof persistOrders==='function') persistOrders(order.id); }catch(e){}
+      try{ if(typeof renderOrders==='function') renderOrders(); }catch(e){}
+    }
+  }catch(e){}
+  var ov=document.getElementById('invStepOverlay'); if(ov) ov.remove();
+}
+window._invoiceStepDefer=_invoiceStepDefer;
+// Create now: run the QuickBooks pipeline; on success clear the pending flag + continue.
+function _invoiceStepCreate(oid){
+  var order=_invById(oid); if(!order) return;
+  var pay=_invoiceBuildPayload(order);
+  if(!pay.items.length){ alert('No billable services are selected for this order.\n\nOpen Project Data → Cost to choose services, then create the invoice.'); return; }
+  window._qbPendingInvoice=pay;
+  _qbSendInvoice('invStepOverlay', function(ok){
+    if(ok){
+      try{ order.invoiceStatus='invoiced'; if(order.pendingInvoice) delete order.pendingInvoice; if(typeof persistOrders==='function') persistOrders(order.id); }catch(e){}
+      try{ if(typeof renderOrders==='function') renderOrders(); }catch(e){}
+      var ov=document.getElementById('invStepOverlay'); if(ov) ov.remove();
+    }
+  });
+}
+window._invoiceStepCreate=_invoiceStepCreate;
+// The modal itself.
+function _invoiceStep(order, opts){
+  opts=opts||{};
+  if(!order){ return; }
+  var el=document.getElementById('invStepOverlay'); if(el) el.remove();
+  var pay=_invoiceBuildPayload(order);
+  var e=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  var sid=String(order.id).replace(/'/g,"\\'");
+  var linesHtml=pay.items.map(function(it){ return '<tr><td style="padding:7px 12px;font-size:13px;">'+e(it.label)+'</td><td style="padding:7px 12px;font-size:13px;text-align:right;font-family:var(--font-mono);">'+(Number(it.amount)||0).toLocaleString()+' AWG</td></tr>'; }).join('') || '<tr><td colspan="2" style="padding:10px 12px;font-size:12px;color:var(--muted);font-style:italic;">No services selected — open Project Data → Cost.</td></tr>';
+  var addr=(order.address||'')+(order.city?(', '+order.city):'');
+  var already=!!order.qbInvoiceId;
+  var wrap=document.createElement('div');
+  wrap.id='invStepOverlay';
+  wrap.style.cssText='position:fixed;inset:0;z-index:100050;background:rgba(5,5,8,.80);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;';
+  wrap.onclick=function(ev){ if(ev.target===wrap) _invoiceStepDefer(sid); };   // outside click = defer (info still captured)
+  wrap.innerHTML=[
+    '<div style="background:var(--surface);border-radius:var(--r-xl,16px);width:min(560px,96vw);box-shadow:var(--sh-xl,0 20px 60px rgba(0,0,0,.5));overflow:hidden;border:1px solid var(--bd);">',
+      '<div style="background:#2CA01C;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;">',
+        '<div style="display:flex;align-items:center;gap:10px;">',
+          '<svg width="22" height="22" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#fff"/><path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10S21.523 6 16 6z" fill="#2CA01C"/><path d="M13 11h2v6.5a2.5 2.5 0 0 0 5 0V16h-2v1.5a.5.5 0 0 1-1 0V11h-4v2h2v-2z" fill="#fff"/><path d="M11 21h2v-6.5a2.5 2.5 0 0 0-5 0V16h2v-1.5a.5.5 0 0 1 1 0V21h4v-2h-2v2z" fill="#fff"/></svg>',
+          '<div><div style="font-size:16px;font-weight:800;line-height:1.1;">Finalize Billing</div><div style="font-size:11.5px;opacity:.9;margin-top:2px;">Order #'+e(order.id)+' · create the invoice now or handle it later</div></div>',
+        '</div>',
+        '<button onclick="_invoiceStepDefer(\''+sid+'\')" title="Handle invoice later" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">&#x2715;</button>',
+      '</div>',
+      '<div style="padding:20px;">',
+        (already?'<div style="margin-bottom:14px;padding:9px 12px;border-radius:8px;background:rgba(44,160,28,.10);border:1px solid rgba(44,160,28,.30);font-size:12px;color:#1c7d12;font-weight:700;">This order already has QuickBooks invoice #'+e(order.qbInvoiceNo||order.qbInvoiceId)+'. Creating another will add a second invoice.</div>':''),
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">',
+          '<div><div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;">Bill To</div><div style="font-size:13px;font-weight:600;color:var(--ink);">'+e(pay.client)+'</div><div style="font-size:12px;color:var(--muted);">'+e(addr)+'</div>'+(pay.email?'<div style="font-size:11.5px;color:var(--muted);">'+e(pay.email)+'</div>':'')+'</div>',
+          '<div style="text-align:right;"><div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;">Order</div><div style="font-size:13px;font-weight:700;font-family:var(--font-mono);color:var(--ink);">'+e(order.id)+'</div><div style="font-size:12px;color:var(--muted);">Due: '+e(order.due||pay.dueDate||'—')+'</div></div>',
+        '</div>',
+        '<table style="width:100%;border-collapse:collapse;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:14px;">',
+          '<thead><tr style="background:var(--surface-2);border-bottom:1px solid var(--bd);"><th style="padding:8px 12px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Service</th><th style="padding:8px 12px;text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Amount</th></tr></thead>',
+          '<tbody>'+linesHtml+'</tbody>',
+          '<tfoot><tr style="background:var(--surface-2);border-top:1.5px solid var(--bd);"><td style="padding:9px 12px;font-size:13px;font-weight:700;">Total</td><td style="padding:9px 12px;text-align:right;font-size:16px;font-weight:800;font-family:var(--font-mono);color:#2CA01C;">'+pay.total.toLocaleString()+' AWG</td></tr></tfoot>',
+        '</table>',
+        '<p style="font-size:11.5px;color:var(--muted);margin:0 0 16px;line-height:1.5;">Creating the invoice sends it to your QuickBooks Online company (invoice # = order #). If QuickBooks isn’t connected or errors, choose <strong>Handle invoice later</strong> — the billing details are saved on the order and you can create it in one click from the <strong>Invoice pending</strong> badge.</p>',
+        '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">',
+          '<button onclick="_invoiceStepDefer(\''+sid+'\')" style="padding:9px 18px;border:1.5px solid var(--bd);border-radius:var(--r);background:var(--surface);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;">Handle invoice later</button>',
+          '<button onclick="_invoiceStepCreate(\''+sid+'\')" style="padding:9px 22px;border:none;border-radius:var(--r);background:#2CA01C;color:#fff;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(44,160,28,.35);">&#10003; Create Invoice in QuickBooks</button>',
+        '</div>',
+      '</div>',
+    '</div>'
+  ].join('');
+  document.body.appendChild(wrap);
+}
+window._invoiceStep=_invoiceStep;
+// One-click opener used by the "Invoice pending" badge on order rows / QuickView.
+window._invoiceOpenFor=function(oid){ var o=_invById(oid); if(o) _invoiceStep(o,{context:'pending'}); };
 
 // ── Cost collection helpers ────────────────────────────────────────────────
 // §COST-MASTER (v2.132) — read prices from the SINGLE master list (Settings → Cost) via
