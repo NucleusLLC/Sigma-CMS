@@ -13811,7 +13811,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.248';
+var APP_VERSION = 'v2.250';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -13849,6 +13849,8 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.250',type:'fix',date:'07-16-2026',ts:'07-16-2026 12:00',_static:true,title:'Stability: uploaded documents no longer bloat the database (fixes the save failures + server outage)',desc:'Fixed the cause of the "can\'t save" errors and the server going down after uploading documents. When you upload a PDF/document it is stored in cloud Storage and the order only needs to remember a small link to it. A bug was ALSO keeping a full copy of the document\'s bytes inside the order record every time the app re-displayed it — so a single large site plan could swell one order to 20 MB, and because that giant record was re-sent on every auto-save and retry (even while the app had already auto-paused syncing to protect the database), it overwhelmed the database until it stopped responding. Three fixes: (1) a document that is already in Storage never writes its bytes into the order record again — only the link is saved; (2) if cloud sync has auto-paused because the database is struggling, an unusually large save is now held locally instead of being forced through, so it can no longer pile on; (3) automatic retries stop while sync is auto-paused and resume when you click "Resume cloud sync". Your work still saves locally at all times and nothing is lost. Existing over-sized orders were also cleaned up (documents kept, bytes moved out of the record).'},
+  {v:'v2.249',type:'fix',date:'07-15-2026',ts:'07-15-2026 09:00',_static:true,title:'Valuation no longer reverts to blank on reopen (Current & Presumable rows)',desc:'Fixed a bug where a valuation could revert to empty after you saved it and reopened it — the Parcel / Building / Custom rows (on both the Current and the Presumable side) came back blank. The cause was a silent auto-save capturing the tables at a moment they were momentarily empty (a stale save timer firing during a modal reset, or an empty local draft being re-applied on reopen) and overwriting the good data. Now a background auto-save can NEVER replace a valuation that already has rows with an empty one, an empty local draft can no longer blank the presumable tables on reopen, and pending auto-saves are cancelled when the modal opens or closes. Your explicit "Save" button still does exactly what you tell it, so you can still deliberately clear a table.'},
   {v:'v2.248',type:'feature',date:'07-11-2026',ts:'07-11-2026 16:00',_static:true,title:'Invoicing, finalized: a guided billing step right after you create an order',desc:'Billing is no longer scattered. As soon as you create a new order (client + cost), a single "Finalize Billing" step appears showing the invoice — Bill To, the checked services and the total — with two clear choices: "Create Invoice in QuickBooks" (invoice # = order #) or "Handle invoice later". If QuickBooks is not connected or errors out, you are never stuck: choosing "Handle later" saves all the invoice details on the order and continues, and the order gets an amber "Invoice pending" badge. You can create that invoice in one click later — from the badge, from QuickView’s Invoice button, or filter the whole list to just pending invoices with the new "⚠ Pending Invoices" button. QuickView and the badge all use the same single step now. On the Project Data → Cost tab, the manual "Fee Status" dropdown is replaced by an automatic status badge (Unpaid / Invoice pending / Invoiced · QB #), and the duplicate "Connect QuickBooks" button was removed (connecting is offered automatically when you first send an invoice). Nothing about existing invoiced orders changes.'},
   {v:'v2.247',type:'feature',date:'07-11-2026',ts:'07-11-2026 10:00',_static:true,title:'Section Order: 4 pages side-by-side + Show-on-report checkboxes synced to the inputs',desc:'Two improvements to how report sections are arranged. (1) The Section Order window now lays out all four pages (3, 4, 5 and 6) in a single horizontal row instead of wrapping Page 6 onto a second line, so you can see the whole report layout at a glance. (2) Every movable opinion section now has a "Show on report" checkbox that appears BOTH on its data-entry field (Opinion of Floor Plan, Building/Equipment, R.O.P.V., Location, Renovation Notes, Conclusion) AND on its card in the Section Order window — tick it in either place and it stays in sync. Renovation Notes & Remarks previously had no input on most templates (it was locked to renovation/new-construction jobs); it now appears on every template by default and prints when you fill it in. Unticking a section hides it from the report even if it has text. All sections are ticked by default, so existing reports are unchanged.'},
   {v:'v2.246',type:'feature',date:'07-10-2026',ts:'07-10-2026 09:00',_static:true,title:'Section Order: Tight / Normal / Loose spacing for every opinion section',desc:'The per-order Report Section Order tool now offers a Tight / Normal / Loose spacing dropdown on each movable opinion section — Floorplan & Dimensions, Opinion of Floor Plan, Opinions of Building/Equipment & Finishes, Opinion of the Location, R.O.P.V. Spatial Planning, and Renovation Notes & Remarks — matching the control the Condition Matrix and Inspection Details already had. Choosing Tight both pulls the section closer to its neighbours (smaller header gap and box padding) and tightens the body text vertically (reduced line-height); Loose does the opposite. Normal reproduces the previous look exactly, so any order you have not touched is unchanged.'},
@@ -16174,6 +16176,24 @@ function _inspStripPhotos(inspData) {
     // §NO-LOSS (v2.054) — no storagePath: keep the cover bytes in the DB row
     //   regardless of size (removed the >350 KB stub-drop that lost un-uploaded covers).
   }
+  // §DOC-SERVER-STRIP (v2.250) — INCIDENT FIX (2026-07-16 outage). A document that
+  //   already lives in Supabase Storage (has a storagePath) must NEVER carry its
+  //   base64 bytes into the orders row. _docHydrate re-inflates inspData._docs[idx].data
+  //   for on-screen viewing; without this strip, the next section save/retry pushed the
+  //   full PDF back inline through the pause-bypassing raw handle — a single 14 MB site
+  //   plan ballooned one order row to 20 MB and, re-written on every retry, drowned the
+  //   DB. Bytes are safe in the bucket, so send a reference only. Entries with NO
+  //   storagePath are left untouched (§NO-LOSS: the DB row is their only home until the
+  //   Storage upload succeeds). This is the single choke point for BOTH _inspSaveSection
+  //   and its retry path, so the guarantee holds everywhere _inspStripPhotos is used.
+  if (clean._docs && typeof clean._docs === 'object') {
+    Object.keys(clean._docs).forEach(function(k){
+      var dd = clean._docs[k];
+      if (dd && dd.storagePath && dd.data) {
+        clean._docs[k] = { name: dd.name||'', type: dd.type||'', size: dd.size||'', storagePath: dd.storagePath };
+      }
+    });
+  }
   return clean;
 }
 
@@ -16309,7 +16329,14 @@ async function _inspSaveSection(secIdx) {
           }
         }catch(e){}
       }
-      if(Object.keys(_dbDocs).length) cleanData._docs=_dbDocs;
+      // §DOC-SERVER-STRIP (v2.250) — final guarantee before the DB write: a doc that has a
+      //   storagePath must never carry bytes (mirrors _inspStripPhotos). Covers the merge
+      //   branches above that can graft an existing storagePath onto an LS record still
+      //   holding .data — the exact path that let 14 MB PDFs reach the orders row.
+      if(Object.keys(_dbDocs).length){
+        Object.keys(_dbDocs).forEach(function(k){ var dd=_dbDocs[k]; if(dd && dd.storagePath && dd.data){ _dbDocs[k]={name:dd.name||'',type:dd.type||'',size:dd.size||'',storagePath:dd.storagePath}; } });
+        cleanData._docs=_dbDocs;
+      }
       if(_docUploadErrors.length){
         try{ _inspSetStatus('e','⚠ Document upload failed — file will NOT be in the report', _docUploadErrors.join(' | ')); }catch(e){}
         try{ console.error('[doc upload] failures:', _docUploadErrors); }catch(e){}
@@ -16338,6 +16365,19 @@ async function _inspSaveSection(secIdx) {
       try{ if(_inspRetryQueue) delete _inspRetryQueue[secIdx]; if(_inspRetryCount) delete _inspRetryCount[secIdx]; }catch(e){}
       try{ console.warn('[inspSave] insp_data write SKIPPED for '+_inspOrderId+' (not hydrated / blank) — preserving DB copy'); }catch(e){}
       _inspSetStatus('o', '💾 Saved locally', 'Server copy preserved · ' + _inspNow());
+      return;
+    }
+    // §RAW-GUARD (v2.250) — INCIDENT FIX. The raw handle below bypasses the IO-breaker
+    //   pause so a normal section save is never lost. But a LARGE payload written and
+    //   re-written through it is exactly what drowned the DB on 2026-07-16. If the breaker
+    //   has already auto-paused sync AND this payload is big, hold it locally and let the
+    //   retry go out once the DB is healthy again — do NOT keep hammering. Small saves
+    //   still bypass the pause exactly as before, so §ATTACH-SAFE's guarantee is intact.
+    var _payloadBytes = _payloadJson ? _payloadJson.length : 0;
+    if (_payloadJson && _payloadBytes > 1500000 && window.isSbPaused && window.isSbPaused()) {
+      try{ console.warn('[RAW-GUARD] holding large insp_data write ('+Math.round(_payloadBytes/1024)+' KB) — cloud sync is auto-paused'); }catch(e){}
+      _inspSetStatus('o', '💾 Saved locally', 'Large save held — cloud sync paused ('+Math.round(_payloadBytes/1024)+' KB)');
+      _inspQueueRetry(secIdx);
       return;
     }
     var savePromise = cleanData
@@ -16395,6 +16435,16 @@ function _inspQueueRetry(secIdx) {
 async function _inspRetryAllQueued() {
   var pending = Object.keys(_inspRetryQueue);
   if (!pending.length || !_sb || !_inspOrderId) return;
+
+  // §RAW-GUARD (v2.250) — INCIDENT FIX. The retry path writes through the pause-bypassing
+  //   raw handle too, so it would keep pounding a DB that the IO-breaker just auto-paused.
+  //   When auto-paused, stop retrying — sections stay queued and the "Resume cloud sync"
+  //   action re-drives them once the database is healthy again.
+  if (window._sbAutoPaused && window.isSbPaused && window.isSbPaused()) {
+    try{ console.warn('[RAW-GUARD] retry suppressed — cloud sync is auto-paused'); }catch(e){}
+    _inspSetStatus('o', '💾 Saved locally', 'Cloud sync auto-paused — will retry on resume');
+    return;
+  }
 
   _inspSetStatus('u', '⟳ Retrying ' + pending.length + ' section(s)…', 'Reconnecting to server');
 
@@ -19715,10 +19765,50 @@ function _t3Calc(n){
   if(typeof _valLocalSave==='function') _valLocalSave();
 }
 
+// ── §VAL-CLOBBER-GUARD (v2.249) — does a captured valuation actually carry table
+//   content? A row counts only if it has an area OR rate value (a bare seed label
+//   like "Parcel"/"Floor" is NOT content). Used to refuse SILENT saves/drafts that
+//   would blank out a valuation that previously had rows — the root of the
+//   "type it, Save, reopen → rows gone" revert on both Current and Presumable.
+function _valHasTableContent(d) {
+  if (!d) return false;
+  function has(rows) {
+    return !!(rows && rows.some && rows.some(function(r) {
+      return r && ((String(r.area || '').trim() !== '') || (String(r.rate || '').trim() !== ''));
+    }));
+  }
+  if (has(d.parcel) || has(d.build) || has(d.custom)) return true;
+  if (d.presumData && (has(d.presumData.parcel) || has(d.presumData.build) || has(d.presumData.custom))) return true;
+  // Type-3 New-Construction manual presumable figures (Qty/Rate/%) + dev cost.
+  if (String(d.presumV1Qty || '').trim() !== '' || String(d.presumV2Qty || '').trim() !== '' || String(d.presumV3Qty || '').trim() !== '') return true;
+  if (String(d.constrDevCost || '').trim() !== '') return true;
+  return false;
+}
+// Does the order currently hold (server/in-memory or newer local draft) a valuation
+//   WITH table content? If so, no silent write may blank it.
+function _valExistingHasContent(orderId) {
+  try {
+    var i = ORDERS.findIndex(function(o){ return o.id === orderId; });
+    if (i !== -1 && _valHasTableContent(ORDERS[i].valData)) return true;
+  } catch(e) {}
+  try {
+    var raw = localStorage.getItem(VAL_LS_PREFIX + orderId);
+    if (raw && _valHasTableContent(JSON.parse(raw))) return true;
+  } catch(e) {}
+  return false;
+}
+
 // ── Local-only save (keystrokes) ──────────────────────────────────────────────
 function _valLocalSave() {
   if (!valModalOrder) return;
   var draft = _valCapture();
+  // §VAL-CLOBBER-GUARD (v2.249) — never write an EMPTY draft over an existing
+  //   valuation that had rows. An empty draft with a newer _ts would otherwise be
+  //   restored as blank on reopen (draft-vs-server pick), i.e. a silent revert.
+  if (!_valHasTableContent(draft) && _valExistingHasContent(valModalOrder.id)) {
+    console.warn('[VAL-GUARD] skipped empty local draft for ' + valModalOrder.id + ' — would blank existing rows');
+    return;
+  }
   try { localStorage.setItem(VAL_LS_PREFIX + valModalOrder.id, JSON.stringify(draft)); } catch(e) {}
   _valDirty = true;
   _valSetStatus('o', '💾 Saved locally', 'Will sync on Save');
@@ -19759,6 +19849,16 @@ async function _valPushToServer(_autosave) {
 
   var data = _valCapture();
   var idx  = ORDERS.findIndex(function(o){ return o.id === valModalOrder.id; });
+  // §VAL-CLOBBER-GUARD (v2.249) — a SILENT autosave must never overwrite a valuation
+  //   that had table rows with an empty capture (stale timer firing against a mid-
+  //   reset modal, a hidden section, a race). This is THE fix for "Save, reopen →
+  //   Current/Presumable rows reverted to blank". Explicit Save (no _autosave flag)
+  //   is intentional and always allowed through, so the user can still clear a table.
+  if (_autosave && !_valHasTableContent(data) && idx !== -1 && _valHasTableContent(ORDERS[idx].valData)) {
+    console.warn('[VAL-GUARD] blocked empty autosave for ' + valModalOrder.id + ' — kept existing valuation rows');
+    _valSetStatus('s', '✓ Saved', 'No change · ' + _valNow());
+    return;
+  }
   if (idx !== -1) {
     ORDERS[idx].valData    = data;
     ORDERS[idx].value      = data.total !== '—' ? data.total : ORDERS[idx].value;
@@ -19988,7 +20088,11 @@ function _valResetP2(seed){
 }
 function _valRestoreP2(pd){
   if(!pd) return;
-  function fill(id, rows, def){ var b=document.getElementById(id); if(!b) return; b.innerHTML=''; (rows||[]).forEach(function(r){ addP2Row(id, r.label||def); var row=b.lastElementChild; var nums=row.querySelectorAll('input[type="number"]'); if(nums[0])nums[0].value=r.area; if(nums[1])nums[1].value=r.rate; if(nums[2])nums[2].value=(r.pct!==undefined&&r.pct!=='')?r.pct:'100'; }); }
+  // §VAL-CLOBBER-GUARD (v2.249) — skip (do NOT clear) when there are no rows to
+  //   restore, mirroring the Current table's fillBody. Otherwise re-restoring an
+  //   empty newer draft on reopen would wipe the presumable rows just loaded from
+  //   the server (innerHTML='' ran before the empty check).
+  function fill(id, rows, def){ if(!rows || !rows.length) return; var b=document.getElementById(id); if(!b) return; b.innerHTML=''; rows.forEach(function(r){ addP2Row(id, r.label||def); var row=b.lastElementChild; var nums=row.querySelectorAll('input[type="number"]'); if(nums[0])nums[0].value=r.area; if(nums[1])nums[1].value=r.rate; if(nums[2])nums[2].value=(r.pct!==undefined&&r.pct!=='')?r.pct:'100'; }); }
   fill('vmP2ParcelBody', pd.parcel, 'Parcel'); fill('vmP2BuildBody', pd.build, 'Floor'); fill('vmP2CustomBody', pd.custom, 'Custom');
   var ar=document.getElementById('vmP2AwgRate'); if(ar&&pd.awgRate) ar.value=pd.awgRate;
   var er=document.getElementById('vmP2ExecRate'); if(er&&pd.execRate) er.value=pd.execRate;
@@ -19997,6 +20101,10 @@ function _valRestoreP2(pd){
   try{ calcValP2(); }catch(e){}
 }
 function openValModal(order) {
+  // §VAL-CLOBBER-GUARD (v2.249) — kill any pending debounced saves from a PRIOR
+  //   valuation session before we reset this modal's tables; a stale _valSrvTimer
+  //   firing mid-open would capture empty tables and blank the order.
+  clearTimeout(_valSaveTimer); clearTimeout(_valSrvTimer);
   valModalOrder = order;
   document.getElementById('valModalBadge').textContent = order.id;
   document.getElementById('valModalAddr').textContent  = order.address + ', ' + order.city;
@@ -20076,6 +20184,7 @@ function openValModal(order) {
 // ── CLOSE ─────────────────────────────────────────────────────────────────────
 function closeValModal() {
   clearTimeout(_valSaveTimer);
+  clearTimeout(_valSrvTimer);   // §VAL-CLOBBER-GUARD (v2.249) — don't let a queued autosave fire after close
   // Push unsaved changes before closing
   try{if(_valDirty&&valModalOrder){_valLocalSave();_valPushToServer();}}catch(e){}
   document.getElementById('valOverlay').classList.remove('open');
