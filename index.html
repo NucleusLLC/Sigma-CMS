@@ -13811,7 +13811,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.250';
+var APP_VERSION = 'v2.251';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -13849,6 +13849,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.251',type:'fix',date:'07-17-2026',ts:'07-17-2026 10:00',_static:true,title:'Large documents (big site plans) now upload reliably instead of failing',desc:'Follow-up to the v2.250 stability fix. Very large attachments — like a 27 MB site plan — used to hit a fixed 20-second upload limit during a save, so they were wrongly reported as "upload FAILED" even while the file was actually still uploading in the background. Three improvements: (1) the upload time limit now scales with the file size (roughly 8 seconds per megabyte, up to 4 minutes) so big files get enough time to finish; (2) a temporary timeout on a big file no longer shows the alarming "will NOT be in the report" alert — it now says the large document is still uploading and will attach automatically, and only a genuine server/permission error shows the hard failure; (3) when you attach a document larger than 15 MB you get a friendly heads-up suggesting you compress or downscale it first (a plan rarely needs to be that big), which uploads faster and more reliably. Your work always keeps saving locally.'},
   {v:'v2.250',type:'fix',date:'07-16-2026',ts:'07-16-2026 12:00',_static:true,title:'Stability: uploaded documents no longer bloat the database (fixes the save failures + server outage)',desc:'Fixed the cause of the "can\'t save" errors and the server going down after uploading documents. When you upload a PDF/document it is stored in cloud Storage and the order only needs to remember a small link to it. A bug was ALSO keeping a full copy of the document\'s bytes inside the order record every time the app re-displayed it — so a single large site plan could swell one order to 20 MB, and because that giant record was re-sent on every auto-save and retry (even while the app had already auto-paused syncing to protect the database), it overwhelmed the database until it stopped responding. Three fixes: (1) a document that is already in Storage never writes its bytes into the order record again — only the link is saved; (2) if cloud sync has auto-paused because the database is struggling, an unusually large save is now held locally instead of being forced through, so it can no longer pile on; (3) automatic retries stop while sync is auto-paused and resume when you click "Resume cloud sync". Your work still saves locally at all times and nothing is lost. Existing over-sized orders were also cleaned up (documents kept, bytes moved out of the record).'},
   {v:'v2.249',type:'fix',date:'07-15-2026',ts:'07-15-2026 09:00',_static:true,title:'Valuation no longer reverts to blank on reopen (Current & Presumable rows)',desc:'Fixed a bug where a valuation could revert to empty after you saved it and reopened it — the Parcel / Building / Custom rows (on both the Current and the Presumable side) came back blank. The cause was a silent auto-save capturing the tables at a moment they were momentarily empty (a stale save timer firing during a modal reset, or an empty local draft being re-applied on reopen) and overwriting the good data. Now a background auto-save can NEVER replace a valuation that already has rows with an empty one, an empty local draft can no longer blank the presumable tables on reopen, and pending auto-saves are cancelled when the modal opens or closes. Your explicit "Save" button still does exactly what you tell it, so you can still deliberately clear a table.'},
   {v:'v2.248',type:'feature',date:'07-11-2026',ts:'07-11-2026 16:00',_static:true,title:'Invoicing, finalized: a guided billing step right after you create an order',desc:'Billing is no longer scattered. As soon as you create a new order (client + cost), a single "Finalize Billing" step appears showing the invoice — Bill To, the checked services and the total — with two clear choices: "Create Invoice in QuickBooks" (invoice # = order #) or "Handle invoice later". If QuickBooks is not connected or errors out, you are never stuck: choosing "Handle later" saves all the invoice details on the order and continues, and the order gets an amber "Invoice pending" badge. You can create that invoice in one click later — from the badge, from QuickView’s Invoice button, or filter the whole list to just pending invoices with the new "⚠ Pending Invoices" button. QuickView and the badge all use the same single step now. On the Project Data → Cost tab, the manual "Fee Status" dropdown is replaced by an automatic status badge (Unpaid / Invoice pending / Invoiced · QB #), and the duplicate "Connect QuickBooks" button was removed (connecting is offered automatically when you first send an invoice). Nothing about existing invoiced orders changes.'},
@@ -15515,6 +15516,17 @@ function handleDocs(input, idx) {
 
   files.forEach(file => {
     const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    // §BIGDOC-WARN (v2.251) — a very large document (a 27 MB site plan triggered the
+    //   2026-07-16 incident) is slow to upload and can fail on a weak connection. Warn once
+    //   so the user can compress/downscale it first. Non-blocking — the upload still proceeds.
+    try {
+      if (file.size > 15 * 1024 * 1024) {
+        alert('Heads-up: "' + (file.name||'this file') + '" is ' + sizeMB + ' MB — that is very large for a document.\n\n'
+          + 'It will upload to cloud Storage in the background, but on a slow connection it can take a while or fail. '
+          + 'If you can, compress or downscale it first (a site/floor plan rarely needs to be this big) — smaller files attach faster and more reliably.\n\n'
+          + 'Your work keeps saving locally regardless.');
+      }
+    } catch(_e){}
     const item = document.createElement('div');
     item.className = 'doc-file-item';
     // §XSS-HARDEN-DOCUPLOAD (v1.899) — file.name is user-controlled and was
@@ -16300,8 +16312,14 @@ async function _inspSaveSection(secIdx) {
               // upload NOW (awaited) so the save is reliable — not fire-and-forget.
               if(!_dbDoc.storagePath && _dbDoc.data && _sb && _sb.storage){
                 try{
-                  // Race the upload against a timeout so a slow/stalled network can never freeze the save
-                  var _upTimeout = new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('upload timeout')); }, 20000); });
+                  // Race the upload against a timeout so a slow/stalled network can never freeze the save.
+                  // §BIGDOC-TIMEOUT (v2.251) — the old flat 20s cap made a large file (e.g. a 27 MB site
+                  //   plan) ALWAYS "time out" here, falsely reported as a failed upload even while the
+                  //   attach-time upload was still progressing. Scale the timeout to the payload: ~8s per
+                  //   MB of base64, min 20s, max 4 min — so big files get a fair chance to land in Storage.
+                  var _docMB = Math.round((_dbDoc.data ? _dbDoc.data.length : 0)/1024/1024);
+                  var _upMs = Math.min(240000, Math.max(20000, _docMB * 8000));
+                  var _upTimeout = new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('upload timeout')); }, _upMs); });
                   var _up = await Promise.race([ _docEnsureUploaded(_inspOrderId, _dbi, _dbDoc), _upTimeout ]);
                   if(_up && _up.storagePath){
                     _dbDoc.storagePath = _up.storagePath;
@@ -16338,9 +16356,18 @@ async function _inspSaveSection(secIdx) {
         cleanData._docs=_dbDocs;
       }
       if(_docUploadErrors.length){
-        try{ _inspSetStatus('e','⚠ Document upload failed — file will NOT be in the report', _docUploadErrors.join(' | ')); }catch(e){}
-        try{ console.error('[doc upload] failures:', _docUploadErrors); }catch(e){}
-        try{ alert('Document upload to server FAILED:\n\n'+_docUploadErrors.join('\n')+'\n\nThe file is saved locally but will NOT appear in reports generated on other devices/sessions until this is resolved. Most likely cause: Supabase Storage bucket policy (RLS) is blocking uploads.'); }catch(e){}
+        // §BIGDOC-TIMEOUT (v2.251) — a plain timeout is NOT a hard failure: the attach-time upload
+        //   (_docUploadToStorage, no timeout) may still be finishing in the background, and the next
+        //   save will pick up the storagePath. Only the RLS/hard errors deserve the scary alert.
+        var _hardDocErrs = _docUploadErrors.filter(function(m){ return !/upload timeout/i.test(String(m)); });
+        if(_hardDocErrs.length){
+          try{ _inspSetStatus('e','⚠ Document upload failed — file will NOT be in the report', _hardDocErrs.join(' | ')); }catch(e){}
+          try{ console.error('[doc upload] failures:', _hardDocErrs); }catch(e){}
+          try{ alert('Document upload to server FAILED:\n\n'+_hardDocErrs.join('\n')+'\n\nThe file is saved locally but will NOT appear in reports generated on other devices/sessions until this is resolved. Most likely cause: Supabase Storage bucket policy (RLS) is blocking uploads.'); }catch(e){}
+        } else {
+          try{ _inspSetStatus('u','⟳ Large document still uploading…', 'Big file — it will finish in the background and attach automatically'); }catch(e){}
+          try{ console.warn('[doc upload] still uploading (timeout on this pass, not a failure):', _docUploadErrors); }catch(e){}
+        }
       }
     }
 
