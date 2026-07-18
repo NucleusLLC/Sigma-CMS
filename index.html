@@ -13199,10 +13199,25 @@ var _SECTION_REGISTRY = [
   { id:'location',        title:'Location & Property (map)' },
   { id:'inspDetails',     title:'Inspection Details' },
   { id:'conclusion',      title:'Conclusion / Opinion' },
-  { id:'valuation',       title:'Valuation' }
+  { id:'valuation',       title:'Valuation' },
+  // §SEC-ADDPAGE (v2.252) — OPTIONAL movable sections. `optional:true` means they are
+  //   NEVER auto-placed into a layout (skipped by _sectionDefaultLayout + the auto-append
+  //   in _orderSectionLayout), so existing orders/reports are byte-identical: the inline
+  //   Sign-Off page (§7) keeps rendering exactly as before UNLESS the user explicitly drags
+  //   these onto a page in the Section Order modal (typically an added extra page).
+  { id:'signoff',         title:'Appraiser Sign-Off',      optional:true },
+  { id:'declaration',     title:'Appraiser Declaration',   optional:true }
 ];
-var _SECTION_PAGES = ['p3','p4','p5','p6'];
+var _SECTION_PAGES = ['p3','p4','p5','p6'];   // base (physical) pages; extra pages p7+ are added per-order via "Add Page"
 var _SECTION_PAGE_LABELS = { p3:'Page 3', p4:'Page 4', p5:'Page 5', p6:'Page 6 (Valuation)' };
+var _SECTION_MAX_EXTRA = 6;   // §SEC-ADDPAGE — cap on user-added overflow pages
+// §SEC-ADDPAGE (v2.252) — per-order extra-page helpers. Extra layout keys are p7, p8, …
+//   (i.e. 'p'+(6+i)); they only exist for a custom order that clicked "Add Page".
+function _orderExtraPages(order){ var n=(order&&order.sectionExtraPages)|0; if(n<0)n=0; if(n>_SECTION_MAX_EXTRA)n=_SECTION_MAX_EXTRA; return n; }
+function _extraPageKeys(n){ var a=[]; for(var i=1;i<=n;i++) a.push('p'+(6+i)); return a; }
+function _orderPageKeys(order){ return _SECTION_PAGES.concat(_extraPageKeys(_orderExtraPages(order))); }
+function _isExtraPageKey(p){ return /^p(?:[7-9]|1[0-9])$/.test(String(p||'')); }
+function _secPageLabel(p){ if(_SECTION_PAGE_LABELS[p]) return _SECTION_PAGE_LABELS[p]; var n=parseInt(String(p).slice(1),10); return 'Page '+n+(isFinite(n)?' (added)':''); }
 // Default page assignment mirrors the current default arrangement so a freshly
 //   customised order starts from a familiar layout.
 var _SECTION_DEFAULT_PAGES = { fpOpinion:'p3', renovNotes:'p3', floorplan:'p3', condMatrix:'p4', buildingOpinion:'p4', inspDetails:'p4', locationOpinion:'p5', ropv:'p5', location:'p5', conclusion:'p6', valuation:'p6' };
@@ -13213,25 +13228,34 @@ function _sectionIsKnown(id){ return _SECTION_REGISTRY.some(function(s){ return 
 // The default {p3:[…],p4:[…],p5:[…]} layout (registry order within each page).
 function _sectionDefaultLayout(){
   var out={}; _SECTION_PAGES.forEach(function(p){ out[p]=[]; });
-  _SECTION_REGISTRY.forEach(function(s){ var p=_SECTION_DEFAULT_PAGES[s.id]||'p4'; (out[p]||out.p4).push(s.id); });
+  _SECTION_REGISTRY.forEach(function(s){ if(s.optional) return; var p=_SECTION_DEFAULT_PAGES[s.id]||'p4'; (out[p]||out.p4).push(s.id); });   // §SEC-ADDPAGE — optional sections are never auto-placed
   return out;
 }
 // The order's saved custom layout, sanitised, or null when not customised.
-//   Guarantees every known section id appears exactly once across the 3 pages
+//   Guarantees every known NON-optional section id appears exactly once across the pages
 //   (missing ids are appended to their default page; unknown/duplicate ids dropped).
+//   §SEC-ADDPAGE — extra pages (p7+) are preserved from the saved layout and/or the
+//   order.sectionExtraPages count; optional sections (signoff/declaration) are kept only
+//   where the user explicitly placed them (never auto-appended).
 function _orderSectionLayout(order){
   try{
     var raw = order && order.sectionLayout;
     if(!raw || typeof raw!=='object') return null;
-    var out={}, seen={}; _SECTION_PAGES.forEach(function(p){ out[p]=[]; });
-    _SECTION_PAGES.forEach(function(p){
+    // page keys = base + any extra keys from the saved count AND any p7+ present in raw
+    var keys = _SECTION_PAGES.slice();
+    _extraPageKeys(_orderExtraPages(order)).forEach(function(k){ if(keys.indexOf(k)<0) keys.push(k); });
+    Object.keys(raw).forEach(function(k){ if(_isExtraPageKey(k) && keys.indexOf(k)<0) keys.push(k); });
+    var out={}, seen={}; keys.forEach(function(p){ out[p]=[]; });
+    keys.forEach(function(p){
       if(Array.isArray(raw[p])) raw[p].forEach(function(id){ if(_sectionIsKnown(id) && !seen[id]){ seen[id]=1; out[p].push(id); } });
     });
-    // any known section not placed yet → its default page (keeps report complete)
-    _SECTION_REGISTRY.forEach(function(s){ if(!seen[s.id]){ seen[s.id]=1; (out[_SECTION_DEFAULT_PAGES[s.id]]||out.p4).push(s.id); } });
+    // any known NON-optional section not placed yet → its default page (keeps report complete)
+    _SECTION_REGISTRY.forEach(function(s){ if(s.optional) return; if(!seen[s.id]){ seen[s.id]=1; (out[_SECTION_DEFAULT_PAGES[s.id]]||out.p4).push(s.id); } });
     return out;
   }catch(e){ return null; }
 }
+// §SEC-ADDPAGE — which layout page (if any) an order placed a section id on; '' if unplaced.
+function _secPageOfId(order,id){ var L=_orderSectionLayout(order); if(!L) return ''; for(var k in L){ if(L[k] && L[k].indexOf(id)>=0) return k; } return ''; }
 // §SECTION-ORDER — Index/TOC helper: when an order has a custom layout, the page's
 //   TOC description lists that page's sections in the chosen order; else the fallback.
 function _secDescForOrder(order, pg, fallback){
@@ -13291,10 +13315,17 @@ function openSectionOrder(orderId){
         +'<div><div style="font-family:Sora,sans-serif;font-weight:800;font-size:15px;">Report Section Order — '+_e(order.id)+'</div>'
         +'<div style="font-size:11px;color:var(--muted,#888);margin-top:2px;max-width:640px;">Assign each section to a page and order it with ↑ ↓. Cover = page 1 and Index = page 2 are fixed. The report’s Index follows this order automatically.</div></div>'
         +'<button onclick="document.getElementById(\'secOrderOverlay\').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted,#888);line-height:1;">✕</button></div>'
-        +'<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:16px 20px;">';   // §SEC-4COL (v2.247) — all 4 pages (3-6) forced into ONE horizontal row
-      _SECTION_PAGES.forEach(function(p){
-        h+='<div style="border:1px solid var(--border,#e5e0d5);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;">'
-          +'<div style="padding:7px 12px;background:rgba(200,146,42,.10);display:flex;align-items:center;justify-content:space-between;gap:6px;"><span style="font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--au,#c8922a);">'+_SECTION_PAGE_LABELS[p]+'</span><button onclick="_secOrderPreview(\''+p+'\')" title="Preview this page" style="background:transparent;border:1px solid rgba(200,146,42,.55);color:#c8922a;border-radius:4px;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;white-space:nowrap;">&#128065; Preview</button></div>'
+        +'<div style="display:flex;gap:10px;padding:16px 20px;overflow-x:auto;align-items:stretch;">';   // §SEC-ADDPAGE (v2.252) — horizontal scroll fits base + any added (overflow) pages
+      var _pk=_pageKeys();
+      var _lastExtra='p'+(6+_extraPages);
+      _pk.forEach(function(p){
+        if(!_L[p]) _L[p]=[];
+        var _extra=_isExtraPageKey(p), _rmOk=_extra && !_L[p].length && p===_lastExtra;   // only the LAST extra page, when empty, is removable (keeps keys contiguous)
+        h+='<div style="flex:0 0 232px;border:1px solid '+(_extra?'rgba(200,146,42,.55)':'var(--border,#e5e0d5)')+';border-radius:8px;overflow:hidden;display:flex;flex-direction:column;">'
+          +'<div style="padding:7px 12px;background:rgba(200,146,42,.10);display:flex;align-items:center;justify-content:space-between;gap:6px;"><span style="font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--au,#c8922a);white-space:nowrap;">'+_secPageLabel(p)+'</span><span style="display:flex;gap:4px;align-items:center;">'
+          +'<button onclick="_secOrderPreview(\''+p+'\')" title="Preview this page" style="background:transparent;border:1px solid rgba(200,146,42,.55);color:#c8922a;border-radius:4px;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;white-space:nowrap;">&#128065; Preview</button>'
+          +(_rmOk?'<button onclick="_secOrderRemovePage(\''+p+'\')" title="Remove this empty added page" style="background:transparent;border:1px solid rgba(192,57,43,.5);color:#c0392b;border-radius:4px;font-size:11px;font-weight:800;padding:2px 7px;cursor:pointer;line-height:1;">✕</button>':'')
+          +'</span></div>'
           +'<div style="padding:8px;display:flex;flex-direction:column;gap:6px;min-height:70px;flex:1;">';
         if(!_L[p].length) h+='<div style="font-size:10px;color:var(--muted,#aaa);font-style:italic;padding:6px;text-align:center;">— empty —</div>';
         _L[p].forEach(function(id,i){
@@ -13308,19 +13339,41 @@ function openSectionOrder(orderId){
             +'<button title="Move up" onclick="_secOrderMove(\''+id+'\',\''+p+'\',-1)" '+(i===0?'disabled':'')+' style="'+_btnCss+'">↑</button>'
             +'<button title="Move down" onclick="_secOrderMove(\''+id+'\',\''+p+'\',1)" '+(i===_L[p].length-1?'disabled':'')+' style="'+_btnCss+'">↓</button>'
             +'<select title="Move to page" onchange="_secOrderPage(\''+id+'\',this.value)" style="margin-left:auto;font-size:10.5px;padding:2px 4px;border:1px solid var(--border,#ccc);border-radius:4px;background:var(--surface,#fff);color:var(--ink,#111);cursor:pointer;">'
-            +_SECTION_PAGES.map(function(pp){return '<option value="'+pp+'"'+(pp===p?' selected':'')+'>'+_SECTION_PAGE_LABELS[pp]+'</option>';}).join('')
+            +_pk.map(function(pp){return '<option value="'+pp+'"'+(pp===p?' selected':'')+'>'+_secPageLabel(pp)+'</option>';}).join('')
             +'</select>'
             +((['condMatrix','buildingOpinion','inspDetails','fpOpinion','renovNotes','locationOpinion','ropv','floorplan'].indexOf(id)!==-1) ? ('<select title="Spacing — Tight / Normal / Loose (section gap + text)" onchange="_secOrderSpacing(\''+id+'\',this.value)" style="margin-left:4px;font-size:10.5px;padding:2px 4px;border:1px solid var(--border,#ccc);border-radius:4px;background:var(--surface,#fff);color:var(--ink,#111);cursor:pointer;">'+[['compact','Tight'],['normal','Normal'],['spacious','Loose']].map(function(sv){var cur=(_Sp&&_Sp[id])||'compact';return '<option value="'+sv[0]+'"'+(sv[0]===cur?' selected':'')+'>'+sv[1]+'</option>';}).join('')+'</select>') : '')
+            +(_sectionOptional(id)?('<button onclick="_secOrderUnplace(\''+id+'\')" title="Remove this optional section from the report (back to the tray)" style="margin-left:4px;width:24px;height:24px;border:1px solid rgba(192,57,43,.5);border-radius:4px;background:transparent;color:#c0392b;cursor:pointer;font-size:12px;font-weight:800;line-height:1;">✕</button>'):'')
             +'</div></div>';
         });
         h+='</div></div>';
       });
-      h+='</div><div style="padding:14px 20px;border-top:1px solid var(--border,#e5e0d5);display:flex;justify-content:space-between;align-items:center;gap:10px;">'
+      h+='</div>';   // /grid
+      // §SEC-ADDPAGE (v2.252) — "Add Page" control + tray of optional (unplaced) sign-off sections.
+      var _optUnplaced=_SECTION_REGISTRY.filter(function(s){return s.optional && !_secIsPlaced(s.id);});
+      h+='<div style="padding:2px 20px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;">'
+        +'<button onclick="_secOrderAddPage()" '+(_extraPages>=_SECTION_MAX_EXTRA?'disabled':'')+' title="Add an extra overflow page you can move sections onto when the text does not fit" style="background:rgba(200,146,42,.12);border:1px dashed #c8922a;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;color:#c8922a;cursor:pointer;'+(_extraPages>=_SECTION_MAX_EXTRA?'opacity:.5;cursor:not-allowed;':'')+'">&#65291; Add Page</button>';
+      if(_optUnplaced.length){
+        h+='<span style="font-size:10.5px;color:var(--muted,#888);margin-left:4px;">Optional — add when overflow needs an extra page:</span>';
+        _optUnplaced.forEach(function(s){
+          h+='<button onclick="_secOrderPlaceOptional(\''+s.id+'\')" title="Add &lsquo;'+_e(s.title)+'&rsquo; to the last page, then move it where you need it" style="background:var(--surface-2,#faf8f3);border:1px solid var(--border,#d9d2c4);border-radius:14px;padding:5px 12px;font-size:11px;font-weight:600;color:var(--ink,#333);cursor:pointer;">&#65291; '+_e(s.title)+'</button>';
+        });
+      }
+      h+='</div>';
+      h+='<div style="padding:14px 20px;border-top:1px solid var(--border,#e5e0d5);display:flex;justify-content:space-between;align-items:center;gap:10px;">'
         +'<button onclick="_secOrderReset()" style="background:none;border:1px solid var(--border,#ccc);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;color:var(--muted,#666);">Reset to default</button>'
         +'<div style="display:flex;gap:8px;"><button onclick="document.getElementById(\'secOrderOverlay\').remove()" style="background:none;border:1px solid var(--border,#ccc);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;color:var(--ink,#111);">Cancel</button>'
         +'<button onclick="_secOrderSave()" style="background:var(--au,#c8922a);border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;">Save</button></div></div>';
       box.innerHTML=h;
     }
+    // §SEC-ADDPAGE (v2.252) — working state for extra (overflow) pages + the optional sign-off sections.
+    var _extraPages=(function(){ var n=_orderExtraPages(order); Object.keys(_L).forEach(function(k){ if(_isExtraPageKey(k)){ var m=parseInt(k.slice(1),10)-6; if(m>n)n=m; } }); return Math.min(Math.max(0,n),_SECTION_MAX_EXTRA); })();
+    function _pageKeys(){ var a=_SECTION_PAGES.slice(); for(var i=1;i<=_extraPages;i++) a.push('p'+(6+i)); return a; }
+    function _sectionOptional(id){ return _SECTION_REGISTRY.some(function(s){ return s.id===id && s.optional; }); }
+    function _secIsPlaced(id){ for(var k in _L){ if(_L[k] && _L[k].indexOf(id)>=0) return true; } return false; }
+    window._secOrderAddPage=function(){ if(_extraPages>=_SECTION_MAX_EXTRA){ try{alert('Maximum of '+_SECTION_MAX_EXTRA+' added pages.');}catch(e){} return; } _extraPages++; var k='p'+(6+_extraPages); if(!_L[k]) _L[k]=[]; build(); };
+    window._secOrderRemovePage=function(p){ if(!_isExtraPageKey(p)) return; if(_L[p] && _L[p].length) return; if(p!==('p'+(6+_extraPages))) return; delete _L[p]; _extraPages--; build(); };
+    window._secOrderPlaceOptional=function(id){ if(!_sectionOptional(id)) return; var pk=_pageKeys(); var last=pk[pk.length-1]; pk.forEach(function(p){ var i=_L[p]?_L[p].indexOf(id):-1; if(i>=0)_L[p].splice(i,1); }); if(!_L[last])_L[last]=[]; _L[last].push(id); build(); };
+    window._secOrderUnplace=function(id){ _pageKeys().forEach(function(p){ var i=_L[p]?_L[p].indexOf(id):-1; if(i>=0)_L[p].splice(i,1); }); build(); };
     var _Sp=Object.assign({condMatrix:'compact',buildingOpinion:'compact',inspDetails:'compact',fpOpinion:'normal',renovNotes:'normal',locationOpinion:'normal',ropv:'normal',floorplan:'normal'}, (order.sectionSpacing&&typeof order.sectionSpacing==='object')?order.sectionSpacing:{});
     window._secOrderSpacing=function(id,val){ _Sp[id]=val; };   // §SEC-SPACING (v2.225)
     // §SEC-ENABLE (v2.247) — working copy of the per-section include flags (default ON).
@@ -13383,13 +13436,15 @@ function openSectionOrder(orderId){
       try{ btn.disabled=true; btn.innerHTML='&#8987; Rendering…'; }catch(e){}
       host.innerHTML='<div style="padding:44px 20px;text-align:center;color:var(--muted,#888);font-size:13px;">&#8987; Building the actual page…<div style="font-size:11px;margin-top:6px;color:#aaa;">Running the report generator with your current arrangement — a moment.</div></div>';
       var _pageIds={ p3:['pT2_3','p3'], p4:['pT2_4','p4'], p5:['p5'], p6:['p6'] };
-      var _sL=order.sectionLayout, _sS=order.sectionSpacing, _sE=order.sectionEnabled, _sD=window._rcDeferOpen, _tplRestore=function(){};
-      order.sectionLayout=(function(){var _o={};_SECTION_PAGES.forEach(function(_p){_o[_p]=(_L[_p]||[]).slice();});return _o;})();   // §SEC-P6-FIX (v2.236) — persist ALL pages incl. p6 (was dropping page 6)
+      for(var _xi=1;_xi<=_extraPages;_xi++){ _pageIds['p'+(6+_xi)]=['secx'+_xi]; }   // §SEC-ADDPAGE — extra pages map to physical secxN ids
+      var _sL=order.sectionLayout, _sS=order.sectionSpacing, _sE=order.sectionEnabled, _sX=order.sectionExtraPages, _sD=window._rcDeferOpen, _tplRestore=function(){};
+      order.sectionLayout=(function(){var _o={};_pageKeys().forEach(function(_p){_o[_p]=(_L[_p]||[]).slice();});return _o;})();   // §SEC-ADDPAGE — persist ALL pages incl. extra (and p6)
       order.sectionSpacing=Object.assign({},_Sp);
       order.sectionEnabled=Object.assign({},_En);   // §SEC-ENABLE (v2.247) — preview reflects unsaved include toggles
+      order.sectionExtraPages=_extraPages;   // §SEC-ADDPAGE — preview reflects unsaved added pages
       try{ if(typeof _rcApplyOrderTpl==='function'){ var _r=_rcApplyOrderTpl(order.id); if(typeof _r==='function')_tplRestore=_r; } }catch(e){}
       window._rcDeferOpen=true;
-      function _restore(){ window._rcDeferOpen=_sD; order.sectionLayout=_sL; order.sectionSpacing=_sS; order.sectionEnabled=_sE; try{_tplRestore();}catch(e){} try{ btn.disabled=false; btn.innerHTML='&#128269; Re-render'; }catch(e){} }
+      function _restore(){ window._rcDeferOpen=_sD; order.sectionLayout=_sL; order.sectionSpacing=_sS; order.sectionEnabled=_sE; order.sectionExtraPages=_sX; try{_tplRestore();}catch(e){} try{ btn.disabled=false; btn.innerHTML='&#128269; Re-render'; }catch(e){} }
       Promise.resolve().then(function(){ return generateReport(order.id); }).then(function(){
         var rhtml=window._rcReportHtml||''; _restore();
         if(!rhtml){ host.innerHTML='<div style="padding:30px;color:#c0392b;font-size:12px;">Could not build the report HTML.</div>'; return; }
@@ -13397,7 +13452,7 @@ function openSectionOrder(orderId){
         try{ var T={'Floorplan Info':1,'Opinion of Floor Plan':1,'Location & Property':1,'Condition Assessment Matrix':1,'Opinion of the Location':1,'Renovation Notes & Remarks':1,'Opinions of Building, Equipment & Finishes':1}; var by={}; [].forEach.call(doc.querySelectorAll('.sec-h'),function(h){var t=(h.textContent||'').replace(/\s+/g,' ').trim();if(T[t])(by[t]=by[t]||[]).push(h);}); Object.keys(by).forEach(function(t){var a=by[t];if(a.length<2)return;for(var i=0;i<a.length-1;i++){var h=a[i],n=h.nextSibling;while(n&&!(n.nodeType===1&&n.classList&&n.classList.contains('sec-h'))){var nx=n.nextSibling;try{n.parentNode.removeChild(n);}catch(e){}n=nx;}try{h.parentNode.removeChild(h);}catch(e){}}}); }catch(e){}
         var headHtml=doc.head?doc.head.innerHTML:'', pageEl=null, pids=_pageIds[p]||[];
         for(var i=0;i<pids.length&&!pageEl;i++){ pageEl=doc.getElementById('page-'+pids[i]); }
-        if(!pageEl){ var all=[].slice.call(doc.querySelectorAll('.page')).filter(function(pg){return !pg.hasAttribute('data-sigma-cover');}); pageEl=all[{p3:1,p4:2,p5:3,p6:4}[p]]||all[0]||null; }
+        if(!pageEl){ var all=[].slice.call(doc.querySelectorAll('.page')).filter(function(pg){return !pg.hasAttribute('data-sigma-cover');}); var _idxMap={p3:1,p4:2,p5:3,p6:4}; for(var _xi2=1;_xi2<=_extraPages;_xi2++)_idxMap['p'+(6+_xi2)]=4+_xi2; pageEl=all[_idxMap[p]]||all[0]||null; }
         if(!pageEl){ host.innerHTML='<div style="padding:30px;color:#888;font-size:12px;">That page isn’t present in this report.</div>'; return; }
         var docHtml='<!doctype html><html><head>'+headHtml+'<style>html{margin:0;}body{margin:0;padding:0;background:#e9e6df;}#_w{transform-origin:top left;}</style></head><body><div id="_w">'+pageEl.outerHTML+'</div></body></html>';
         host.innerHTML='';
@@ -13410,11 +13465,12 @@ function openSectionOrder(orderId){
       }).catch(function(err){ _restore(); host.innerHTML='<div style="padding:30px;color:#c0392b;font-size:12px;">Preview failed: '+_e((err&&err.message)||String(err))+'</div>'; });
     };
     window._secOrderMove=function(id,p,dir){ var a=_L[p]; var i=a.indexOf(id); if(i<0)return; var j=i+dir; if(j<0||j>=a.length)return; a.splice(i,1); a.splice(j,0,id); build(); };
-    window._secOrderPage=function(id,toP){ _SECTION_PAGES.forEach(function(p){ var i=_L[p].indexOf(id); if(i>=0)_L[p].splice(i,1); }); if(_L[toP]) _L[toP].push(id); build(); };
-    window._secOrderReset=function(){ _L=_sectionDefaultLayout(); _SECTION_REGISTRY.forEach(function(s){_En[s.id]=true;}); build(); };   // §SEC-ENABLE (v2.247) — reset also re-enables all sections
+    window._secOrderPage=function(id,toP){ _pageKeys().forEach(function(p){ var i=(_L[p]||[]).indexOf(id); if(i>=0)_L[p].splice(i,1); }); if(!_L[toP])_L[toP]=[]; _L[toP].push(id); build(); };
+    window._secOrderReset=function(){ _L=_sectionDefaultLayout(); _extraPages=0; _SECTION_REGISTRY.forEach(function(s){_En[s.id]=true;}); build(); };   // §SEC-ENABLE (v2.247) — reset re-enables all; §SEC-ADDPAGE — and clears added pages + optional placements
     window._secOrderSave=function(){
       try{
-        order.sectionLayout=(function(){var _o={};_SECTION_PAGES.forEach(function(_p){_o[_p]=(_L[_p]||[]).slice();});return _o;})();   // §SEC-P6-FIX (v2.236) — persist ALL pages incl. p6 (was dropping page 6)
+        order.sectionLayout=(function(){var _o={};_pageKeys().forEach(function(_p){_o[_p]=(_L[_p]||[]).slice();});return _o;})();   // §SEC-ADDPAGE — persist ALL pages incl. extra (and p6)
+        order.sectionExtraPages=_extraPages;   // §SEC-ADDPAGE — number of user-added overflow pages
         order.sectionSpacing=Object.assign({}, _Sp);   // §SEC-SPACING (v2.225)
         order.sectionEnabled=Object.assign({}, _En);   // §SEC-ENABLE (v2.247)
         try{ if(typeof _secInputSync==='function' && typeof _inspOrderId!=='undefined' && String(_inspOrderId)===String(order.id)) _secInputSync(order); }catch(e){}   // keep the open input-form checkboxes in sync
@@ -13811,7 +13867,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.251';
+var APP_VERSION = 'v2.252';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -13849,6 +13905,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.252',type:'feature',date:'07-17-2026',ts:'07-17-2026 14:00',_static:true,title:'Report Section Order — “Add Page” for overflow, plus movable Appraiser Sign-Off & Declaration',desc:'The Section Order tool can now add extra report pages for when a section’s text does not fit on its page. Click “＋ Add Page” to add one (or more) overflow pages between the Valuation and Sign-Off pages, then move any section onto it. Two new optional sections — “Appraiser Sign-Off” and “Appraiser Declaration” — can now be added from the tray and placed on any page (including an added page), so when the sign-off content needs its own space you can relocate it. When you move the Sign-Off block, the standard sign-off page is no longer duplicated; when you split off the Declaration, it renders wherever you placed it. The report Index/Table of Contents and page numbering update automatically. Fully opt-in: any order that does not add pages or move these sections prints exactly as before. Use the per-page “Render actual page” preview in the Section Order window to check the layout before generating the full report.'},
   {v:'v2.251',type:'fix',date:'07-17-2026',ts:'07-17-2026 10:00',_static:true,title:'Large documents (big site plans) now upload reliably instead of failing',desc:'Follow-up to the v2.250 stability fix. Very large attachments — like a 27 MB site plan — used to hit a fixed 20-second upload limit during a save, so they were wrongly reported as "upload FAILED" even while the file was actually still uploading in the background. Three improvements: (1) the upload time limit now scales with the file size (roughly 8 seconds per megabyte, up to 4 minutes) so big files get enough time to finish; (2) a temporary timeout on a big file no longer shows the alarming "will NOT be in the report" alert — it now says the large document is still uploading and will attach automatically, and only a genuine server/permission error shows the hard failure; (3) when you attach a document larger than 15 MB you get a friendly heads-up suggesting you compress or downscale it first (a plan rarely needs to be that big), which uploads faster and more reliably. Your work always keeps saving locally.'},
   {v:'v2.250',type:'fix',date:'07-16-2026',ts:'07-16-2026 12:00',_static:true,title:'Stability: uploaded documents no longer bloat the database (fixes the save failures + server outage)',desc:'Fixed the cause of the "can\'t save" errors and the server going down after uploading documents. When you upload a PDF/document it is stored in cloud Storage and the order only needs to remember a small link to it. A bug was ALSO keeping a full copy of the document\'s bytes inside the order record every time the app re-displayed it — so a single large site plan could swell one order to 20 MB, and because that giant record was re-sent on every auto-save and retry (even while the app had already auto-paused syncing to protect the database), it overwhelmed the database until it stopped responding. Three fixes: (1) a document that is already in Storage never writes its bytes into the order record again — only the link is saved; (2) if cloud sync has auto-paused because the database is struggling, an unusually large save is now held locally instead of being forced through, so it can no longer pile on; (3) automatic retries stop while sync is auto-paused and resume when you click "Resume cloud sync". Your work still saves locally at all times and nothing is lost. Existing over-sized orders were also cleaned up (documents kept, bytes moved out of the record).'},
   {v:'v2.249',type:'fix',date:'07-15-2026',ts:'07-15-2026 09:00',_static:true,title:'Valuation no longer reverts to blank on reopen (Current & Presumable rows)',desc:'Fixed a bug where a valuation could revert to empty after you saved it and reopened it — the Parcel / Building / Custom rows (on both the Current and the Presumable side) came back blank. The cause was a silent auto-save capturing the tables at a moment they were momentarily empty (a stale save timer firing during a modal reset, or an empty local draft being re-applied on reopen) and overwriting the good data. Now a background auto-save can NEVER replace a valuation that already has rows with an empty one, an empty local draft can no longer blank the presumable tables on reopen, and pending auto-saves are cancelled when the modal opens or closes. Your explicit "Save" button still does exactly what you tell it, so you can still deliberately clear a table.'},
@@ -24365,6 +24422,20 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //  cadaster-inzage) ship in v1.854+; until then T2 falls back to the T1 sequence
   //  so the dropdown is selectable but the page-by-page differentiation is staged.
   var _tplVariant = (RC && RC.rcTemplateVariant) ? String(RC.rcTemplateVariant) : 'T1';
+  // §SEC-ADDPAGE (v2.252) — resolve the custom section layout ONCE so the page list, TOC and
+  //   the renderer all agree on (a) whether the optional Sign-Off / Declaration sections were
+  //   moved out of the default §7 page, and (b) which extra (overflow) pages carry ≥1 enabled
+  //   section and therefore need a physical page. For a NON-custom order _soLay is null → every
+  //   flag below is inert, no extra pages emit, §7 renders inline → byte-identical to before.
+  var _soLay = (typeof _orderSectionLayout==='function') ? _orderSectionLayout(order) : null;
+  function _soLayHas(id){ if(!_soLay) return false; for(var _k in _soLay){ if(_soLay[_k] && _soLay[_k].indexOf(id)>=0) return true; } return false; }
+  var _secMovedSignoff = _soLayHas('signoff');
+  var _secMovedDecl    = _soLayHas('declaration');
+  var _secExtraLive = [];   // extra layout keys (p7+) with ≥1 enabled placed section, in page order
+  if(_soLay){ Object.keys(_soLay).forEach(function(_k){ if(_isExtraPageKey(_k)){ var _arr=(_soLay[_k]||[]).filter(function(id){ return (typeof _orderSecEnabled!=='function')||_orderSecEnabled(order,id); }); if(_arr.length) _secExtraLive.push(_k); } }); _secExtraLive.sort(function(a,b){ return parseInt(a.slice(1),10)-parseInt(b.slice(1),10); }); }
+  function _secExtraPhysId(k){ return 'secx'+(parseInt(k.slice(1),10)-6); }   // extra layout key p(6+i) → physical _pgList id 'secx'+i
+  function _secPhysId(k){ if(_isExtraPageKey(k)) return _secExtraPhysId(k); if(_tplVariant==='T2'){ return ({p3:'pT2_3',p4:'pT2_4',p5:'p5',p6:'p6'})[k]||k; } return k; }
+  function _pgSignoff(){ if(!_secMovedSignoff) return _pg('signoff'); var _kk=''; for(var _k in _soLay){ if(_soLay[_k] && _soLay[_k].indexOf('signoff')>=0){ _kk=_k; break; } } return _kk ? _pg(_secPhysId(_kk)) : _pg('signoff'); }
   var _pgList=[];
   if (_tplVariant === 'T2') {
     // §T2-LAYOUT (v1.875) — 14-page extended layout matching the user spec:
@@ -24384,7 +24455,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     // §T2-MERGE (v2.011) — pT2_5 removed (merged into pT2_4).
     if(RC.rcPageSummary!==false)   _pgList.push('p5');            // 5
     if(RC.rcPageValuation!==false) _pgList.push('p6');            // 7
-    if(RC.rcPageSignoff!==false)   _pgList.push('signoff');       // 8
+    _secExtraLive.forEach(function(k){ _pgList.push(_secExtraPhysId(k)); });   // §SEC-ADDPAGE — overflow pages, between Valuation and Sign-Off
+    if(RC.rcPageSignoff!==false && !_secMovedSignoff) _pgList.push('signoff'); // 8 (skip when the Sign-Off block was moved onto another page)
     if(RC.rcPageDocs!==false)      _pgList.push('p7');            // 9
     // §P8-P9-GATE (v1.883) — p8 and p9 renderers are NESTED inside
     //   if(RC.rcPageDocs!==false), so if Docs is off, the photo pages never
@@ -24415,7 +24487,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     if(_fpDetailShow && RC.rcPageFpDetail !== false) _pgList.push('fpdetail');
     if(RC.rcPageSummary!==false)   _pgList.push('p5');
     if(RC.rcPageValuation!==false) _pgList.push('p6');
-    if(RC.rcPageSignoff!==false)   _pgList.push('signoff');
+    _secExtraLive.forEach(function(k){ _pgList.push(_secExtraPhysId(k)); });   // §SEC-ADDPAGE — overflow pages, between Valuation and Sign-Off
+    if(RC.rcPageSignoff!==false && !_secMovedSignoff) _pgList.push('signoff');
     if(RC.rcPageDocs!==false)      _pgList.push('p7');
     // §P8-P9-GATE (v1.883) — same gating as T2 branch above (see comment).
     if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false)                  _pgList.push('p8');
@@ -25271,7 +25344,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
         {n:'2',  id:'pT2_4',         title:(RC._mbLayout?'Condition Assessment &amp; Inspection Details':((RC._suppressFpOpinionP4||RC._grndFpUnderInfo)?'Condition Assessment &amp; Building':'Opinion of Floor Plan, Condition &amp; Building')),     pg:_pg('pT2_4'),         desc:(RC._mbLayout?'Condition Assessment Matrix · Materials · Equipment · Systems · Finishes':((RC._suppressFpOpinionP4||RC._grndFpUnderInfo)?'Condition Assessment Matrix · Building, Equipment &amp; Finishes · inspection details':'Floor plan opinion · Condition Assessment Matrix · Building, Equipment &amp; Finishes · inspection details'))},
         {n:'4',  id:'p5',            title:'Location, Opinion &amp; ROPV',                       pg:_pg('p5'),            desc:('Location map · '+_secDescForOrder(order,'p5','Opinion of the Location · R.O.P.V. Spatial Planning Regulations'))},
         {n:'5',  id:'p6',            title:_valTitleHtml,                                        pg:_pg('p6'),            desc:'Three-value approach · Certification &amp; limiting conditions'},
-        {n:'6',  id:'signoff',       title:'Appraiser Sign-Off',                                 pg:_pg('signoff'),       desc:'Appraiser declaration · certification · signature'},
+        {n:'6',  id:(_secMovedSignoff?_secPhysId(_secPageOfId(order,'signoff')):'signoff'),       title:'Appraiser Sign-Off',                                 pg:_pgSignoff(),       desc:'Appraiser declaration · certification · signature'},
         {n:'7',  id:'p7',            title:'Attached Documents',                                 pg:_pg('p7'),            desc:_attachedDocsDesc},
         {n:'8',  id:'p8',            title:'__CS_TITLE__',                                       pg:_pg('p8'),            desc:'__CS_DESC__'},
         {n:'9',  id:'p9',            title:'__CS2_TITLE__',                                      pg:'__CS2_PG__',         desc:'__CS2_DESC__'},
@@ -25290,7 +25363,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
         {n:'4',  id:'p4',     title:'Condition Assessment Matrix &amp; Opinions',           pg:_pg('p4'),      desc:_secDescForOrder(order,'p4','Condition Assessment Matrix · Opinions of Building, Equipment &amp; Finishes · Opinion of Floor Plan')},
         {n:'5',  id:'p5',     title:'Professional Summary',                                  pg:_pg('p5'),      desc:'AI building summary · Location map · Appraiser opinion · ROPV'},
         {n:'6',  id:'p6',     title:'Valuation',                                             pg:_pg('p6'),      desc:'Three-value approach · Certification &amp; limiting conditions · Signature'},
-        {n:'7',  id:'signoff',title:'Appraiser Sign-Off',                                    pg:_pg('signoff'), desc:'Appraiser declaration · certification · signature'},
+        {n:'7',  id:(_secMovedSignoff?_secPhysId(_secPageOfId(order,'signoff')):'signoff'),title:'Appraiser Sign-Off',                                    pg:_pgSignoff(), desc:'Appraiser declaration · certification · signature'},
         {n:'8',  id:'p7',     title:'Attached Documents',                                    pg:_pg('p7'),      desc:_attachedDocsDesc},
         {n:'9',  id:'p8',     title:'__CS_TITLE__',                                          pg:_pg('p8'),      desc:'__CS_DESC__'},
         {n:'10', id:'p9',     title:'__CS2_TITLE__',                                         pg:'__CS2_PG__',   desc:'__CS2_DESC__'},
@@ -25620,6 +25693,57 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   function _secFpTxt(){ var t='';
     try{var r=localStorage.getItem('insp_'+order.id+'_11');if(r){var o=JSON.parse(r);t=(o.s11f3||'').trim();}}catch(e){}
     if(!t){try{if(order.inspData&&order.inspData.s11)t=(order.inspData.s11.s11f3||'').trim();}catch(e){}} return t; }
+  // §SEC-ADDPAGE (v2.252) — movable Sign-Off / Declaration content, built ONCE here (before any
+  //   page renders) so they can be placed on a base page or a user-added overflow page. The inline
+  //   §7 Sign-Off page below remains the SOLE renderer for a DEFAULT (non-moved) order and is
+  //   byte-identical; these builders only feed the driver when the user explicitly moves a section.
+  //   Mirrors the inline §7 markup (declaration text, cert box, notes, signature block). The one
+  //   difference: a moved Sign-Off shows the uploaded signature image inline (relative) instead of
+  //   as the page-absolute overlay, since it may share a page with other sections.
+  var _declBlockCache = '<div style="border:1px solid #d4c9b0;border-left:3px solid '+RC.rcAccentColor+';margin-bottom:14px;">'
+    +'<div style="background:#f9f7f3;padding:6px 14px;border-bottom:1px solid #e8e0d4;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a7a6a;">Appraiser Declaration</div></div>'
+    +'<div style="padding:14px 16px;"><div class="rep-op">'
+    +'I certify that, to the best of my knowledge and belief, the statements of fact contained in this report are true and correct. The reported analyses, opinions, and conclusions are limited only by the reported assumptions and limiting conditions, and are my personal, impartial, and unbiased professional analyses, opinions, and conclusions. I have no present or prospective interest in the property that is the subject of this report, and no personal interest with respect to the parties involved. My compensation is not contingent on an action or event resulting from the analyses, opinions, or conclusions in this report.'
+    +'</div></div></div>';
+  function _secSignoffBody(includeDecl){
+    var _s12dSO=(order.inspData&&order.inspData.s12)||{};
+    var _soNameB=(_s12dSO.inspName||order.appraiser||'').trim();
+    var _soN1=(_s12dSO.s12f2||'').trim(), _soN2=(_s12dSO.s12f3||'').trim(), _soN3=(_s12dSO.s12f4||'').trim();
+    var _sigImgB=''; try{ _sigImgB=localStorage.getItem('appraisalSuite_apprSig')||''; }catch(e){}
+    var _sigInline=_sigImgB ? ('<div style="text-align:right;margin-top:10px;"><img src="'+esc(_sigImgB)+'" style="max-height:70px;max-width:220px;object-fit:contain;display:inline-block;"></div>') : '';
+    return '<div class="sec-h">Appraiser Sign-Off</div>'
+      +'<div class="sec-sub">Certification of appraisal · appraiser declaration · signature</div>'
+      +'<div class="disc"><div class="disc-title">Certification &amp; Limiting Conditions</div>'
+      +'<div class="disc-text">' + (disc[type] || disc[2]) + '</div></div>'
+      +(includeDecl ? _declBlockCache : '')
+      +((_soN1||_soN2||_soN3)
+        ?'<div style="border:1px solid #d4c9b0;padding:12px 16px;margin-bottom:14px;">'
+         +'<div style="font-size:7.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a7a6a;margin-bottom:8px;">Additional Notes</div>'
+         +(_soN1?'<div style="font-size:10.5px;color:#0f0d0a;margin-bottom:5px;">'+esc(_soN1)+'</div>':'')
+         +(_soN2?'<div style="font-size:10.5px;color:#0f0d0a;margin-bottom:5px;">'+esc(_soN2)+'</div>':'')
+         +(_soN3?'<div style="font-size:10.5px;color:#0f0d0a;">'+esc(_soN3)+'</div>':'')
+         +'</div>'
+        :'')
+      +'<div style="border-top:1px solid #e8e0d4;padding-top:22px;margin-top:10px;">'
+      +'<div style="display:grid;grid-template-columns:1fr 2fr'+(RC.rcLastStamp?' 88px':'')+';gap:32px;align-items:start;">'
+      +'<div></div>'
+      +'<div>'
+      +'<div style="height:60px;border-bottom:1.5px solid #0f0d0a;margin-bottom:10px;"></div>'
+      +'<div style="font-size:12px;font-weight:600;color:#0f0d0a;margin-bottom:3px;">'+esc(_soNameB)+'</div>'
+      +(apprCert?'<div style="font-size:10px;color:#6a5a48;margin-bottom:2px;">'+esc(apprCert)+'</div>':'')
+      +(apprLicense?'<div style="font-family:DM Mono,monospace;font-size:8.5px;color:#8a7a6a;">Lic. '+esc(apprLicense)+(apprExpiry?' · Exp. '+esc(apprExpiry):'')+'</div>':'')
+      +'<div style="font-size:7.5px;color:#aaa;margin-top:6px;text-transform:uppercase;letter-spacing:.09em;">Appraiser Signature &amp; Stamp</div>'
+      +'</div>'
+      +(RC.rcLastStamp
+        ?'<div style="display:flex;align-items:flex-start;justify-content:center;padding-top:4px;">'
+         +'<div style="width:72px;height:72px;border:2.5px double '+RC.rcAccentColor+';border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;">'
+         +'<div style="font-size:6.5px;font-weight:700;color:'+RC.rcAccentColor+';letter-spacing:.04em;line-height:1.35;">OFFICIAL<br>APPRAISAL<br>STAMP</div>'
+         +'</div></div>'
+        :'')
+      +'</div>'
+      +_sigInline
+      +'</div>';
+  }
   var _SEC_RENDER = {
     fpOpinion:      function(){ var t=_secFpTxt(); return _secOpBox('Opinion of Floor Plan','Spatial layout · circulation · functional efficiency', t?'<div class="rep-op">'+esc(t)+'</div>':'<div style="font-size:10px;color:#aaa;font-style:italic;">No floor plan opinion entered.</div>'); },
     renovNotes:     function(){ var t=_secS12(['renovNotes']); return t?_secOpBox('Renovation Notes &amp; Remarks','Renovation scope · works · materials &amp; finishes · impact on value','<div class="rep-op">'+esc(t)+'</div>'):''; },
@@ -25631,7 +25755,9 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     location:       function(){ return _locBlockCache||''; },
     inspDetails:    function(){ return _inspBlockCache||''; },
     conclusion:     function(){ return _conclBlockCache||''; },
-    valuation:      function(){ return _valBlockCache||''; }
+    valuation:      function(){ return _valBlockCache||''; },
+    signoff:        function(){ return _secSignoffBody(!_secMovedDecl); },   // §SEC-ADDPAGE — Declaration included unless it was moved out on its own
+    declaration:    function(){ return _declBlockCache; }                    // §SEC-ADDPAGE
   };
   function _renderSecsFor(pg){ if(!_secCustom||!_secCustom[pg]) return '';
     return _secCustom[pg].map(function(id){ if(_secEmitted[id]) return ''; _secEmitted[id]=1; if(typeof _orderSecEnabled==='function'&&!_orderSecEnabled(order,id)) return ''; try{ return (_SEC_RENDER[id]?_SEC_RENDER[id]():''); }catch(e){ return ''; } }).join(''); }   // §SEC-ENABLE (v2.247) — skip sections the user unchecked
@@ -26750,7 +26876,10 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       +'</div>'+pgFtr('p6')+'</div></div>';
   }
 
-
+  // §SEC-ADDPAGE (v2.252) — placeholder for user-added overflow pages. They physically sit
+  //   between Valuation (p6) and Sign-Off, matching their _pgList position (so §TOC-ANCHORS
+  //   numbers them correctly). Resolved right after §7 once every section cache is built.
+  html += '<!--__SEC_EXTRA_PAGES__-->';
 
 
   // §7 ── SIGN-OFF PAGE ──────────────────────────────────────────────────────
@@ -26760,7 +26889,9 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   Source: _s12d.inspName > order.appraiser; _s12d.inspDate > today().
   // Optional stamp circle: RC.rcLastStamp.
   // RC.rcSigStyle: "Below printed name" or "Above" (line placement).
-  if(RC.rcPageSignoff!==false){
+  // §SEC-ADDPAGE (v2.252) — skip the inline Sign-Off page when the user MOVED the Sign-Off block
+  //   onto another (e.g. added overflow) page; the driver renders it there instead.
+  if(RC.rcPageSignoff!==false && !_secMovedSignoff){
   var _soName  = (_s12d.inspName||order.appraiser||'').trim();
   var _soDate  = (_s12d.inspDate||today()).trim();
   var _soNote1 = (_s12d.s12f2||'').trim();
@@ -26811,11 +26942,9 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   from the Valuation page, immediately before the Appraiser Declaration.
     +'<div class="disc"><div class="disc-title">Certification &amp; Limiting Conditions</div>'
     +'<div class="disc-text">' + (disc[type] || disc[2]) + '</div></div>'
-    +'<div style="border:1px solid #d4c9b0;border-left:3px solid '+RC.rcAccentColor+';margin-bottom:14px;">'
-    +'<div style="background:#f9f7f3;padding:6px 14px;border-bottom:1px solid #e8e0d4;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a7a6a;">Appraiser Declaration</div></div>'
-    +'<div style="padding:14px 16px;"><div class="rep-op">'
-    +'I certify that, to the best of my knowledge and belief, the statements of fact contained in this report are true and correct. The reported analyses, opinions, and conclusions are limited only by the reported assumptions and limiting conditions, and are my personal, impartial, and unbiased professional analyses, opinions, and conclusions. I have no present or prospective interest in the property that is the subject of this report, and no personal interest with respect to the parties involved. My compensation is not contingent on an action or event resulting from the analyses, opinions, or conclusions in this report.'
-    +'</div></div></div>'
+    // §SEC-ADDPAGE (v2.252) — _declBlockCache is byte-identical to the former inline Declaration
+    //   box; it is omitted here only when the user moved the Declaration onto its own page.
+    +(_secMovedDecl ? '' : _declBlockCache)
     +(_soNote1||_soNote2||_soNote3
       ?'<div style="border:1px solid #d4c9b0;padding:12px 16px;margin-bottom:14px;">'
        +'<div style="font-size:7.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a7a6a;margin-bottom:8px;">Additional Notes</div>'
@@ -26847,6 +26976,28 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     +'</div>'
     +'</div>'+_apprSigUnit+pgFtr('signoff')+'</div></div>';
   }
+
+  // §SEC-ADDPAGE (v2.252) — resolve the overflow-page placeholder now that every section cache
+  //   (incl. signoff/declaration) is built. Emit one physical A4 page per LIVE extra layout page,
+  //   rendering its placed sections via the driver. No explicit id → §TOC-ANCHORS assigns
+  //   id="page-<secxN>" positionally from _pgList (extra ids were pushed right after 'p6').
+  try{
+    var _secExtraPagesHtml='';
+    // IMPORTANT: emit exactly ONE physical page per _secExtraLive entry — the SAME list drives the
+    //   _pgList pushes earlier, so §TOC-ANCHORS' positional page↔id mapping stays aligned. Do NOT
+    //   skip an entry whose content renders empty here, or every later page number would shift by one.
+    (_secExtraLive||[]).forEach(function(_ek){
+      var _ec=(typeof _renderSecsFor==='function')?_renderSecsFor(_ek):'';
+      _secExtraPagesHtml += '<div class="page"><div class="inner">'
+        + pgHdr('Continued')
+        + '<div class="page-body" style="position:relative;">'
+        + _ec
+        + '</div>'
+        + pgFtr(_secExtraPhysId(_ek)) + '</div></div>';
+    });
+    html = html.replace('<!--__SEC_EXTRA_PAGES__-->', _secExtraPagesHtml);
+    if(_secExtraPagesHtml) console.log('[SEC-ADDPAGE] emitted', (_secExtraLive||[]).length, 'overflow page(s)');
+  }catch(_secExtraErr){ try{ html = html.replace('<!--__SEC_EXTRA_PAGES__-->',''); console.warn('[SEC-ADDPAGE] overflow-page emit failed:', _secExtraErr); }catch(_x){} }
 
 
 
@@ -30864,7 +31015,7 @@ function _toRow(o) {
       //   captured payload so a deferred invoice can be created later with nothing re-typed.
       invoiceStatus:o.invoiceStatus||'', pendingInvoice:(o.pendingInvoice&&typeof o.pendingInvoice==='object')?o.pendingInvoice:undefined,
       internalNotes:o.internalNotes||'', revision:o.revision||'',
-      comps:o.comps||'', flag:o.flag||'', flagOther:o.flagOther||'', propCategory:o.propCategory||'', propCategoryOther:o.propCategoryOther||'', sectionLayout:(o.sectionLayout&&typeof o.sectionLayout==='object')?o.sectionLayout:undefined, sectionSpacing:(o.sectionSpacing&&typeof o.sectionSpacing==='object')?o.sectionSpacing:undefined, sectionEnabled:(o.sectionEnabled&&typeof o.sectionEnabled==='object')?o.sectionEnabled:undefined,
+      comps:o.comps||'', flag:o.flag||'', flagOther:o.flagOther||'', propCategory:o.propCategory||'', propCategoryOther:o.propCategoryOther||'', sectionLayout:(o.sectionLayout&&typeof o.sectionLayout==='object')?o.sectionLayout:undefined, sectionSpacing:(o.sectionSpacing&&typeof o.sectionSpacing==='object')?o.sectionSpacing:undefined, sectionEnabled:(o.sectionEnabled&&typeof o.sectionEnabled==='object')?o.sectionEnabled:undefined, sectionExtraPages:((o.sectionExtraPages|0)>0)?(o.sectionExtraPages|0):undefined,
       owner:o.owner||'',
       purpose:o.purpose||'', finInst:o.finInst||'',
       ropvZone:o.ropvZone||'', propType:o.propType||'',
@@ -31107,6 +31258,7 @@ function _fromRow(row, order) {
       if (x.sectionLayout && typeof x.sectionLayout==='object') order.sectionLayout = x.sectionLayout; // §SECTION-ORDER (v2.219-beta)
       if (x.sectionEnabled && typeof x.sectionEnabled==='object') order.sectionEnabled = x.sectionEnabled; // §SEC-ENABLE (v2.247)
       if (x.sectionSpacing && typeof x.sectionSpacing==='object') order.sectionSpacing = x.sectionSpacing; // §SEC-SPACING (v2.225)
+      if ((x.sectionExtraPages|0)>0) order.sectionExtraPages = x.sectionExtraPages|0; // §SEC-ADDPAGE (v2.252)
       if (x.propCategoryOther) order.propCategoryOther = x.propCategoryOther;
       if (x.apprType)       order.apprType       = x.apprType;
       // §EDIT-PERSIST (v1.932) — restore Building Info extras + Cost checklist.
