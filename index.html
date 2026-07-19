@@ -12755,25 +12755,41 @@ function _condoRowsLoad(){try{
 function _condoRowsSave(a){try{localStorage.setItem("sigmaCondoAnalytics_v2",JSON.stringify(a));}catch(e){}}
 function _condoUSD(awg){var p=_condoPeg()||1.79;return (parseFloat(awg)||0)/p;}
 function _condoMoney(n){return Math.round(n).toLocaleString("en-US");}
-// §ANALYTICS-CHART (v2.261) — pure CSS horizontal bar chart of price/m² (AWG), sorted high→low.
-//   Dependency-free so it renders in the manager AND in the printed report. opts.small = report.
+// Lighten a hex colour toward white by amt (0..1) → 'rgb(...)'. For the bar gradient.
+function _condoTint(hex,amt){ try{ hex=String(hex||'').replace('#',''); if(hex.length===3) hex=hex.replace(/(.)/g,'$1$1'); var r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16); if(isNaN(r)||isNaN(g)||isNaN(b)) return '#e6bd6b'; r=Math.round(r+(255-r)*amt);g=Math.round(g+(255-g)*amt);b=Math.round(b+(255-b)*amt); return 'rgb('+r+','+g+','+b+')'; }catch(e){ return '#e6bd6b'; } }
+// §ANALYTICS-CHART (v2.263) — refined pure-CSS horizontal bar chart of price/m² (AWG · USD),
+//   sorted high→low: rank chip, gradient rounded bars over a gridded track, inline values.
+//   No libraries; prints cleanly in the report (opts.small = compact report variant).
 function _condoBarChart(rows,opts){
   opts=opts||{};
   var data=(rows||[]).filter(function(r){ return (parseFloat(r.awg)||0)>0; }).slice();
   if(!data.length) return '';
   data.sort(function(a,b){ return (parseFloat(b.awg)||0)-(parseFloat(a.awg)||0); });
   var max=Math.max.apply(null,data.map(function(r){return parseFloat(r.awg)||0;}))||1;
-  var acc=opts.accent||'#c8922a', lblW=opts.small?'40%':'34%', valW=opts.small?'96px':'120px', fs=opts.small?'9px':'10px', bh=opts.small?'11px':'13px', usdFs=opts.small?'7.5px':'8.5px';
-  var bars=data.map(function(r){
-    var awg=parseFloat(r.awg)||0, pct=(awg/max*100), usd=_condoUSD(awg);
-    var nm=(r.name||''), lc=(r.location||''), label=nm+(lc?((nm?' · ':'')+lc):'');
-    return '<div style="display:flex;align-items:center;gap:8px;margin:2.5px 0;font-size:'+fs+';">'
-      +'<div style="width:'+lblW+';text-align:right;color:#4a3a2a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_condoEsc(label||'—')+'</div>'
-      +'<div style="flex:1;background:#efe9dd;border-radius:3px;height:'+bh+';overflow:hidden;"><div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+acc+';border-radius:3px;"></div></div>'
-      +'<div style="width:'+valW+';text-align:right;font-family:DM Mono,monospace;color:#0f0d0a;white-space:nowrap;">AWG '+_condoMoney(awg)+' <span style="color:#8a7a6a;font-size:'+usdFs+';">· $'+_condoMoney(usd)+'</span></div>'
+  var acc=opts.accent||'#c8922a', acc2=_condoTint(acc,.42), small=!!opts.small;
+  var fs=small?'9px':'11px', trackH=small?'15px':'20px', rad=small?'4px':'6px', rnkW=small?'16px':'22px',
+      lblW=small?'34%':'30%', gap=small?'8px':'11px', rowMy=small?'3px':'5px', valFs=small?'8.5px':'10px', valW=small?'96px':'122px';
+  var pca='-webkit-print-color-adjust:exact;print-color-adjust:exact;';
+  var grid='background-color:#f1ebe0;background-image:repeating-linear-gradient(90deg,rgba(0,0,0,.05) 0,rgba(0,0,0,.05) 1px,transparent 1px,transparent 25%);'+pca;
+  var bars=data.map(function(r,i){
+    var awg=parseFloat(r.awg)||0, usd=_condoUSD(awg), pct=(awg/max*100);
+    var nm=_condoEsc(r.name||'—'), lc=r.location?_condoEsc(r.location):'';
+    var lbl='<span style="font-weight:600;color:#2a2118;">'+nm+'</span>'+(lc?'<span style="color:#9a8a78;">  ·  '+lc+'</span>':'');
+    return '<div style="display:flex;align-items:center;gap:'+gap+';margin:'+rowMy+' 0;font-size:'+fs+';">'
+      +'<div style="width:'+rnkW+';flex-shrink:0;text-align:center;color:'+acc+';font-weight:800;font-size:'+(small?'8px':'9.5px')+';">'+(i+1)+'</div>'
+      +'<div style="width:'+lblW+';flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+lbl+'</div>'
+      +'<div style="flex:1;position:relative;height:'+trackH+';border-radius:'+rad+';overflow:hidden;'+grid+'">'
+        +'<div style="position:absolute;left:0;top:0;bottom:0;width:'+pct.toFixed(1)+'%;min-width:2px;background:linear-gradient(90deg,'+acc+','+acc2+');border-radius:'+rad+';box-shadow:0 1px 2px rgba(0,0,0,.14);'+pca+'"></div>'
+      +'</div>'
+      +'<div style="width:'+valW+';flex-shrink:0;text-align:right;font-family:DM Mono,monospace;white-space:nowrap;color:#0f0d0a;font-size:'+valFs+';">AWG '+_condoMoney(awg)+' <span style="color:#8a7a6a;">· $'+_condoMoney(usd)+'</span></div>'
       +'</div>';
   }).join('');
-  return '<div style="margin-top:4px;"><div style="font-size:'+(opts.small?'7.5px':'10px')+';font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a7a6a;margin-bottom:6px;">Price per m² by condo (AWG · USD)</div>'+bars+'</div>';
+  return '<div style="margin-top:2px;">'
+    +'<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:'+(small?'8px':'11px')+';">'
+    +'<div style="font-size:'+(small?'8px':'11px')+';font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#6a5a48;">Price per m² by condo</div>'
+    +'<div style="font-size:'+(small?'7px':'9px')+';letter-spacing:.06em;text-transform:uppercase;color:#a89a86;">AWG · USD</div>'
+    +'</div>'
+    +bars+'</div>';
 }
 var _condoRows=null;
 function _condoEnsure(){ if(_condoRows===null)_condoRows=_condoRowsLoad(); }
@@ -14071,7 +14087,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.262';
+var APP_VERSION = 'v2.263';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -14109,6 +14125,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.263',type:'tweak',date:'07-19-2026',ts:'07-19-2026 17:20',_static:true,title:'Condominium Analytics bar chart — refreshed visual design',desc:'The price/m² bar chart got a nicer look: ranked rows (1,2,3…), smooth gradient rounded bars sitting on a lightly gridded track for scale, cleaner condo name + location typography, and tidy AWG · USD values. Prints crisply in the report too.'},
   {v:'v2.262',type:'tweak',date:'07-19-2026',ts:'07-19-2026 16:50',_static:true,title:'Condominium Analytics bar chart now shows USD alongside AWG',desc:'Each bar in the price-per-m² chart now shows both the AWG value and the USD equivalent (e.g. “AWG 12,500 · $6,983”), in the manager and on the report.'},
   {v:'v2.261',type:'feature',date:'07-19-2026',ts:'07-19-2026 16:30',_static:true,title:'Condominium Analytics — separate Location column + price/m² bar chart',desc:'Two improvements to Condominium Analytics: (1) each condo now has its own Condominium NAME and LOCATION as separate columns (was one combined field) — both on the manager and on the report; (2) a bar chart of price per m² (AWG), sorted high→low, now shows under the table both in the Σ Analytics manager and in the New Construction report’s Analytics section. Your existing list is carried over automatically (the old single field becomes the Condominium name; add the Location). Update prices and the chart redraws instantly.'},
   {v:'v2.260',type:'fix',date:'07-19-2026',ts:'07-19-2026 15:45',_static:true,title:'Report Index now reflects the actual sections & order (incl. Introductory Note, Condominium Analytics, added pages)',desc:'When you rearrange a report with the Section Order tool, the Index (Table of Contents) descriptions now update to match — pages 3, 4 and 6 list the sections actually placed on them (in your chosen order), including the Introductory Note and, on New Construction reports, Condominium Analytics. Sections you move onto an added overflow page now also get their own Index row. Reports you haven’t customized are unchanged.'},
