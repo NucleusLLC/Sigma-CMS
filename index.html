@@ -14037,7 +14037,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.259';
+var APP_VERSION = 'v2.260';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -14075,6 +14075,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.260',type:'fix',date:'07-19-2026',ts:'07-19-2026 15:45',_static:true,title:'Report Index now reflects the actual sections & order (incl. Introductory Note, Condominium Analytics, added pages)',desc:'When you rearrange a report with the Section Order tool, the Index (Table of Contents) descriptions now update to match — pages 3, 4 and 6 list the sections actually placed on them (in your chosen order), including the Introductory Note and, on New Construction reports, Condominium Analytics. Sections you move onto an added overflow page now also get their own Index row. Reports you haven’t customized are unchanged.'},
   {v:'v2.259',type:'feature',date:'07-19-2026',ts:'07-19-2026 15:00',_static:true,title:'Report Section Order — Introductory Note is now movable + per-page spacing control',desc:'Two additions to the Section Order tool: (1) the “Introductory Note” now appears as a movable section, so you can reorder or reposition it like the others (on Type 2 / Type 3 report templates); (2) each page column now has a “↕ Gap” selector (Default / Small / Medium / Large / Extra) that sets the vertical space between the sections on that page — handy when a page looks cramped or too sparse. Leaving Gap on “Default” keeps the current look exactly. Both save with the order and show in the per-page preview.'},
   {v:'v2.258',type:'fix',date:'07-19-2026',ts:'07-19-2026 14:00',_static:true,title:'Type 3 report — Inspection Details now reads in numerical order (no footer overrun)',desc:'On New Construction (Type 3) reports the Inspection Details table was splitting its sections into two columns in an interleaved order, so the numbering jumped around and the right column ran over the page footer. It now reads straight down: the left column holds items 1–5 (through “5. Bathroom”) and the right column continues 6–9 (from “6. Exterior Systems”), in order. Type 1 & 2 reports are unchanged.'},
   {v:'v2.257',type:'tweak',date:'07-19-2026',ts:'07-19-2026 13:15',_static:true,title:'Condominium Analytics — seeded with 12 sample locations',desc:'The Condominium Analytics list now starts with 12 sample Aruba condo locations and placeholder AWG price/m² values, so the feature is populated out of the box and you can see it on New Construction reports immediately. These are illustrative starter figures — open Σ Analytics › Condominium Analytics and overwrite them with your real prices. The sample only fills in when nothing is saved yet; once you edit or delete rows, your changes stick and are never overwritten.'},
@@ -25566,10 +25567,10 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     var _tocEntries;
     if (_tplVariant === 'T2') {
       _tocEntries = [
-        {n:'1',  id:'pT2_3',         title:'Project Information &amp; Introductory Note',        pg:_pg('pT2_3'),         desc:((RC._grndFpUnderInfo||RC._mbLayout||RC._suppressFpOpinionP4)?'Property details · client · appraiser · floor-plan summary, thumbnails · Opinion of Floor Plan':'Property details · client · appraiser · floor-plan summary, thumbnails, observations')},
-        {n:'2',  id:'pT2_4',         title:(RC._mbLayout?'Condition Assessment &amp; Inspection Details':((RC._suppressFpOpinionP4||RC._grndFpUnderInfo)?'Condition Assessment &amp; Building':'Opinion of Floor Plan, Condition &amp; Building')),     pg:_pg('pT2_4'),         desc:(RC._mbLayout?'Condition Assessment Matrix · Materials · Equipment · Systems · Finishes':((RC._suppressFpOpinionP4||RC._grndFpUnderInfo)?'Condition Assessment Matrix · Building, Equipment &amp; Finishes · inspection details':'Floor plan opinion · Condition Assessment Matrix · Building, Equipment &amp; Finishes · inspection details'))},
+        {n:'1',  id:'pT2_3',         title:'Project Information &amp; Introductory Note',        pg:_pg('pT2_3'),         desc:('Property details · client · appraiser · '+_secDescForOrder(order,'p3',((RC._grndFpUnderInfo||RC._mbLayout||RC._suppressFpOpinionP4)?'floor-plan summary, thumbnails · Opinion of Floor Plan':'floor-plan summary, thumbnails, observations')))},
+        {n:'2',  id:'pT2_4',         title:(RC._mbLayout?'Condition Assessment &amp; Inspection Details':((RC._suppressFpOpinionP4||RC._grndFpUnderInfo)?'Condition Assessment &amp; Building':'Opinion of Floor Plan, Condition &amp; Building')),     pg:_pg('pT2_4'),         desc:_secDescForOrder(order,'p4',(RC._mbLayout?'Condition Assessment Matrix · Materials · Equipment · Systems · Finishes':((RC._suppressFpOpinionP4||RC._grndFpUnderInfo)?'Condition Assessment Matrix · Building, Equipment &amp; Finishes · inspection details':'Floor plan opinion · Condition Assessment Matrix · Building, Equipment &amp; Finishes · inspection details')))},
         {n:'4',  id:'p5',            title:'Location, Opinion &amp; ROPV',                       pg:_pg('p5'),            desc:('Location map · '+_secDescForOrder(order,'p5','Opinion of the Location · R.O.P.V. Spatial Planning Regulations'))},
-        {n:'5',  id:'p6',            title:_valTitleHtml,                                        pg:_pg('p6'),            desc:'Three-value approach · Certification &amp; limiting conditions'},
+        {n:'5',  id:'p6',            title:_valTitleHtml,                                        pg:_pg('p6'),            desc:_secDescForOrder(order,'p6','Three-value approach · Certification &amp; limiting conditions')},
         {n:'6',  id:(_secMovedSignoff?_secPhysId(_secPageOfId(order,'signoff')):'signoff'),       title:'Appraiser Sign-Off',                                 pg:_pgSignoff(),       desc:'Appraiser declaration · certification · signature'},
         {n:'7',  id:'p7',            title:'Attached Documents',                                 pg:_pg('p7'),            desc:_attachedDocsDesc},
         {n:'8',  id:'p8',            title:'__CS_TITLE__',                                       pg:_pg('p8'),            desc:'__CS_DESC__'},
@@ -25587,8 +25588,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
         {n:'1',  id:'p3',     title:'Project Information',                                  pg:_pg('p3'),      desc:'Report No., dates, address, type, zoning, sizes, client, appraiser, license'},
         {n:'2',  id:'p3',     title:'Inspection Details',                                   pg:_pg('p3'),      desc:'Classification · Foundation &amp; Walls · Roof · Interior Finishes · Kitchen · Bathroom · Exterior Systems · Electrical &amp; HVAC · Fencing · Miscellaneous'},
         {n:'4',  id:'p4',     title:'Condition Assessment Matrix &amp; Opinions',           pg:_pg('p4'),      desc:_secDescForOrder(order,'p4','Condition Assessment Matrix · Opinions of Building, Equipment &amp; Finishes · Opinion of Floor Plan')},
-        {n:'5',  id:'p5',     title:'Professional Summary',                                  pg:_pg('p5'),      desc:'AI building summary · Location map · Appraiser opinion · ROPV'},
-        {n:'6',  id:'p6',     title:'Valuation',                                             pg:_pg('p6'),      desc:'Three-value approach · Certification &amp; limiting conditions · Signature'},
+        {n:'5',  id:'p5',     title:'Professional Summary',                                  pg:_pg('p5'),      desc:_secDescForOrder(order,'p5','AI building summary · Location map · Appraiser opinion · ROPV')},
+        {n:'6',  id:'p6',     title:'Valuation',                                             pg:_pg('p6'),      desc:_secDescForOrder(order,'p6','Three-value approach · Certification &amp; limiting conditions · Signature')},
         {n:'7',  id:(_secMovedSignoff?_secPhysId(_secPageOfId(order,'signoff')):'signoff'),title:'Appraiser Sign-Off',                                    pg:_pgSignoff(), desc:'Appraiser declaration · certification · signature'},
         {n:'8',  id:'p7',     title:'Attached Documents',                                    pg:_pg('p7'),      desc:_attachedDocsDesc},
         {n:'9',  id:'p8',     title:'__CS_TITLE__',                                          pg:_pg('p8'),      desc:'__CS_DESC__'},
@@ -25603,6 +25604,22 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
           desc:'Official cadastral register · consists of ' + _cadPgsT1 + ' page' + (_cadPgsT1===1?'':'s')});
       }
     }
+    // §SEC-ADDPAGE — Index rows for user-added overflow pages that carry sections, inserted right
+    //   after Valuation (p6) so the numbering reads in order. Skip a page that only holds the moved
+    //   Sign-Off (it already has its own row), to avoid a duplicate Index entry.
+    try{
+      if(_secExtraLive && _secExtraLive.length){
+        var _soPageK=(_secMovedSignoff?_secPageOfId(order,'signoff'):'');
+        var _extraRows=_secExtraLive.filter(function(k){ return k!==_soPageK; }).map(function(k){
+          var _pid=_secExtraPhysId(k);
+          return {n:'', id:_pid, title:'Additional Sections', pg:_pg(_pid), desc:_secDescForOrder(order,k,'Additional report sections')};
+        });
+        if(_extraRows.length){
+          var _p6Idx=-1; for(var _ti=0;_ti<_tocEntries.length;_ti++){ if(_tocEntries[_ti].id==='p6'){ _p6Idx=_ti; break; } }
+          if(_p6Idx>=0) _tocEntries.splice.apply(_tocEntries,[_p6Idx+1,0].concat(_extraRows)); else _tocEntries=_tocEntries.concat(_extraRows);
+        }
+      }
+    }catch(_exTocErr){ try{console.warn('[SEC-ADDPAGE] extra-page TOC insert failed:',_exTocErr);}catch(_x){} }
     // Remove entries whose page is '?' (page disabled via RC settings)
     _tocEntries = _tocEntries.filter(function(te){ return te.pg !== '?'; });
 
