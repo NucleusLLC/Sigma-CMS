@@ -12763,17 +12763,17 @@ function _condoBarChart(rows,opts){
   if(!data.length) return '';
   data.sort(function(a,b){ return (parseFloat(b.awg)||0)-(parseFloat(a.awg)||0); });
   var max=Math.max.apply(null,data.map(function(r){return parseFloat(r.awg)||0;}))||1;
-  var acc=opts.accent||'#c8922a', lblW=opts.small?'42%':'36%', valW=opts.small?'62px':'86px', fs=opts.small?'9px':'10px', bh=opts.small?'11px':'13px';
+  var acc=opts.accent||'#c8922a', lblW=opts.small?'40%':'34%', valW=opts.small?'96px':'120px', fs=opts.small?'9px':'10px', bh=opts.small?'11px':'13px', usdFs=opts.small?'7.5px':'8.5px';
   var bars=data.map(function(r){
-    var awg=parseFloat(r.awg)||0, pct=(awg/max*100);
+    var awg=parseFloat(r.awg)||0, pct=(awg/max*100), usd=_condoUSD(awg);
     var nm=(r.name||''), lc=(r.location||''), label=nm+(lc?((nm?' · ':'')+lc):'');
     return '<div style="display:flex;align-items:center;gap:8px;margin:2.5px 0;font-size:'+fs+';">'
       +'<div style="width:'+lblW+';text-align:right;color:#4a3a2a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_condoEsc(label||'—')+'</div>'
       +'<div style="flex:1;background:#efe9dd;border-radius:3px;height:'+bh+';overflow:hidden;"><div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+acc+';border-radius:3px;"></div></div>'
-      +'<div style="width:'+valW+';text-align:right;font-family:DM Mono,monospace;color:#0f0d0a;">'+_condoMoney(awg)+'</div>'
+      +'<div style="width:'+valW+';text-align:right;font-family:DM Mono,monospace;color:#0f0d0a;white-space:nowrap;">AWG '+_condoMoney(awg)+' <span style="color:#8a7a6a;font-size:'+usdFs+';">· $'+_condoMoney(usd)+'</span></div>'
       +'</div>';
   }).join('');
-  return '<div style="margin-top:4px;"><div style="font-size:'+(opts.small?'7.5px':'10px')+';font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a7a6a;margin-bottom:6px;">Price per m² by condo (AWG)</div>'+bars+'</div>';
+  return '<div style="margin-top:4px;"><div style="font-size:'+(opts.small?'7.5px':'10px')+';font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a7a6a;margin-bottom:6px;">Price per m² by condo (AWG · USD)</div>'+bars+'</div>';
 }
 var _condoRows=null;
 function _condoEnsure(){ if(_condoRows===null)_condoRows=_condoRowsLoad(); }
@@ -14071,7 +14071,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.261';
+var APP_VERSION = 'v2.262';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -14109,6 +14109,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.262',type:'tweak',date:'07-19-2026',ts:'07-19-2026 16:50',_static:true,title:'Condominium Analytics bar chart now shows USD alongside AWG',desc:'Each bar in the price-per-m² chart now shows both the AWG value and the USD equivalent (e.g. “AWG 12,500 · $6,983”), in the manager and on the report.'},
   {v:'v2.261',type:'feature',date:'07-19-2026',ts:'07-19-2026 16:30',_static:true,title:'Condominium Analytics — separate Location column + price/m² bar chart',desc:'Two improvements to Condominium Analytics: (1) each condo now has its own Condominium NAME and LOCATION as separate columns (was one combined field) — both on the manager and on the report; (2) a bar chart of price per m² (AWG), sorted high→low, now shows under the table both in the Σ Analytics manager and in the New Construction report’s Analytics section. Your existing list is carried over automatically (the old single field becomes the Condominium name; add the Location). Update prices and the chart redraws instantly.'},
   {v:'v2.260',type:'fix',date:'07-19-2026',ts:'07-19-2026 15:45',_static:true,title:'Report Index now reflects the actual sections & order (incl. Introductory Note, Condominium Analytics, added pages)',desc:'When you rearrange a report with the Section Order tool, the Index (Table of Contents) descriptions now update to match — pages 3, 4 and 6 list the sections actually placed on them (in your chosen order), including the Introductory Note and, on New Construction reports, Condominium Analytics. Sections you move onto an added overflow page now also get their own Index row. Reports you haven’t customized are unchanged.'},
   {v:'v2.259',type:'feature',date:'07-19-2026',ts:'07-19-2026 15:00',_static:true,title:'Report Section Order — Introductory Note is now movable + per-page spacing control',desc:'Two additions to the Section Order tool: (1) the “Introductory Note” now appears as a movable section, so you can reorder or reposition it like the others (on Type 2 / Type 3 report templates); (2) each page column now has a “↕ Gap” selector (Default / Small / Medium / Large / Extra) that sets the vertical space between the sections on that page — handy when a page looks cramped or too sparse. Leaving Gap on “Default” keeps the current look exactly. Both save with the order and show in the per-page preview.'},
