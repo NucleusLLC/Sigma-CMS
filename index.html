@@ -12723,7 +12723,25 @@ function _voiceTest(btn){
 //     sigmaCondoAnalytics_v1 = [{loc, awg}, ...]   sigmaCondoPeg_v1 = number (default 1.79)
 function _condoEsc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
 function _condoPeg(){var v=parseFloat(localStorage.getItem("sigmaCondoPeg_v1"));return (v>0)?v:1.79;}
-function _condoRowsLoad(){try{var a=JSON.parse(localStorage.getItem("sigmaCondoAnalytics_v1")||"[]");return Array.isArray(a)?a:[];}catch(e){return[];}}
+// §ANALYTICS (v2.257) — SAMPLE seed: 12 Aruba condo locations with PLACEHOLDER AWG price/m².
+//   These are illustrative starter values — overwrite them with your real figures in the
+//   Σ Analytics › Condominium Analytics manager. Seeded only when nothing is saved yet;
+//   once you edit/delete, your data persists and this seed never overwrites it again.
+var _CONDO_SEED=[
+  {loc:'Palm Beach',      awg:12500},
+  {loc:'Eagle Beach',     awg:11800},
+  {loc:'Malmok',          awg:11000},
+  {loc:'Arashi',          awg:10500},
+  {loc:'Druif Beach',     awg:9800},
+  {loc:'Tierra del Sol',  awg:8900},
+  {loc:'Noord',           awg:7500},
+  {loc:'Bubali',          awg:7000},
+  {loc:'Oranjestad',      awg:6800},
+  {loc:'Tanki Leendert',  awg:5900},
+  {loc:'Savaneta',        awg:5500},
+  {loc:'Pos Chiquito',    awg:5200}
+];
+function _condoRowsLoad(){try{var raw=localStorage.getItem("sigmaCondoAnalytics_v1");if(raw==null){var seed=_CONDO_SEED.map(function(r){return {loc:r.loc,awg:r.awg};});try{localStorage.setItem("sigmaCondoAnalytics_v1",JSON.stringify(seed));}catch(e){}return seed;}var a=JSON.parse(raw);return Array.isArray(a)?a:[];}catch(e){return[];}}
 function _condoRowsSave(a){try{localStorage.setItem("sigmaCondoAnalytics_v1",JSON.stringify(a));}catch(e){}}
 function _condoUSD(awg){var p=_condoPeg()||1.79;return (parseFloat(awg)||0)/p;}
 function _condoMoney(n){return Math.round(n).toLocaleString("en-US");}
@@ -14010,7 +14028,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.256';
+var APP_VERSION = 'v2.257';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -14048,6 +14066,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.257',type:'tweak',date:'07-19-2026',ts:'07-19-2026 13:15',_static:true,title:'Condominium Analytics — seeded with 12 sample locations',desc:'The Condominium Analytics list now starts with 12 sample Aruba condo locations and placeholder AWG price/m² values, so the feature is populated out of the box and you can see it on New Construction reports immediately. These are illustrative starter figures — open Σ Analytics › Condominium Analytics and overwrite them with your real prices. The sample only fills in when nothing is saved yet; once you edit or delete rows, your changes stick and are never overwritten.'},
   {v:'v2.256',type:'tweak',date:'07-19-2026',ts:'07-19-2026 12:30',_static:true,title:'Condominium Analytics moved to the Σ Analytics area (out of Settings)',desc:'The Condominium Analytics reference list is now managed under Σ Analytics (left nav) via its own “Condominium Analytics” card — click it to add/remove condo locations and edit the AWG→USD peg — instead of being buried in Settings. Nothing else changed: the same list still feeds the Analytics section of New Construction (Type 3) reports.'},
   {v:'v2.255',type:'feature',date:'07-19-2026',ts:'07-19-2026 11:00',_static:true,title:'New “Analytics › Condominium Analytics” section for New Construction (Type 3) reports',desc:'New Construction reports gain an Analytics section with a Condominium Analytics market table — a firm-wide reference of condo locations and their price per m² (AWG, with USD shown alongside at the florin peg). Maintain the list once under Settings › Condo Analytics (add/remove locations, edit the peg) and every future Type 3 report reflects it. Each order also gets a “Condominium Analytics — Research Notes” field (in Inspect Data) to write your market commentary. The section is Type-3 only (Type 1 & 2 reports are unchanged), and it appears in the Section Order tool with a Show-on-report on/off toggle like the other sections. If no condos and no notes are entered, the section simply doesn’t appear.'},
   {v:'v2.254',type:'fix',date:'07-18-2026',ts:'07-18-2026 13:30',_static:true,title:'Narration bar now shows the actual cloud voice (Laura), not the browser voices',desc:'When the Fish Audio cloud voice is on, the little voice picker in the report Narration bar was still listing the computer’s built-in voices (e.g. three Windows names) even though “Laura” was the one actually speaking. It now shows just the cloud voice that is really narrating (“Laura (Fish)”). You can rename the displayed voice under Settings → Voice / Narration → “Voice name”. Switch the cloud voice off there and the browser-voice list comes back.'},
