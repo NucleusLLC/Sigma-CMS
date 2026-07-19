@@ -10151,6 +10151,17 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
           <textarea id="renovNotesText" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="Renovation scope · works completed · materials &amp; finishes · workmanship · stage of completion · impact on value…" data-key="renovNotes"></textarea>
         </div>
 
+        <!-- §ANALYTICS (v2.255) — Condominium Analytics research notes — Type 3 (New Construction) only; shown/hidden by _secInputSync. The condo price table itself comes from Settings › Condo Analytics. -->
+        <div class="fg" id="condoResearchSection" style="grid-column:1/-1;display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">A</span>Condominium Analytics — Research Notes</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show the Analytics section on the report"><input type="checkbox" id="secChkCondo" onchange="_secInputToggle('condoAnalytics',this)" style="cursor:pointer;margin:0;"> Show on report</label>
+            </div>
+          </div>
+          <textarea id="condoResearchText" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="Condominium market commentary — comparable projects, price/m² positioning of the subject, absorption &amp; demand, location premium, and your marketability conclusion…" data-key="condoResearch"></textarea>
+        </div>
+
         <!-- §CONCL (v2.221) — Conclusion / Opinion (all appraisal types). Prints in the report on top of the Valuation section. -->
         <div class="fg" style="grid-column:1/-1;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
@@ -12681,6 +12692,57 @@ function _voiceTest(btn){
       +'</div></div>';
   }catch(e){ try{ console.warn('[voice-pref] register failed:', e); }catch(_){} }
 })();
+// §ANALYTICS (v2.255) — Condominium Analytics master list (Settings › Condo Analytics).
+//   A firm-wide reference table of condo locations + price per m² (AWG), with USD auto-
+//   computed at an editable florin peg. Stored in localStorage; the Type 3 report reads it
+//   to render the "Analytics › Condominium Analytics" page. Shared shape:
+//     sigmaCondoAnalytics_v1 = [{loc, awg}, ...]   sigmaCondoPeg_v1 = number (default 1.79)
+function _condoEsc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+function _condoPeg(){var v=parseFloat(localStorage.getItem("sigmaCondoPeg_v1"));return (v>0)?v:1.79;}
+function _condoRowsLoad(){try{var a=JSON.parse(localStorage.getItem("sigmaCondoAnalytics_v1")||"[]");return Array.isArray(a)?a:[];}catch(e){return[];}}
+function _condoRowsSave(a){try{localStorage.setItem("sigmaCondoAnalytics_v1",JSON.stringify(a));}catch(e){}}
+function _condoUSD(awg){var p=_condoPeg()||1.79;return (parseFloat(awg)||0)/p;}
+function _condoMoney(n){return Math.round(n).toLocaleString("en-US");}
+var _condoRows=null;
+function _condoEnsure(){ if(_condoRows===null)_condoRows=_condoRowsLoad(); }
+function _condoPanelRender(){
+  _condoEnsure();
+  var host=document.getElementById("condoBody");if(!host)return;
+  var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;font-size:12px;">'
+    +'<label>AWG → USD peg &nbsp;<input id="condoPeg" type="number" step="0.01" min="0.01" value="'+_condoPeg()+'" oninput="_condoSetPegEl(this)" style="width:84px;padding:5px 7px;border:1px solid var(--border,#d9d2c4);border-radius:6px;background:var(--surface,#fff);color:var(--ink,#111);"></label>'
+    +'<span style="color:var(--muted,#888);font-size:11px;">1 USD = X AWG · USD is auto-computed</span></div>';
+  h+='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px;"><thead><tr style="text-align:left;color:var(--muted,#888);border-bottom:1px solid var(--border,#e5e0d5);">'
+    +'<th style="padding:6px 8px;width:32px;">#</th><th style="padding:6px 8px;">Condo / Location</th><th style="padding:6px 8px;width:150px;">Price/m² (AWG)</th><th style="padding:6px 8px;width:130px;">Price/m² (USD)</th><th style="padding:6px 8px;width:38px;"></th></tr></thead><tbody>';
+  if(!_condoRows.length){ h+='<tr><td colspan="5" style="padding:16px 8px;color:var(--muted,#aaa);font-style:italic;">No condos yet — click “＋ Add condo” to build your reference list.</td></tr>'; }
+  _condoRows.forEach(function(r,i){
+    h+='<tr style="border-bottom:1px solid var(--border,#f0ece3);">'
+      +'<td style="padding:5px 8px;color:var(--muted,#999);">'+(i+1)+'</td>'
+      +'<td style="padding:5px 8px;"><input type="text" value="'+_condoEsc(r.loc||"")+'" data-i="'+i+'" data-f="loc" oninput="_condoEdit(this)" placeholder="e.g. Eagle Beach / Blue Residences" style="width:100%;padding:5px 7px;border:1px solid var(--border,#d9d2c4);border-radius:6px;background:var(--surface,#fff);color:var(--ink,#111);box-sizing:border-box;"></td>'
+      +'<td style="padding:5px 8px;"><input type="number" min="0" value="'+(r.awg!=null&&r.awg!==""?r.awg:"")+'" data-i="'+i+'" data-f="awg" oninput="_condoEdit(this)" placeholder="AWG" style="width:100%;padding:5px 7px;border:1px solid var(--border,#d9d2c4);border-radius:6px;background:var(--surface,#fff);color:var(--ink,#111);box-sizing:border-box;"></td>'
+      +'<td id="condoUsd_'+i+'" style="padding:5px 8px;color:var(--muted,#555);white-space:nowrap;">$ '+_condoMoney(_condoUSD(r.awg))+'</td>'
+      +'<td style="padding:5px 8px;"><button onclick="_condoDel('+i+')" title="Remove this row" style="border:1px solid rgba(192,57,43,.4);background:transparent;color:#c0392b;border-radius:5px;cursor:pointer;padding:3px 8px;font-weight:700;">✕</button></td>'
+      +'</tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<div style="margin-top:14px;"><button onclick="_condoAdd()" style="background:var(--au,#c8922a);color:#fff;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;">＋ Add condo</button></div>';
+  host.innerHTML=h;
+}
+function _condoEdit(el){_condoEnsure();var i=+el.getAttribute("data-i");var f=el.getAttribute("data-f");if(!_condoRows[i])return;if(f==="awg"){_condoRows[i].awg=(el.value===""?"":(parseFloat(el.value)||0));var c=document.getElementById("condoUsd_"+i);if(c)c.textContent="$ "+_condoMoney(_condoUSD(_condoRows[i].awg));}else{_condoRows[i][f]=el.value;}_condoRowsSave(_condoRows);}
+function _condoAdd(){_condoEnsure();_condoRows.push({loc:"",awg:""});_condoRowsSave(_condoRows);_condoPanelRender();}
+function _condoDel(i){_condoEnsure();_condoRows.splice(i,1);_condoRowsSave(_condoRows);_condoPanelRender();}
+function _condoSetPegEl(el){var v=parseFloat(el.value);if(v>0){try{localStorage.setItem("sigmaCondoPeg_v1",String(v));}catch(e){}_condoEnsure();_condoRows.forEach(function(r,i){var c=document.getElementById("condoUsd_"+i);if(c)c.textContent="$ "+_condoMoney(_condoUSD(r.awg));});}}
+(function _regCondoPref(){
+  try{
+    if(_settingsOrder.indexOf("pref-condo")<0){ var vi=_settingsOrder.indexOf("pref-voice"); _settingsOrder.splice(vi>=0?vi+1:_settingsOrder.length,0,"pref-condo"); }
+    var navItem='<div class="pref-nav-item" onclick="settingsTab(\'pref-condo\')"><span class="pref-nav-icon">🏢</span>Condo Analytics</div>';
+    var ni=-1; for(var k=0;k<_settingsNav.length;k++){ if(_settingsNav[k].indexOf("'pref-voice'")>=0){ ni=k; break; } }
+    if(ni>=0) _settingsNav.splice(ni+1,0,navItem); else _settingsNav.push(navItem);
+    _settingsPanels["pref-condo"]='<div class="pref-section"><div class="pref-sec-hdr"><span>🏢</span><h4>Condo Analytics</h4></div><div class="pref-body">'
+      +'<div style="font-size:12px;color:var(--muted,#888);margin-bottom:14px;line-height:1.5;max-width:620px;">A firm-wide reference table of condominium locations and their <b>price per m²</b>. It appears in the <b>Analytics › Condominium Analytics</b> section of <b>New Construction (Type 3)</b> reports. Enter the AWG price/m² — the USD equivalent is computed automatically at the peg above. Update a price here and every future Type 3 report reflects it.</div>'
+      +'<div id="condoBody"></div>'
+      +'</div></div>';
+  }catch(e){ try{ console.warn('[condo-pref] register failed:', e); }catch(_){} }
+})();
 function settingsBuild(){
   var root=document.getElementById("settingsRoot");if(!root)return;
   // Double-build guard
@@ -12721,6 +12783,7 @@ function settingsTab(pid){
   if(pid==="pref-report-custom"){ try{ if(typeof _apprSigInit==="function") _apprSigInit(); }catch(e){} try{ if(typeof _apprStampInit==="function") _apprStampInit(); }catch(e){} try{ if(typeof _soundPanelInit==="function") _soundPanelInit(); }catch(e){} }
   if(pid==="pref-clocks"){ try{ if(typeof clkSettingsBuild==="function") clkSettingsBuild(); }catch(e){} }
   if(pid==="pref-voice"){ try{ if(typeof _voicePanelInit==="function") _voicePanelInit(); }catch(e){} }
+  if(pid==="pref-condo"){ try{ if(typeof _condoPanelRender==="function") _condoPanelRender(); }catch(e){} }
 }
 function _settingsHighlightNav(pid){document.querySelectorAll("#prefSidebar .pref-nav-item").forEach(function(n){var oc=n.getAttribute("onclick")||"";n.classList.toggle("active",oc.indexOf("'"+pid+"'")!==-1);});}
 function prefTab(el,panelId){settingsTab(panelId);}
@@ -13241,6 +13304,11 @@ var _SECTION_REGISTRY = [
   { id:'inspDetails',     title:'Inspection Details' },
   { id:'conclusion',      title:'Conclusion / Opinion' },
   { id:'valuation',       title:'Valuation' },
+  // §ANALYTICS (v2.255) — Type-3-ONLY section. `type3only:true` ⇒ it is auto-placed and appears
+  //   in the Section Order tool ONLY for New Construction (Type 3) orders; Type 1/2 never see it,
+  //   so their reports/layouts are byte-identical. Toggle on/off via the standard Show-on-report
+  //   checkbox. Renders the Condominium Analytics market table + a per-order research narrative.
+  { id:'condoAnalytics',  title:'Condominium Analytics', type3only:true },
   // §SEC-ADDPAGE (v2.252) — OPTIONAL movable sections. `optional:true` means they are
   //   NEVER auto-placed into a layout (skipped by _sectionDefaultLayout + the auto-append
   //   in _orderSectionLayout), so existing orders/reports are byte-identical: the inline
@@ -13261,15 +13329,16 @@ function _isExtraPageKey(p){ return /^p(?:[7-9]|1[0-9])$/.test(String(p||'')); }
 function _secPageLabel(p){ if(_SECTION_PAGE_LABELS[p]) return _SECTION_PAGE_LABELS[p]; var n=parseInt(String(p).slice(1),10); return 'Page '+n+(isFinite(n)?' (added)':''); }
 // Default page assignment mirrors the current default arrangement so a freshly
 //   customised order starts from a familiar layout.
-var _SECTION_DEFAULT_PAGES = { fpOpinion:'p3', renovNotes:'p3', floorplan:'p3', condMatrix:'p4', buildingOpinion:'p4', inspDetails:'p4', locationOpinion:'p5', ropv:'p5', location:'p5', conclusion:'p6', valuation:'p6' };
+var _SECTION_DEFAULT_PAGES = { fpOpinion:'p3', renovNotes:'p3', floorplan:'p3', condMatrix:'p4', buildingOpinion:'p4', inspDetails:'p4', locationOpinion:'p5', ropv:'p5', location:'p5', conclusion:'p6', valuation:'p6', condoAnalytics:'p6' };
 
 function _sectionTitle(id){ for(var i=0;i<_SECTION_REGISTRY.length;i++){ if(_SECTION_REGISTRY[i].id===id) return _SECTION_REGISTRY[i].title; } return id; }
 function _sectionIsKnown(id){ return _SECTION_REGISTRY.some(function(s){ return s.id===id; }); }
 
 // The default {p3:[…],p4:[…],p5:[…]} layout (registry order within each page).
-function _sectionDefaultLayout(){
+function _sectionDefaultLayout(order){
+  var _t3=!!(order && Number(order.apprType)===3);   // §ANALYTICS — type3only sections only for New Construction
   var out={}; _SECTION_PAGES.forEach(function(p){ out[p]=[]; });
-  _SECTION_REGISTRY.forEach(function(s){ if(s.optional) return; var p=_SECTION_DEFAULT_PAGES[s.id]||'p4'; (out[p]||out.p4).push(s.id); });   // §SEC-ADDPAGE — optional sections are never auto-placed
+  _SECTION_REGISTRY.forEach(function(s){ if(s.optional) return; if(s.type3only && !_t3) return; var p=_SECTION_DEFAULT_PAGES[s.id]||'p4'; (out[p]||out.p4).push(s.id); });   // §SEC-ADDPAGE — optional sections are never auto-placed
   return out;
 }
 // The order's saved custom layout, sanitised, or null when not customised.
@@ -13291,7 +13360,8 @@ function _orderSectionLayout(order){
       if(Array.isArray(raw[p])) raw[p].forEach(function(id){ if(_sectionIsKnown(id) && !seen[id]){ seen[id]=1; out[p].push(id); } });
     });
     // any known NON-optional section not placed yet → its default page (keeps report complete)
-    _SECTION_REGISTRY.forEach(function(s){ if(s.optional) return; if(!seen[s.id]){ seen[s.id]=1; (out[_SECTION_DEFAULT_PAGES[s.id]]||out.p4).push(s.id); } });
+    var _t3=(Number(order&&order.apprType)===3);   // §ANALYTICS — type3only sections auto-appear only on Type 3
+    _SECTION_REGISTRY.forEach(function(s){ if(s.optional) return; if(s.type3only && !_t3) return; if(!seen[s.id]){ seen[s.id]=1; (out[_SECTION_DEFAULT_PAGES[s.id]]||out.p4).push(s.id); } });
     return out;
   }catch(e){ return null; }
 }
@@ -13312,13 +13382,15 @@ function _orderSecEnabled(order,id){
   return true;
 }
 // Map of the movable narrative sections to their data-entry "Show on report" checkbox ids.
-var _SEC_INPUT_CHK={ fpOpinion:'secChkFp', buildingOpinion:'secChkBuilding', ropv:'secChkRopv', locationOpinion:'secChkLocation', renovNotes:'secChkRenov', conclusion:'secChkConcl' };
+var _SEC_INPUT_CHK={ fpOpinion:'secChkFp', buildingOpinion:'secChkBuilding', ropv:'secChkRopv', locationOpinion:'secChkLocation', renovNotes:'secChkRenov', conclusion:'secChkConcl', condoAnalytics:'secChkCondo' };
 // Reflect an order's saved enable-state onto the input-form checkboxes + reveal/hide the
 //   Renovation Notes input (which used to be Type-3-only; now it follows its checkbox on ALL templates).
 function _secInputSync(order){
   try{
     Object.keys(_SEC_INPUT_CHK).forEach(function(id){ var c=document.getElementById(_SEC_INPUT_CHK[id]); if(c) c.checked=_orderSecEnabled(order,id); });
     var rs=document.getElementById('renovNotesSection'); if(rs) rs.style.display=_orderSecEnabled(order,'renovNotes')?'':'none';
+    // §ANALYTICS — the Condominium Analytics research input shows only for Type 3 orders, and only when enabled.
+    var cs=document.getElementById('condoResearchSection'); if(cs){ var _t3=(Number(order&&order.apprType)===3); cs.style.display=(_t3 && _orderSecEnabled(order,'condoAnalytics'))?'':'none'; }
   }catch(e){}
 }
 // Input-form checkbox handler: toggle a section on the CURRENTLY-open inspection order.
@@ -13329,6 +13401,7 @@ function _secInputToggle(id,cb){
     if(!order.sectionEnabled||typeof order.sectionEnabled!=='object') order.sectionEnabled={};
     order.sectionEnabled[id]=!!cb.checked;
     if(id==='renovNotes'){ var rs=document.getElementById('renovNotesSection'); if(rs) rs.style.display=cb.checked?'':'none'; }
+    if(id==='condoAnalytics'){ var cs=document.getElementById('condoResearchSection'); if(cs) cs.style.display=cb.checked?'':'none'; }
     try{ if(typeof persistOrders==='function') persistOrders(order.id); }catch(e){}
   }catch(e){}
 }
@@ -13342,7 +13415,7 @@ function openSectionOrder(orderId){
   try{
     var order=((typeof ORDERS!=='undefined'&&ORDERS)||[]).find(function(o){return String(o.id)===String(orderId);});
     if(!order){ try{alert('Order not found.');}catch(e){} return; }
-    var _L=_orderSectionLayout(order)||_sectionDefaultLayout();
+    var _L=_orderSectionLayout(order)||_sectionDefaultLayout(order);
     var _btnCss='width:28px;height:24px;border:1px solid #c8922a;border-radius:4px;background:rgba(200,146,42,.15);color:#c8922a;cursor:pointer;font-size:14px;font-weight:800;line-height:1;';
     function _e(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     var existing=document.getElementById('secOrderOverlay'); if(existing) existing.remove();
@@ -13507,7 +13580,7 @@ function openSectionOrder(orderId){
     };
     window._secOrderMove=function(id,p,dir){ var a=_L[p]; var i=a.indexOf(id); if(i<0)return; var j=i+dir; if(j<0||j>=a.length)return; a.splice(i,1); a.splice(j,0,id); build(); };
     window._secOrderPage=function(id,toP){ _pageKeys().forEach(function(p){ var i=(_L[p]||[]).indexOf(id); if(i>=0)_L[p].splice(i,1); }); if(!_L[toP])_L[toP]=[]; _L[toP].push(id); build(); };
-    window._secOrderReset=function(){ _L=_sectionDefaultLayout(); _extraPages=0; _SECTION_REGISTRY.forEach(function(s){_En[s.id]=true;}); build(); };   // §SEC-ENABLE (v2.247) — reset re-enables all; §SEC-ADDPAGE — and clears added pages + optional placements
+    window._secOrderReset=function(){ _L=_sectionDefaultLayout(order); _extraPages=0; _SECTION_REGISTRY.forEach(function(s){_En[s.id]=true;}); build(); };   // §SEC-ENABLE (v2.247) — reset re-enables all; §SEC-ADDPAGE — and clears added pages + optional placements
     window._secOrderSave=function(){
       try{
         order.sectionLayout=(function(){var _o={};_pageKeys().forEach(function(_p){_o[_p]=(_L[_p]||[]).slice();});return _o;})();   // §SEC-ADDPAGE — persist ALL pages incl. extra (and p6)
@@ -13908,7 +13981,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.254';
+var APP_VERSION = 'v2.255';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -13946,6 +14019,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.255',type:'feature',date:'07-19-2026',ts:'07-19-2026 11:00',_static:true,title:'New “Analytics › Condominium Analytics” section for New Construction (Type 3) reports',desc:'New Construction reports gain an Analytics section with a Condominium Analytics market table — a firm-wide reference of condo locations and their price per m² (AWG, with USD shown alongside at the florin peg). Maintain the list once under Settings › Condo Analytics (add/remove locations, edit the peg) and every future Type 3 report reflects it. Each order also gets a “Condominium Analytics — Research Notes” field (in Inspect Data) to write your market commentary. The section is Type-3 only (Type 1 & 2 reports are unchanged), and it appears in the Section Order tool with a Show-on-report on/off toggle like the other sections. If no condos and no notes are entered, the section simply doesn’t appear.'},
   {v:'v2.254',type:'fix',date:'07-18-2026',ts:'07-18-2026 13:30',_static:true,title:'Narration bar now shows the actual cloud voice (Laura), not the browser voices',desc:'When the Fish Audio cloud voice is on, the little voice picker in the report Narration bar was still listing the computer’s built-in voices (e.g. three Windows names) even though “Laura” was the one actually speaking. It now shows just the cloud voice that is really narrating (“Laura (Fish)”). You can rename the displayed voice under Settings → Voice / Narration → “Voice name”. Switch the cloud voice off there and the browser-voice list comes back.'},
   {v:'v2.253',type:'feature',date:'07-18-2026',ts:'07-18-2026 12:00',_static:true,title:'Natural cloud voice for report narration (Fish Audio) + Voice settings',desc:'The report “Listen” narration can now use a natural, human-sounding cloud voice (Fish Audio) instead of the robotic browser voice. A new Settings → “Voice / Narration” panel lets you turn the cloud voice on/off, choose the voice (Reference ID), model, and format, optionally enter your own API key, and Test the voice with one click. The Fish API key is held securely in a server-side proxy function (fish-tts) — it is never exposed on the public site — which also solves the browser cross-origin block. If the cloud voice ever fails, narration automatically falls back to the browser voice, so it can never leave you with silence. Cloud voice is ON by default; switch back to the browser voice anytime in Settings.'},
   {v:'v2.252',type:'feature',date:'07-17-2026',ts:'07-17-2026 14:00',_static:true,title:'Report Section Order — “Add Page” for overflow, plus movable Appraiser Sign-Off & Declaration',desc:'The Section Order tool can now add extra report pages for when a section’s text does not fit on its page. Click “＋ Add Page” to add one (or more) overflow pages between the Valuation and Sign-Off pages, then move any section onto it. Two new optional sections — “Appraiser Sign-Off” and “Appraiser Declaration” — can now be added from the tray and placed on any page (including an added page), so when the sign-off content needs its own space you can relocate it. When you move the Sign-Off block, the standard sign-off page is no longer duplicated; when you split off the Declaration, it renders wherever you placed it. The report Index/Table of Contents and page numbering update automatically. Fully opt-in: any order that does not add pages or move these sections prints exactly as before. Use the per-page “Render actual page” preview in the Section Order window to check the layout before generating the full report.'},
@@ -25778,6 +25852,37 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   function _secFpTxt(){ var t='';
     try{var r=localStorage.getItem('insp_'+order.id+'_11');if(r){var o=JSON.parse(r);t=(o.s11f3||'').trim();}}catch(e){}
     if(!t){try{if(order.inspData&&order.inspData.s11)t=(order.inspData.s11.s11f3||'').trim();}catch(e){}} return t; }
+  // §ANALYTICS (v2.255) — the "Analytics › Condominium Analytics" section body: the firm-wide
+  //   condo price-per-m² reference table (from Settings › Condo Analytics, localStorage) with USD
+  //   at the peg, plus the per-order research narrative (s12.condoResearch). Type-3 gated by callers.
+  function _condoAnalyticsBlock(){
+    var rows=(typeof _condoRowsLoad==='function')?_condoRowsLoad():[];
+    rows=rows.filter(function(r){ return r && ((r.loc&&String(r.loc).trim())||(parseFloat(r.awg)||0)>0); });   // drop blank rows
+    var peg=(typeof _condoPeg==='function')?_condoPeg():1.79; if(!(peg>0))peg=1.79;
+    var research=_secS12(['condoResearch']);
+    var _acc=RC.rcAccentColor||'#c8922a';
+    if(!rows.length && !research) return '';   // §ANALYTICS — nothing configured yet ⇒ section absent (no empty block on client reports)
+    var tbl='';
+    if(rows.length){
+      var body='';
+      rows.forEach(function(r,i){ var awg=parseFloat(r.awg)||0; var usd=awg/peg;
+        body+='<tr>'
+          +'<td style="padding:4px 8px;border-bottom:1px solid #eee5d5;color:#8a7a6a;font-size:8.5px;">'+(i+1)+'</td>'
+          +'<td style="padding:4px 8px;border-bottom:1px solid #eee5d5;font-size:10px;color:#0f0d0a;">'+esc(r.loc||'—')+'</td>'
+          +'<td style="padding:4px 8px;border-bottom:1px solid #eee5d5;text-align:right;font-size:10px;color:#0f0d0a;font-family:DM Mono,monospace;">AWG '+Math.round(awg).toLocaleString('en-US')+'</td>'
+          +'<td style="padding:4px 8px;border-bottom:1px solid #eee5d5;text-align:right;font-size:9px;color:#8a7a6a;font-family:DM Mono,monospace;">$ '+Math.round(usd).toLocaleString('en-US')+'</td>'
+          +'</tr>';
+      });
+      tbl='<div style="border:1px solid #d4c9b0;border-left:3px solid '+_acc+';overflow:hidden;"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f9f7f3;">'
+        +'<th style="padding:5px 8px;text-align:left;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a7a6a;border-bottom:1px solid #e8e0d4;">#</th>'
+        +'<th style="padding:5px 8px;text-align:left;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a7a6a;border-bottom:1px solid #e8e0d4;">Condominium / Location</th>'
+        +'<th style="padding:5px 8px;text-align:right;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a7a6a;border-bottom:1px solid #e8e0d4;">Price / m&sup2; (AWG)</th>'
+        +'<th style="padding:5px 8px;text-align:right;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a7a6a;border-bottom:1px solid #e8e0d4;">USD</th>'
+        +'</tr></thead><tbody>'+body+'</tbody></table></div>';
+    }
+    var researchHtml = research ? ('<div style="margin-top:10px;border:1px solid #d4c9b0;border-left:3px solid '+_acc+';padding:8px 10px;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a7a6a;margin-bottom:4px;">Research &amp; Market Commentary</div><div class="rep-op">'+esc(research)+'</div></div>') : '';
+    return '<div class="sec-h">Analytics</div><div class="sec-sub">Condominium Analytics — market price per m&sup2; by location (AWG &middot; USD)</div>'+tbl+researchHtml;
+  }
   // §SEC-ADDPAGE (v2.252) — movable Sign-Off / Declaration content, built ONCE here (before any
   //   page renders) so they can be placed on a base page or a user-added overflow page. The inline
   //   §7 Sign-Off page below remains the SOLE renderer for a DEFAULT (non-moved) order and is
@@ -25842,7 +25947,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     conclusion:     function(){ return _conclBlockCache||''; },
     valuation:      function(){ return _valBlockCache||''; },
     signoff:        function(){ return _secSignoffBody(!_secMovedDecl); },   // §SEC-ADDPAGE — Declaration included unless it was moved out on its own
-    declaration:    function(){ return _declBlockCache; }                    // §SEC-ADDPAGE
+    declaration:    function(){ return _declBlockCache; },                   // §SEC-ADDPAGE
+    condoAnalytics: function(){ return (type===3) ? _condoAnalyticsBlock() : ''; }   // §ANALYTICS — Type 3 only
   };
   function _renderSecsFor(pg){ if(!_secCustom||!_secCustom[pg]) return '';
     return _secCustom[pg].map(function(id){ if(_secEmitted[id]) return ''; _secEmitted[id]=1; if(typeof _orderSecEnabled==='function'&&!_orderSecEnabled(order,id)) return ''; try{ return (_SEC_RENDER[id]?_SEC_RENDER[id]():''); }catch(e){ return ''; } }).join(''); }   // §SEC-ENABLE (v2.247) — skip sections the user unchecked
@@ -26956,6 +27062,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   // §CERT-MOVE (v1.939) — "Certification & Limiting Conditions" relocated from
   //   here (Valuation page) to the Sign-Off page, just before the Appraiser
   //   Declaration.
+    + ((type===3 && !_secCustom && (typeof _orderSecEnabled!=='function' || _orderSecEnabled(order,'condoAnalytics'))) ? _condoAnalyticsBlock() : '')   /* §ANALYTICS — inline on p6 for non-custom Type 3 orders; custom orders render it via the driver below */
     + (_secCustom ? _renderSecsFor('p6') : '')   /* §SECTION-ORDER: page-6 sections (Conclusion / Valuation / opinions) render here in the chosen order; caches built above */
     +'</div>'   // /page-body
       +'</div>'+pgFtr('p6')+'</div></div>';
