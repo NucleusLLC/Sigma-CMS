@@ -12641,6 +12641,45 @@ var _settingsOrder=["pref-account", "pref-users", "pref-theme", "pref-fonts", "p
     _settingsPanels['pref-clocks']='<div class="pref-section"><div class="pref-sec-hdr"><span>🕐</span><h4>World Clocks (Dashboard)</h4></div><div class="pref-body"><div style="font-size:12px;color:var(--muted,#888);margin-bottom:14px;line-height:1.5;">Choose the 5 cities shown as live clocks on your Dashboard. Times update every second and adjust for daylight saving automatically.</div><div id="clkSettingsBody"></div></div></div>';
   }catch(e){ try{ console.warn('[clocks-pref] register failed:', e); }catch(_){} }
 })();
+// §TTS-CLOUD (v2.253) — "Voice / Narration" settings panel: manage the Fish Audio cloud voice
+//   for report narration (SigmaTTS). Config is stored in localStorage (shared by app + report
+//   window) and consumed by cfg() inside the TTS engine. Uses data-k so the inline handlers
+//   carry no single quotes (keeps the panel string escape-free).
+function _ttsCfgGet(k,d){try{var v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}}
+function _ttsSetEl(el){try{var k=el.getAttribute("data-k");var v=(el.type==="checkbox")?(el.checked?"1":"0"):String(el.value).trim();localStorage.setItem(k,v);}catch(e){}}
+function _voicePanelInit(){
+  function sv(id,k,d){var el=document.getElementById(id);if(!el)return;var v=_ttsCfgGet(k,d);if(el.type==="checkbox")el.checked=(v==="1");else el.value=v;}
+  sv("vc_on","sigmaTTS_cloud","1");sv("vc_provider","sigmaTTS_provider","fish");sv("vc_ref","sigmaTTS_voice_ref","e3cd384158934cc9a01029cd7d278634");sv("vc_model","sigmaTTS_model","s2.1-pro-free");sv("vc_format","sigmaTTS_format","mp3");sv("vc_key","sigmaTTS_apikey","");sv("vc_proxy","sigmaTTS_proxy","https://cimgpycjczatjzltgscf.supabase.co/functions/v1/fish-tts");
+}
+function _voiceTest(btn){
+  var msg=document.getElementById("vc_test_msg");if(msg){msg.textContent="Generating…";msg.style.color="var(--muted,#888)";}
+  if(window.SigmaTTS&&SigmaTTS.testCloud){SigmaTTS.testCloud("Hello, this is your SIGMA report narrator, now powered by Fish Audio.",function(ok,err){if(msg){msg.textContent=ok?"Playing ✓":("Failed: "+(err||"error"));msg.style.color=ok?"#2e7d32":"#c0392b";}});}
+  else if(msg){msg.textContent="Voice engine warming up — try again in a second.";}
+}
+(function _regVoicePref(){
+  try{
+    if(_settingsOrder.indexOf("pref-voice")<0){ var ai=_settingsOrder.indexOf("pref-api"); _settingsOrder.splice(ai>=0?ai+1:_settingsOrder.length,0,"pref-voice"); }
+    var navItem='<div class="pref-nav-item" onclick="settingsTab(\'pref-voice\')"><span class="pref-nav-icon">🔊</span>Voice / Narration</div>';
+    var ni=-1; for(var k=0;k<_settingsNav.length;k++){ if(_settingsNav[k].indexOf("'pref-api'")>=0){ ni=k; break; } }
+    if(ni>=0) _settingsNav.splice(ni+1,0,navItem); else _settingsNav.push(navItem);
+    _settingsPanels["pref-voice"]=''
+      +'<style>#pref-voice input[type=text],#pref-voice input[type=password],#pref-voice select{padding:6px 8px;border:1px solid var(--border,#d9d2c4);border-radius:6px;background:var(--surface,#fff);color:var(--ink,#111);font:inherit;width:100%;box-sizing:border-box;}</style>'
+      +'<div class="pref-section"><div class="pref-sec-hdr"><span>🔊</span><h4>Voice / Narration</h4></div><div class="pref-body">'
+      +'<div style="font-size:12px;color:var(--muted,#888);margin-bottom:14px;line-height:1.5;">The report “Listen” narration can use a natural cloud voice (Fish Audio) instead of the browser voice. These settings apply to the app and to generated reports.</div>'
+      +'<label style="display:flex;align-items:center;gap:9px;margin-bottom:16px;font-size:13px;font-weight:600;cursor:pointer;"><input type="checkbox" id="vc_on" data-k="sigmaTTS_cloud" onchange="_ttsSetEl(this)"> Use cloud voice (Fish Audio)</label>'
+      +'<div style="display:grid;grid-template-columns:160px 1fr;gap:10px 12px;align-items:center;font-size:12px;max-width:560px;">'
+      +'<label>Provider</label><select id="vc_provider" data-k="sigmaTTS_provider" onchange="_ttsSetEl(this)"><option value="fish">Fish Audio</option></select>'
+      +'<label>Voice (Reference ID)</label><input id="vc_ref" type="text" data-k="sigmaTTS_voice_ref" oninput="_ttsSetEl(this)" placeholder="e3cd384158934cc9a01029cd7d278634">'
+      +'<label>Model</label><input id="vc_model" type="text" data-k="sigmaTTS_model" oninput="_ttsSetEl(this)" placeholder="s2.1-pro-free">'
+      +'<label>Format</label><select id="vc_format" data-k="sigmaTTS_format" onchange="_ttsSetEl(this)"><option value="mp3">mp3</option><option value="wav">wav</option><option value="opus">opus</option></select>'
+      +'<label>API Key (optional)</label><input id="vc_key" type="password" data-k="sigmaTTS_apikey" oninput="_ttsSetEl(this)" placeholder="(uses the secure server key)" autocomplete="off">'
+      +'<label>Proxy URL</label><input id="vc_proxy" type="text" data-k="sigmaTTS_proxy" oninput="_ttsSetEl(this)" placeholder="https://…/functions/v1/fish-tts">'
+      +'</div>'
+      +'<div style="margin-top:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button type="button" onclick="_voiceTest(this)" style="background:var(--au,#c8922a);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;">▶ Test voice</button><span id="vc_test_msg" style="font-size:12px;color:var(--muted,#888);"></span></div>'
+      +'<div style="margin-top:14px;font-size:11px;color:var(--muted,#999);line-height:1.55;max-width:560px;">Leave <b>API Key</b> blank to use the secure server key (recommended) — a key entered here is stored only in this browser. Narration is generated through your <b>fish-tts</b> proxy function, so the key is never exposed on the public site. If the cloud voice ever fails, narration automatically falls back to the browser voice.</div>'
+      +'</div></div>';
+  }catch(e){ try{ console.warn('[voice-pref] register failed:', e); }catch(_){} }
+})();
 function settingsBuild(){
   var root=document.getElementById("settingsRoot");if(!root)return;
   // Double-build guard
@@ -12680,6 +12719,7 @@ function settingsTab(pid){
   if(pid==="pref-applog"){clearInterval(window._alAutoRefresh);setTimeout(function(){if(typeof alRender==="function")alRender("all");},30);window._alAutoRefresh=setInterval(function(){var el=document.getElementById("pref-applog");if(el&&el.classList.contains("active"))alRender("all");else clearInterval(window._alAutoRefresh);},3000);}
   if(pid==="pref-report-custom"){ try{ if(typeof _apprSigInit==="function") _apprSigInit(); }catch(e){} try{ if(typeof _apprStampInit==="function") _apprStampInit(); }catch(e){} try{ if(typeof _soundPanelInit==="function") _soundPanelInit(); }catch(e){} }
   if(pid==="pref-clocks"){ try{ if(typeof clkSettingsBuild==="function") clkSettingsBuild(); }catch(e){} }
+  if(pid==="pref-voice"){ try{ if(typeof _voicePanelInit==="function") _voicePanelInit(); }catch(e){} }
 }
 function _settingsHighlightNav(pid){document.querySelectorAll("#prefSidebar .pref-nav-item").forEach(function(n){var oc=n.getAttribute("onclick")||"";n.classList.toggle("active",oc.indexOf("'"+pid+"'")!==-1);});}
 function prefTab(el,panelId){settingsTab(panelId);}
@@ -13867,7 +13907,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.252';
+var APP_VERSION = 'v2.253';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -13905,6 +13945,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.253',type:'feature',date:'07-18-2026',ts:'07-18-2026 12:00',_static:true,title:'Natural cloud voice for report narration (Fish Audio) + Voice settings',desc:'The report “Listen” narration can now use a natural, human-sounding cloud voice (Fish Audio) instead of the robotic browser voice. A new Settings → “Voice / Narration” panel lets you turn the cloud voice on/off, choose the voice (Reference ID), model, and format, optionally enter your own API key, and Test the voice with one click. The Fish API key is held securely in a server-side proxy function (fish-tts) — it is never exposed on the public site — which also solves the browser cross-origin block. If the cloud voice ever fails, narration automatically falls back to the browser voice, so it can never leave you with silence. Cloud voice is ON by default; switch back to the browser voice anytime in Settings.'},
   {v:'v2.252',type:'feature',date:'07-17-2026',ts:'07-17-2026 14:00',_static:true,title:'Report Section Order — “Add Page” for overflow, plus movable Appraiser Sign-Off & Declaration',desc:'The Section Order tool can now add extra report pages for when a section’s text does not fit on its page. Click “＋ Add Page” to add one (or more) overflow pages between the Valuation and Sign-Off pages, then move any section onto it. Two new optional sections — “Appraiser Sign-Off” and “Appraiser Declaration” — can now be added from the tray and placed on any page (including an added page), so when the sign-off content needs its own space you can relocate it. When you move the Sign-Off block, the standard sign-off page is no longer duplicated; when you split off the Declaration, it renders wherever you placed it. The report Index/Table of Contents and page numbering update automatically. Fully opt-in: any order that does not add pages or move these sections prints exactly as before. Use the per-page “Render actual page” preview in the Section Order window to check the layout before generating the full report.'},
   {v:'v2.251',type:'fix',date:'07-17-2026',ts:'07-17-2026 10:00',_static:true,title:'Large documents (big site plans) now upload reliably instead of failing',desc:'Follow-up to the v2.250 stability fix. Very large attachments — like a 27 MB site plan — used to hit a fixed 20-second upload limit during a save, so they were wrongly reported as "upload FAILED" even while the file was actually still uploading in the background. Three improvements: (1) the upload time limit now scales with the file size (roughly 8 seconds per megabyte, up to 4 minutes) so big files get enough time to finish; (2) a temporary timeout on a big file no longer shows the alarming "will NOT be in the report" alert — it now says the large document is still uploading and will attach automatically, and only a genuine server/permission error shows the hard failure; (3) when you attach a document larger than 15 MB you get a friendly heads-up suggesting you compress or downscale it first (a plan rarely needs to be that big), which uploads faster and more reliably. Your work always keeps saving locally.'},
   {v:'v2.250',type:'fix',date:'07-16-2026',ts:'07-16-2026 12:00',_static:true,title:'Stability: uploaded documents no longer bloat the database (fixes the save failures + server outage)',desc:'Fixed the cause of the "can\'t save" errors and the server going down after uploading documents. When you upload a PDF/document it is stored in cloud Storage and the order only needs to remember a small link to it. A bug was ALSO keeping a full copy of the document\'s bytes inside the order record every time the app re-displayed it — so a single large site plan could swell one order to 20 MB, and because that giant record was re-sent on every auto-save and retry (even while the app had already auto-paused syncing to protect the database), it overwhelmed the database until it stopped responding. Three fixes: (1) a document that is already in Storage never writes its bytes into the order record again — only the link is saved; (2) if cloud sync has auto-paused because the database is struggling, an unusually large save is now held locally instead of being forced through, so it can no longer pile on; (3) automatic retries stop while sync is auto-paused and resume when you click "Resume cloud sync". Your work still saves locally at all times and nothing is lost. Existing over-sized orders were also cleaned up (documents kept, bytes moved out of the record).'},
@@ -23543,7 +23584,12 @@ async function _pdfToImages(dataUrl,scale){
 // AND eval'd into the main window for the editor). No backticks / ${ } inside.
 function _sigmaTTSCode(){ return `
 if(window.SigmaTTS)return;
-var T={engine:"browser",cur:null,curBtn:null,voice:null,playing:false,queue:[],qi:0,cloudFetch:null};
+var T={engine:"browser",cur:null,curBtn:null,voice:null,playing:false,queue:[],qi:0,cloudFetch:null,audio:null};
+// §TTS-CLOUD (v2.253) — Fish Audio cloud voice config, read from localStorage (shared by
+//   the app AND the report window, which is same-origin blob). When on, narration is
+//   generated by the fish-tts proxy edge function and played as mp3; falls back to the
+//   browser voice on any error. All keys are set from Settings > Voice.
+function cfg(){function g(k,d){try{var v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}}return {on:g("sigmaTTS_cloud","1")==="1",proxy:g("sigmaTTS_proxy","https://cimgpycjczatjzltgscf.supabase.co/functions/v1/fish-tts"),model:g("sigmaTTS_model","s2.1-pro-free"),ref:g("sigmaTTS_voice_ref","e3cd384158934cc9a01029cd7d278634"),format:g("sigmaTTS_format","mp3"),apiKey:g("sigmaTTS_apikey","")}}
 var FEMALE=["aria","jenny","jane","zira","hazel","susan","eva","ava","emma","sonia","libby","michelle","clara","nova","samantha","victoria","karen","moira","tessa","fiona","serena","veena","allison","female","google us english","natural"];
 function pickVoice(){
   var vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[];if(!vs.length)return null;
@@ -23554,10 +23600,12 @@ function pickVoice(){
   return pool[0];
 }
 function norm(t){return (t||"").replace(/\\s+/g," ").trim()}
-function chunk(t){var p=t.match(/[^.!?]+[.!?]*\\s*/g)||[t];var out=[],buf="";for(var i=0;i<p.length;i++){if((buf+p[i]).length>200){if(buf)out.push(buf);buf=p[i]}else buf+=p[i]}if(buf)out.push(buf);return out}
+function chunkFor(t,lim){var p=t.match(/[^.!?]+[.!?]*\\s*/g)||[t];var out=[],buf="";for(var i=0;i<p.length;i++){if((buf+p[i]).length>lim){if(buf)out.push(buf);buf=p[i]}else buf+=p[i]}if(buf)out.push(buf);return out}
+function chunk(t){return chunkFor(t,200)}
 function setBtn(b,on){if(!b)return;b.classList.toggle("playing",on);var lbl=b.querySelector(".sigma-tts-lbl");if(lbl)lbl.textContent=on?"Stop":(b.getAttribute("data-lbl")||"Listen");var ic=b.querySelector(".sigma-tts-ic");if(ic)ic.textContent=on?"\\u23F9":"\\u25B6"}
 T.getRate=function(){var r=1;try{r=parseFloat(localStorage.getItem("sigmaTTS_rate"))||1}catch(e){}return r};
-T.stop=function(){T.playing=false;try{speechSynthesis.cancel()}catch(e){}if(T.curBtn)setBtn(T.curBtn,false);T.cur=null;T.curBtn=null;T.queue=[];T.qi=0};
+function stopCloud(){if(T.audio){try{T.audio.pause()}catch(e){}try{if(T.audio.src)URL.revokeObjectURL(T.audio.src)}catch(e){}T.audio=null}}
+T.stop=function(){T.playing=false;try{speechSynthesis.cancel()}catch(e){}stopCloud();if(T.curBtn)setBtn(T.curBtn,false);T.cur=null;T.curBtn=null;T.queue=[];T.qi=0};
 function next(){
   if(!T.playing||T.qi>=T.queue.length){T.stop();return}
   var u=new SpeechSynthesisUtterance(T.queue[T.qi++]);
@@ -23566,13 +23614,41 @@ function next(){
   u.onerror=function(){if(T.playing)next()};
   T.cur=u;try{speechSynthesis.speak(u)}catch(e){T.stop()}
 }
+// §TTS-CLOUD — play the queue via the Fish proxy, one chunk at a time. On a fetch/play
+//   failure of the FIRST chunk, fall back to the browser voice so narration still works.
+function cloudNext(){
+  if(!T.playing||T.qi>=T.queue.length){T.stop();return}
+  var txt=T.queue[T.qi++];var c=cfg();
+  var payload={text:txt,model:c.model,reference_id:c.ref,format:c.format};if(c.apiKey)payload.apiKey=c.apiKey;
+  fetch(c.proxy,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error("tts "+r.status+" "+t)});
+    return r.blob();
+  }).then(function(blob){
+    if(!T.playing)return;
+    var a=new Audio(URL.createObjectURL(blob));T.audio=a;try{a.playbackRate=T.getRate()}catch(e){}
+    a.onended=function(){stopCloud();if(T.playing)cloudNext()};
+    a.onerror=function(){stopCloud();if(T.playing)cloudNext()};
+    a.play().catch(function(){stopCloud();if(T.playing)cloudNext()});
+  }).catch(function(err){
+    try{console.warn("[SigmaTTS] cloud voice failed, falling back to browser voice:",err&&err.message)}catch(e){}
+    if(T.qi===1&&("speechSynthesis" in window)){T.engine="browser";T.voice=pickVoice();T.queue=chunk(T.queue.join(" "));T.qi=0;next();}
+    else if(T.playing){cloudNext();}
+  });
+}
+// Fire a one-off sample through the cloud voice (used by the Settings > Voice "Test" button).
+T.testCloud=function(sample,cb){
+  var c=cfg();var payload={text:(sample||"Hello, this is the SIGMA report narrator."),model:c.model,reference_id:c.ref,format:c.format};if(c.apiKey)payload.apiKey=c.apiKey;
+  return fetch(c.proxy,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+": "+t)});return r.blob()}).then(function(b){var a=new Audio(URL.createObjectURL(b));T.audio=a;a.play();if(cb)cb(true)}).catch(function(e){if(cb)cb(false,(e&&e.message)||"failed")});
+};
 T.speak=function(text,btn){
   text=norm(text);
   if(T.curBtn===btn&&T.playing){T.stop();return}
   T.stop();
   if(!text)return;
+  var c=cfg();
+  if(c.on){T.engine="cloud";T.queue=chunkFor(text,1200);T.qi=0;T.curBtn=btn;T.playing=true;setBtn(btn,true);cloudNext();return;}
   if(!("speechSynthesis" in window)){alert("Sorry, narration is not supported in this browser.");return}
-  T.voice=pickVoice();T.queue=chunk(text);T.qi=0;T.curBtn=btn;T.playing=true;setBtn(btn,true);next();
+  T.engine="browser";T.voice=pickVoice();T.queue=chunk(text);T.qi=0;T.curBtn=btn;T.playing=true;setBtn(btn,true);next();
 };
 T.makeBtn=function(getText,label){
   var b=document.createElement("button");b.type="button";b.className="sigma-tts-btn no-print";b.setAttribute("data-lbl",label||"Listen");
