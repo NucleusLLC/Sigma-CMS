@@ -14028,7 +14028,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.257';
+var APP_VERSION = 'v2.258';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -14066,6 +14066,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.258',type:'fix',date:'07-19-2026',ts:'07-19-2026 14:00',_static:true,title:'Type 3 report — Inspection Details now reads in numerical order (no footer overrun)',desc:'On New Construction (Type 3) reports the Inspection Details table was splitting its sections into two columns in an interleaved order, so the numbering jumped around and the right column ran over the page footer. It now reads straight down: the left column holds items 1–5 (through “5. Bathroom”) and the right column continues 6–9 (from “6. Exterior Systems”), in order. Type 1 & 2 reports are unchanged.'},
   {v:'v2.257',type:'tweak',date:'07-19-2026',ts:'07-19-2026 13:15',_static:true,title:'Condominium Analytics — seeded with 12 sample locations',desc:'The Condominium Analytics list now starts with 12 sample Aruba condo locations and placeholder AWG price/m² values, so the feature is populated out of the box and you can see it on New Construction reports immediately. These are illustrative starter figures — open Σ Analytics › Condominium Analytics and overwrite them with your real prices. The sample only fills in when nothing is saved yet; once you edit or delete rows, your changes stick and are never overwritten.'},
   {v:'v2.256',type:'tweak',date:'07-19-2026',ts:'07-19-2026 12:30',_static:true,title:'Condominium Analytics moved to the Σ Analytics area (out of Settings)',desc:'The Condominium Analytics reference list is now managed under Σ Analytics (left nav) via its own “Condominium Analytics” card — click it to add/remove condo locations and edit the AWG→USD peg — instead of being buried in Settings. Nothing else changed: the same list still feeds the Analytics section of New Construction (Type 3) reports.'},
   {v:'v2.255',type:'feature',date:'07-19-2026',ts:'07-19-2026 11:00',_static:true,title:'New “Analytics › Condominium Analytics” section for New Construction (Type 3) reports',desc:'New Construction reports gain an Analytics section with a Condominium Analytics market table — a firm-wide reference of condo locations and their price per m² (AWG, with USD shown alongside at the florin peg). Maintain the list once under Settings › Condo Analytics (add/remove locations, edit the peg) and every future Type 3 report reflects it. Each order also gets a “Condominium Analytics — Research Notes” field (in Inspect Data) to write your market commentary. The section is Type-3 only (Type 1 & 2 reports are unchanged), and it appears in the Section Order tool with a Show-on-report on/off toggle like the other sections. If no condos and no notes are entered, the section simply doesn’t appear.'},
@@ -25083,7 +25084,14 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
 
     // Build 2-column layout — Miscellaneous (#9, last group) goes to the RIGHT column under #8
     var left=[], right=[];
-    if(RC._mbLayout){
+    if(type===3){
+      // §INSP-T3-ORDER (v2.258) — New Construction (Type 3): read the Inspection Details in
+      //   NUMERICAL ORDER — left column #1–#5 (ending at "5. Bathroom"), right column continues
+      //   #6–#9 (from "6. Exterior Systems"). Replaces the interleaved odd/even split (which
+      //   scrambled the numbering) and keeps the right column shorter so it no longer overruns
+      //   the footer. Type 1 & 2 keep their existing layout (byte-identical).
+      groups.forEach(function(g,i){ if(i<=4) left.push(g); else right.push(g); });
+    } else if(RC._mbLayout){
       // §MB-INSP (v2.192) — MultiBuilding page-5 Inspection Details: move #7 Electrical & HVAC
       //   to the TOP of the RIGHT column → left = #1,#3,#5 / right = #7,#2,#4,#6,#8,#9. This
       //   shortens the LEFT column and frees vertical space below for "Location & Property" /
