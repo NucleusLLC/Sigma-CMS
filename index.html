@@ -8185,6 +8185,30 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
       </div>
     </div>
 
+    <!-- ── Condominium Analytics (LIVE) · §ANALYTICS v2.256 ──── -->
+    <div class="sa-card" onclick="saOpenCondoAnalytics()" style="
+        position:relative;border-radius:14px;overflow:hidden;cursor:pointer;
+        height:220px;background:#151a22;
+        box-shadow:0 4px 24px rgba(0,0,0,.45);
+        transition:transform .18s ease,box-shadow .18s ease;"
+      onmouseenter="this.style.transform='translateY(-4px)';this.style.boxShadow='0 10px 40px rgba(0,0,0,.6)'"
+      onmouseleave="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 24px rgba(0,0,0,.45)'">
+      <div style="position:absolute;inset:0;background:radial-gradient(circle at 72% 18%,rgba(200,146,42,.22),transparent 60%),#151a22;"></div>
+      <div style="position:absolute;inset:0;opacity:.14;background-image:linear-gradient(rgba(200,146,42,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(200,146,42,.4) 1px,transparent 1px);background-size:26px 26px;"></div>
+      <div style="position:absolute;top:14px;right:14px;background:rgba(0,229,176,.92);color:#03130f;font-size:9px;font-weight:800;letter-spacing:.1em;padding:3px 9px;border-radius:20px;text-transform:uppercase;">Live</div>
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:20px 22px;">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e8b04b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+          <span style="font-size:15px;font-weight:800;color:#fff;letter-spacing:.01em;">Condominium Analytics</span>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.65);line-height:1.5;">Condo price-per-m&sup2; by location (AWG &middot; USD) &middot; feeds New Construction (Type 3) reports</div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:5px;font-size:10px;color:#e8b04b;font-weight:700;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          Manage list
+        </div>
+      </div>
+    </div>
+
     <!-- ── LandValue Analytics ─────────────────────────────── -->
     <div class="sa-card" onclick="saOpenModule('landvalue')" style="
         position:relative;border-radius:14px;overflow:hidden;cursor:pointer;
@@ -10151,7 +10175,7 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
           <textarea id="renovNotesText" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="Renovation scope · works completed · materials &amp; finishes · workmanship · stage of completion · impact on value…" data-key="renovNotes"></textarea>
         </div>
 
-        <!-- §ANALYTICS (v2.255) — Condominium Analytics research notes — Type 3 (New Construction) only; shown/hidden by _secInputSync. The condo price table itself comes from Settings › Condo Analytics. -->
+        <!-- §ANALYTICS (v2.255) — Condominium Analytics research notes — Type 3 (New Construction) only; shown/hidden by _secInputSync. The condo price table itself comes from the Σ Analytics › Condominium Analytics card. -->
         <div class="fg" id="condoResearchSection" style="grid-column:1/-1;display:none;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
             <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">A</span>Condominium Analytics — Research Notes</label>
@@ -12692,7 +12716,7 @@ function _voiceTest(btn){
       +'</div></div>';
   }catch(e){ try{ console.warn('[voice-pref] register failed:', e); }catch(_){} }
 })();
-// §ANALYTICS (v2.255) — Condominium Analytics master list (Settings › Condo Analytics).
+// §ANALYTICS (v2.255/256) — Condominium Analytics master list (managed under Σ Analytics › Condominium Analytics card).
 //   A firm-wide reference table of condo locations + price per m² (AWG), with USD auto-
 //   computed at an editable florin peg. Stored in localStorage; the Type 3 report reads it
 //   to render the "Analytics › Condominium Analytics" page. Shared shape:
@@ -12731,18 +12755,24 @@ function _condoEdit(el){_condoEnsure();var i=+el.getAttribute("data-i");var f=el
 function _condoAdd(){_condoEnsure();_condoRows.push({loc:"",awg:""});_condoRowsSave(_condoRows);_condoPanelRender();}
 function _condoDel(i){_condoEnsure();_condoRows.splice(i,1);_condoRowsSave(_condoRows);_condoPanelRender();}
 function _condoSetPegEl(el){var v=parseFloat(el.value);if(v>0){try{localStorage.setItem("sigmaCondoPeg_v1",String(v));}catch(e){}_condoEnsure();_condoRows.forEach(function(r,i){var c=document.getElementById("condoUsd_"+i);if(c)c.textContent="$ "+_condoMoney(_condoUSD(r.awg));});}}
-(function _regCondoPref(){
-  try{
-    if(_settingsOrder.indexOf("pref-condo")<0){ var vi=_settingsOrder.indexOf("pref-voice"); _settingsOrder.splice(vi>=0?vi+1:_settingsOrder.length,0,"pref-condo"); }
-    var navItem='<div class="pref-nav-item" onclick="settingsTab(\'pref-condo\')"><span class="pref-nav-icon">🏢</span>Condo Analytics</div>';
-    var ni=-1; for(var k=0;k<_settingsNav.length;k++){ if(_settingsNav[k].indexOf("'pref-voice'")>=0){ ni=k; break; } }
-    if(ni>=0) _settingsNav.splice(ni+1,0,navItem); else _settingsNav.push(navItem);
-    _settingsPanels["pref-condo"]='<div class="pref-section"><div class="pref-sec-hdr"><span>🏢</span><h4>Condo Analytics</h4></div><div class="pref-body">'
-      +'<div style="font-size:12px;color:var(--muted,#888);margin-bottom:14px;line-height:1.5;max-width:620px;">A firm-wide reference table of condominium locations and their <b>price per m²</b>. It appears in the <b>Analytics › Condominium Analytics</b> section of <b>New Construction (Type 3)</b> reports. Enter the AWG price/m² — the USD equivalent is computed automatically at the peg above. Update a price here and every future Type 3 report reflects it.</div>'
-      +'<div id="condoBody"></div>'
-      +'</div></div>';
-  }catch(e){ try{ console.warn('[condo-pref] register failed:', e); }catch(_){} }
-})();
+// §ANALYTICS (v2.256) — Condominium Analytics lives under the Σ Analytics area (NOT Settings).
+//   Opened from the "Condominium Analytics" card in view-analytics; reuses _condoPanelRender.
+function saOpenCondoAnalytics(){
+  var ex=document.getElementById('condoModalOverlay'); if(ex) ex.remove();
+  var ov=document.createElement('div'); ov.id='condoModalOverlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(10,8,4,.62);display:flex;align-items:center;justify-content:center;padding:24px;';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--surface,#fff);color:var(--ink,#111);border-radius:14px;max-width:760px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 22px 64px rgba(0,0,0,.5);';
+  box.innerHTML='<div style="padding:18px 22px;border-bottom:1px solid var(--border,#e5e0d5);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">'
+    +'<div><div style="font-family:Sora,sans-serif;font-weight:800;font-size:16px;">🏢 Condominium Analytics</div>'
+    +'<div style="font-size:11.5px;color:var(--muted,#888);margin-top:3px;max-width:560px;line-height:1.5;">Firm-wide reference of condominium price per m² by location (AWG · USD auto at the peg). This table feeds the Analytics section of New Construction (Type 3) reports. Changes save automatically.</div></div>'
+    +'<button onclick="var o=document.getElementById(\'condoModalOverlay\');if(o)o.remove();" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted,#888);line-height:1;flex-shrink:0;">✕</button></div>'
+    +'<div style="padding:18px 22px;"><div id="condoBody"></div></div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  try{ _condoPanelRender(); }catch(e){}
+}
+window.saOpenCondoAnalytics=saOpenCondoAnalytics;
 function settingsBuild(){
   var root=document.getElementById("settingsRoot");if(!root)return;
   // Double-build guard
@@ -12783,7 +12813,6 @@ function settingsTab(pid){
   if(pid==="pref-report-custom"){ try{ if(typeof _apprSigInit==="function") _apprSigInit(); }catch(e){} try{ if(typeof _apprStampInit==="function") _apprStampInit(); }catch(e){} try{ if(typeof _soundPanelInit==="function") _soundPanelInit(); }catch(e){} }
   if(pid==="pref-clocks"){ try{ if(typeof clkSettingsBuild==="function") clkSettingsBuild(); }catch(e){} }
   if(pid==="pref-voice"){ try{ if(typeof _voicePanelInit==="function") _voicePanelInit(); }catch(e){} }
-  if(pid==="pref-condo"){ try{ if(typeof _condoPanelRender==="function") _condoPanelRender(); }catch(e){} }
 }
 function _settingsHighlightNav(pid){document.querySelectorAll("#prefSidebar .pref-nav-item").forEach(function(n){var oc=n.getAttribute("onclick")||"";n.classList.toggle("active",oc.indexOf("'"+pid+"'")!==-1);});}
 function prefTab(el,panelId){settingsTab(panelId);}
@@ -13981,7 +14010,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.255';
+var APP_VERSION = 'v2.256';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -14019,6 +14048,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.256',type:'tweak',date:'07-19-2026',ts:'07-19-2026 12:30',_static:true,title:'Condominium Analytics moved to the Σ Analytics area (out of Settings)',desc:'The Condominium Analytics reference list is now managed under Σ Analytics (left nav) via its own “Condominium Analytics” card — click it to add/remove condo locations and edit the AWG→USD peg — instead of being buried in Settings. Nothing else changed: the same list still feeds the Analytics section of New Construction (Type 3) reports.'},
   {v:'v2.255',type:'feature',date:'07-19-2026',ts:'07-19-2026 11:00',_static:true,title:'New “Analytics › Condominium Analytics” section for New Construction (Type 3) reports',desc:'New Construction reports gain an Analytics section with a Condominium Analytics market table — a firm-wide reference of condo locations and their price per m² (AWG, with USD shown alongside at the florin peg). Maintain the list once under Settings › Condo Analytics (add/remove locations, edit the peg) and every future Type 3 report reflects it. Each order also gets a “Condominium Analytics — Research Notes” field (in Inspect Data) to write your market commentary. The section is Type-3 only (Type 1 & 2 reports are unchanged), and it appears in the Section Order tool with a Show-on-report on/off toggle like the other sections. If no condos and no notes are entered, the section simply doesn’t appear.'},
   {v:'v2.254',type:'fix',date:'07-18-2026',ts:'07-18-2026 13:30',_static:true,title:'Narration bar now shows the actual cloud voice (Laura), not the browser voices',desc:'When the Fish Audio cloud voice is on, the little voice picker in the report Narration bar was still listing the computer’s built-in voices (e.g. three Windows names) even though “Laura” was the one actually speaking. It now shows just the cloud voice that is really narrating (“Laura (Fish)”). You can rename the displayed voice under Settings → Voice / Narration → “Voice name”. Switch the cloud voice off there and the browser-voice list comes back.'},
   {v:'v2.253',type:'feature',date:'07-18-2026',ts:'07-18-2026 12:00',_static:true,title:'Natural cloud voice for report narration (Fish Audio) + Voice settings',desc:'The report “Listen” narration can now use a natural, human-sounding cloud voice (Fish Audio) instead of the robotic browser voice. A new Settings → “Voice / Narration” panel lets you turn the cloud voice on/off, choose the voice (Reference ID), model, and format, optionally enter your own API key, and Test the voice with one click. The Fish API key is held securely in a server-side proxy function (fish-tts) — it is never exposed on the public site — which also solves the browser cross-origin block. If the cloud voice ever fails, narration automatically falls back to the browser voice, so it can never leave you with silence. Cloud voice is ON by default; switch back to the browser voice anytime in Settings.'},
@@ -25853,7 +25883,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     try{var r=localStorage.getItem('insp_'+order.id+'_11');if(r){var o=JSON.parse(r);t=(o.s11f3||'').trim();}}catch(e){}
     if(!t){try{if(order.inspData&&order.inspData.s11)t=(order.inspData.s11.s11f3||'').trim();}catch(e){}} return t; }
   // §ANALYTICS (v2.255) — the "Analytics › Condominium Analytics" section body: the firm-wide
-  //   condo price-per-m² reference table (from Settings › Condo Analytics, localStorage) with USD
+  //   condo price-per-m² reference table (from the Σ Analytics › Condominium Analytics card, localStorage) with USD
   //   at the peg, plus the per-order research narrative (s12.condoResearch). Type-3 gated by callers.
   function _condoAnalyticsBlock(){
     var rows=(typeof _condoRowsLoad==='function')?_condoRowsLoad():[];
