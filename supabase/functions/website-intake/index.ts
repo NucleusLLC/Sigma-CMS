@@ -81,6 +81,12 @@ Deno.serve(async (req: Request) => {
     return jsonRes({ ok: false, error: "invalid JSON body" }, 400, ch);
   }
 
+  // Health probe: proves connectivity + that the shared secret is accepted,
+  // WITHOUT writing a row. Used by api/sigma-check.php on the website host.
+  if (body.probe === true) {
+    return jsonRes({ ok: true, probe: true, message: "token accepted" }, 200, ch);
+  }
+
   // honeypot backstop (PHP already screens this, but never trust one layer)
   if (s(body.company)) return jsonRes({ ok: true, id: null, skipped: "honeypot" }, 200, ch);
 
