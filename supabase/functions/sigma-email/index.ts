@@ -60,20 +60,18 @@ Deno.serve(async (req: Request) => {
   let sb;
   try { sb = admin(); } catch (e) { return jsonRes({ ok: false, error: String((e as Error).message) }, 500, ch); }
 
+  // §FINANCE-OPEN (v2.278) — the app calls this with its normal (anon) key, like the
+  //   rest of SIGMA. If the token resolves to a real user we record their email;
+  //   otherwise we fall back to the sender passed in the body. No separate sign-in.
   let userEmail = "";
   try {
-    const { data, error } = await sb.auth.getUser(token);
-    const role = (data?.user?.role as string) || "";
-    if (error || !data?.user || role === "anon") {
-      return jsonRes({ ok: false, error: "a cloud sign-in is required to send invoices" }, 401, ch);
-    }
-    userEmail = data.user.email || "";
-  } catch {
-    return jsonRes({ ok: false, error: "could not verify sign-in" }, 401, ch);
-  }
+    const { data } = await sb.auth.getUser(token);
+    userEmail = data?.user?.email || "";
+  } catch { /* anon key → no user; fine */ }
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return jsonRes({ ok: false, error: "invalid JSON body" }, 400, ch); }
+  if (!userEmail && body.sent_by) userEmail = String(body.sent_by);
 
   const invoiceId = body.invoice_id ? String(body.invoice_id) : null;
   const kind = String(body.kind || "invoice");
