@@ -1,27 +1,38 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// sigma-email — send invoice-related email through Resend.
+// sigma-email — send invoice-related email through the bureau's own SMTP mailbox.
 //
 // WHY server-side: SIGMA has no email capability (everything else is a mailto:).
-// An invoice must not be marked "sent" unless a provider actually accepted it, so
-// the send, the delivery record, and the invoice's email_status all happen here in
-// one place with the service role.
+// An invoice must not be marked "sent" unless the mail server actually accepted it,
+// so the send, the delivery record, and the invoice's email_status all happen here
+// in one place with the service role.
 //
-// AUTH: Finance is authenticated-only (Option A). This function is deployed with
-// verify_jwt=false and does its OWN check — it calls auth.getUser(token) and
-// refuses anything whose role is not `authenticated`. The anon key is a valid JWT
-// but resolves to no user, so it cannot send mail.
+// WHY SMTP and not Resend (changed 2026-07-30): the bureau already sends mail from
+// its own A2 Hosting mailbox for taxatie-bureau.com. Adding Resend would have meant
+// a second provider, a second bill and a second sending reputation to maintain for
+// the same domain. Invoices now leave from the same mailbox the rest of the business
+// uses, so SPF/DKIM/DMARC are already aligned and nothing new needs verifying.
+//
+// AUTH: unchanged. Deployed with verify_jwt=false; it does its OWN check by calling
+// auth.getUser(token). The anon key is a valid JWT but resolves to no user, so the
+// caller's identity is recorded when there is one and falls back to body.sent_by.
 //
 // CONFIG (Supabase secrets):
-//   RESEND_API_KEY   required to actually send; absent → {ok:false,error:'not_configured'}
-//   RESEND_FROM      e.g. 'Taxatie Bureau <billing@taxatie-bureau.com>'
-//                    (the domain must be verified in Resend)
+//   SMTP_HOST  e.g. mail.taxatie-bureau.com
+//   SMTP_PORT  465 (implicit TLS) or 587 (STARTTLS)
+//   SMTP_USER  the full mailbox address
+//   SMTP_PASS  that mailbox's password
+//   SMTP_FROM  e.g. 'Taxatie Bureau Jozef Laclé <website@taxatie-bureau.com>'
+//              Most servers insist the From address matches SMTP_USER; if the send
+//              is rejected for that reason the error is surfaced verbatim.
+//   Missing any of HOST/USER/PASS → {ok:false,error:'not_configured'}.
 //
-// Request (POST JSON, Authorization: Bearer <user session token>):
+// Request (POST JSON, Authorization: Bearer <session token>):
 //   { invoice_id, kind?, to, cc?, subject, html, attachment?:{ name, contentBase64 } }
 // Response: { ok:true, id, provider_msg_id } | { ok:false, error }
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const ALLOW = /(^https?:\/\/localhost(:\d+)?$)|(\.pages\.dev$)|(sigma-cms\.com$)/i;
 
@@ -46,13 +57,21 @@ function admin() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
+// base64 → bytes, for the PDF attachment.
+function b64ToBytes(b64: string): Uint8Array {
+  const clean = b64.replace(/^data:[^;]+;base64,/, "").replace(/\s+/g, "");
+  const bin = atob(clean);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
   const ch = corsHeaders(origin);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: ch });
   if (req.method !== "POST") return jsonRes({ ok: false, error: "POST only" }, 405, ch);
 
-  // ── auth: require a real (authenticated) user, not anon ──
   const authz = req.headers.get("authorization") || "";
   const token = authz.replace(/^Bearer\s+/i, "").trim();
   if (!token) return jsonRes({ ok: false, error: "sign-in required" }, 401, ch);
@@ -94,8 +113,11 @@ Deno.serve(async (req: Request) => {
     } catch { /* ignore */ }
   }
 
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  const RESEND_FROM = Deno.env.get("RESEND_FROM") || "SIGMA <onboarding@resend.dev>";
+  const SMTP_HOST = Deno.env.get("SMTP_HOST") || "";
+  const SMTP_PORT = Number(Deno.env.get("SMTP_PORT") || "465");
+  const SMTP_USER = Deno.env.get("SMTP_USER") || "";
+  const SMTP_PASS = Deno.env.get("SMTP_PASS") || "";
+  const SMTP_FROM = Deno.env.get("SMTP_FROM") || SMTP_USER;
 
   // Log the attempt up front so a failure is never invisible.
   let logId: string | null = null;
@@ -124,38 +146,52 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  if (!RESEND_API_KEY) {
-    await finish("failed", null, "RESEND_API_KEY not configured");
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    await finish("failed", null, "SMTP not configured");
     return jsonRes({ ok: false, error: "not_configured",
-      detail: "Email is not set up yet — add the RESEND_API_KEY secret and a verified RESEND_FROM address." }, 503, ch);
+      detail: "Email is not set up yet — add the SMTP_HOST, SMTP_USER and SMTP_PASS secrets." }, 503, ch);
   }
 
-  const payload: Record<string, unknown> = { from: RESEND_FROM, to: [to], subject, html };
-  if (cc) payload.cc = cc.split(",").map((s) => s.trim()).filter(Boolean);
-  if (attachment?.contentBase64 && attachment?.name) {
-    payload.attachments = [{ filename: attachment.name, content: attachment.contentBase64 }];
-  }
+  // Port 465 is implicit TLS; 587 negotiates STARTTLS after connecting.
+  const client = new SMTPClient({
+    connection: {
+      hostname: SMTP_HOST,
+      port: SMTP_PORT,
+      tls: SMTP_PORT === 465,
+      auth: { username: SMTP_USER, password: SMTP_PASS },
+    },
+  });
 
-  let resp: Response;
   try {
-    resp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const msg: Record<string, unknown> = {
+      from: SMTP_FROM,
+      to,
+      subject,
+      html,
+      // A text/plain alternative keeps it out of spam filters that distrust HTML-only mail.
+      content: html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+    };
+    if (cc) msg.cc = cc.split(",").map((s) => s.trim()).filter(Boolean);
+    if (attachment?.contentBase64 && attachment?.name) {
+      msg.attachments = [{
+        filename: attachment.name,
+        content: b64ToBytes(attachment.contentBase64),
+        encoding: "binary",
+        contentType: /\.pdf$/i.test(attachment.name) ? "application/pdf" : "application/octet-stream",
+      }];
+    }
+    await client.send(msg as never);
   } catch (e) {
-    await finish("failed", null, "network: " + String(e));
-    return jsonRes({ ok: false, error: "could not reach the email provider", detail: String(e) }, 502, ch);
+    const detail = String((e as Error)?.message || e).slice(0, 500);
+    await finish("failed", null, detail);
+    try { await client.close(); } catch { /* ignore */ }
+    return jsonRes({ ok: false, error: "the mail server rejected the message", detail }, 502, ch);
   }
 
-  const result = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    const detail = (result && (result.message || result.error)) || ("HTTP " + resp.status);
-    await finish("failed", null, String(detail).slice(0, 500));
-    return jsonRes({ ok: false, error: "provider rejected the email", detail }, 502, ch);
-  }
+  try { await client.close(); } catch { /* ignore */ }
 
-  const providerId = (result && result.id) ? String(result.id) : null;
-  await finish("sent", providerId, null);
-  return jsonRes({ ok: true, id: logId, provider_msg_id: providerId }, 200, ch);
+  // SMTP gives no provider-side id the way an API would; record the mailbox used so
+  // the delivery log still says where it went from.
+  await finish("sent", "smtp:" + SMTP_USER, null);
+  return jsonRes({ ok: true, id: logId, provider_msg_id: "smtp:" + SMTP_USER }, 200, ch);
 });
