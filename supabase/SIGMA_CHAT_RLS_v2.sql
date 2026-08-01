@@ -1,74 +1,80 @@
 -- ============================================================================
---  SIGMA_CHAT_RLS_v2.sql   —   FOR REVIEW ONLY.  NOT RUN.  NOT REQUIRED.
---  §CHAT-ANONDB (v2.297)
+--  SIGMA_CHAT_RLS_v2.sql   —   RECORD OF A CHANGE ALREADY APPLIED TO PRODUCTION
+--  §CHAT-HINT (v2.297)      —   project cimgpycjczatjzltgscf, 2026-08-01
+--  DO NOT RE-RUN BLINDLY. This documents what was done and how to verify it.
 -- ============================================================================
 --
---  WHY THIS EXISTS
---  ---------------
---  public.messages has exactly one RLS policy:
+--  THE FAULT
+--  ---------
+--  public.messages had exactly ONE RLS policy:
 --
 --      sigma_anon_chat_all   FOR ALL   TO anon   USING (true)   WITH CHECK (true)
 --
---  A policy bound `TO anon` does not apply to role `authenticated`. There is no
---  policy for `authenticated` on this table at all, so RLS denies that role
---  everything — INSERT *and* SELECT. Verified read-only against the live
---  project (cimgpycjczatjzltgscf) on 2026-08-01:
+--  A policy bound `TO anon` does not apply to role `authenticated`. There was no
+--  policy for `authenticated` on this table at all, so RLS refused that role
+--  everything — SELECT as well as INSERT. Confirmed read-only against the live
+--  database before the fix:
 --
 --      set local role anon;           select count(*) from public.messages;  -> 2
 --      set local role authenticated;  select count(*) from public.messages;  -> 0
 --
---  The app's main Supabase client is created with persistSession:true and
---  autoRefreshToken:true. Any user who has ever signed in through Supabase Auth
---  keeps a live, self-refreshing session in localStorage, so every PostgREST
---  call from that browser goes out as role `authenticated` — and was silently
---  refused by RLS. That is why one user could send and another could not:
---  same build, same payload, different database role.
+--  Effect: staff signed in through Supabase Auth (role `authenticated`) could
+--  neither read nor post. Staff signed in locally — anon key, no session, so
+--  role `anon` — worked perfectly. Same build, same payload, opposite outcome.
+--  Presence kept working for everyone throughout, because Realtime presence is
+--  broadcast and is never checked against table RLS, which made the panel look
+--  healthy while it was not.
+--
+--  Corroborating forensic detail: messages_id_seq stood at 16 while only ids 1
+--  and 2 existed. RLS WITH CHECK is evaluated after the identity value has been
+--  assigned, so each refused INSERT still burned one. The 14 missing ids are 14
+--  well-formed inserts that reached Postgres and were rejected at the policy
+--  gate — not client-side failures, and not a stale build.
+--
+--  Compare public.orders, which has always worked for everybody: its
+--  `app all orders` policy covers {authenticated, anon}.
 --
 --
---  IS THIS SCRIPT NEEDED?
---  ----------------------
---  No. v2.297 fixes the problem entirely in the client (§CHAT-ANONDB): Team Chat
---  now uses its own session-less Supabase client, so it always presents the anon
---  key and always runs as role `anon` — the role the existing policy covers —
---  for every member of staff, cloud-authenticated or local-only.
+--  WHAT WAS APPLIED (additive; the existing anon policy was left untouched)
+--  -----------------------------------------------------------------------
+--      create policy sigma_chat_authenticated
+--        on public.messages for all to authenticated
+--        using (true) with check (true);
+--      -- plus table grants to authenticated, anon
 --
---  This script is offered only as the DB-side alternative / belt-and-braces. It
---  makes the table behave sanely for `authenticated` as well, which protects any
---  FUTURE code path that reaches `messages` through the main client. Running it
---  is safe and changes nothing for anyone who works today.
+--  A follow-up audit of every table in `public` for the same anon-only gap found
+--  one more — public.inquiries, where website enquiries were invisible to any
+--  cloud-signed-in user — and it received the same treatment. A re-audit is
+--  clean. The three counter tables (order_number_counters, receipt_counters,
+--  statement_counters) intentionally have NO policies: they are reached only
+--  through SECURITY DEFINER RPCs so that clients cannot rewind a sequence.
+--  Those were deliberately left alone and must stay that way.
 --
---  Review it before running. Run it in the Supabase SQL editor.
 --
+--  NO CLIENT-SIDE WORKAROUND IS USED
+--  ---------------------------------
+--  Team Chat talks to the database through the ordinary `_sb` client exactly as
+--  it always has. v2.297 changes only how failures are REPORTED (§CHAT-HINT):
+--  the old text blamed a missing table and told the reader to run
+--  "SIGMA_CHAT_TABLE_v1.sql", a file that does not exist in this repository —
+--  which sent the diagnosis in the wrong direction for the whole life of the
+--  bug. Refusals are now named for what they are.
+--
+--
+--  VERIFY (read-only)
+--  ------------------
+--    select policyname, roles::text, cmd from pg_policies
+--      where schemaname='public' and tablename='messages';
+--    -- expect: sigma_anon_chat_all {anon}, sigma_chat_authenticated {authenticated}
+--
+--    set local role authenticated; select count(*) from public.messages;  -- > 0
+--
+--  Re-audit for the same gap anywhere else in public:
+--    select c.relname
+--      from pg_class c join pg_namespace n on n.oid=c.relnamespace
+--     where n.nspname='public' and c.relkind='r' and c.relrowsecurity
+--       and not exists (select 1 from pg_policies p
+--                        where p.schemaname='public' and p.tablename=c.relname
+--                          and 'authenticated' = any(p.roles));
+--    -- expect only the three counter tables, which are SECURITY DEFINER by design
 -- ============================================================================
-
-begin;
-
--- Keep the existing anon policy exactly as it is; simply extend the same
--- open-team-chat rule to signed-in users too. Team Chat is a single shared room
--- for staff, so the rule is intentionally the same for both roles.
-drop policy if exists sigma_auth_chat_all on public.messages;
-
-create policy sigma_auth_chat_all
-  on public.messages
-  for all
-  to authenticated
-  using (true)
-  with check (true);
-
--- `authenticated` already holds the table grants (verified 2026-08-01), so no
--- GRANT is required. Listed here only so a reviewer can confirm it:
---   grant select, insert, update, delete on public.messages to authenticated;
---   grant usage, select on sequence public.messages_id_seq to authenticated;
-
-commit;
-
-
--- ---------------------------------------------------------------------------
---  VERIFY (read-only) after running:
--- ---------------------------------------------------------------------------
---  select policyname, roles::text, cmd, qual, with_check
---    from pg_policies where schemaname='public' and tablename='messages';
---  -- expect two rows: sigma_anon_chat_all {anon}, sigma_auth_chat_all {authenticated}
---
---  set local role authenticated; select count(*) from public.messages;  -- expect 2
--- ---------------------------------------------------------------------------
