@@ -241,6 +241,10 @@ begin
       v_before.invoice_number;
   end if;
 
+  if jsonb_typeof(v_patch) <> 'object' then
+    raise exception 'the changed fields must be supplied as an object';
+  end if;
+
   -- ── Refuse anything outside the whitelist BY NAME, before touching a row.
   for k in select jsonb_object_keys(v_patch) loop
     if k = any (array['invoice_number','order_number','order_id','is_primary']) then
