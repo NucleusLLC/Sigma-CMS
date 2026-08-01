@@ -14,8 +14,13 @@
 -- tax_amount is always 0 and total = subtotal. The columns exist so that adding a
 -- BBO/BAZV breakout later is a data change, not a migration.
 --
--- NUMBERING. invoice_number is copied from orders.order_id by the server and can
--- never be set or changed by a client. See docs/invoicing/ORDER_INVOICE_NUMBERING.md
+-- NUMBERING. invoice_number is derived from orders.order_id by the server and can
+-- never be set or changed by a client. The FIRST invoice for an order is the order
+-- number exactly (2026-094). If that invoice is voided and a corrected one is
+-- raised, the replacement is SUFFIXED — 2026-094-2, then -3 (§INVOICE-REISSUE) —
+-- so the invoice stays tied to its order, the document plainly reads as a
+-- replacement, and no invoice number is ever reused. order_number always stays the
+-- plain order number. See docs/invoicing/ORDER_INVOICE_NUMBERING.md
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── invoices ────────────────────────────────────────────────────────────────
@@ -23,8 +28,8 @@ create table if not exists public.invoices (
   id                uuid primary key default gen_random_uuid(),
   org_id            text not null default 'sigma',
 
-  -- link + numbering (invoice_number is ALWAYS order_number; kept as separate
-  -- columns because the brief requires both to exist)
+  -- link + numbering. order_number is ALWAYS the plain order number. invoice_number
+  -- is the order number, or the order number plus a re-issue suffix (§INVOICE-REISSUE).
   order_id          text not null references public.orders(order_id) on update cascade,
   order_number      text not null,
   invoice_number    text not null,
@@ -76,10 +81,21 @@ create table if not exists public.invoices (
   constraint invoices_tax_chk check (tax_treatment in
     ('inclusive','added','exempt','none')),
   constraint invoices_money_chk check (subtotal >= 0 and total >= 0 and amount_paid >= 0),
-  constraint invoices_number_matches_order check (invoice_number = order_number)
+  -- §INVOICE-REISSUE — invoice_number is either the order number exactly, or the
+  -- order number plus '-<n>' for a re-issue. Deliberately NOT written with LIKE:
+  -- '_' and '%' are LIKE wildcards and an order number is user-visible data, so
+  -- the prefix is compared as a literal.
+  constraint invoices_number_matches_order check (
+    invoice_number = order_number
+    or ( left(invoice_number, length(order_number) + 1) = order_number || '-'
+         and substring(invoice_number from length(order_number) + 2) ~ '^[0-9]{1,6}$' )
+  )
 );
 
--- No two invoices may share a number within the firm.
+-- No two invoices may share a number within the firm. A voided invoice KEEPS its
+-- number for ever, which is why a re-issue is suffixed rather than renumbered —
+-- this index is also the last-resort backstop against two concurrent creates
+-- landing on the same suffix.
 create unique index if not exists invoices_org_number_uk
   on public.invoices (org_id, invoice_number);
 
@@ -235,8 +251,9 @@ create or replace view public.invoices_v as
     from public.invoices i;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- Creating an invoice from an order. The NUMBER is taken from the order row by
--- the server, so a client cannot choose or spoof it.
+-- Creating an invoice from an order. The NUMBER is derived from the order row by
+-- the server, so a client cannot choose or spoof it. First invoice = the order
+-- number; a re-issue after a void is suffixed -2, -3, … (§INVOICE-REISSUE).
 -- ─────────────────────────────────────────────────────────────────────────────
 create or replace function public.sigma_create_invoice_from_order(
   p_order_id      text,
@@ -251,16 +268,35 @@ language plpgsql
 security invoker            -- deliberately NOT definer: RLS still applies
 as $$
 declare
-  v_ord   public.orders%rowtype;
-  v_inv   public.invoices%rowtype;
-  v_line  jsonb;
-  v_extra jsonb;
-  v_n     int := 0;
+  v_ord     public.orders%rowtype;
+  v_inv     public.invoices%rowtype;
+  v_line    jsonb;
+  v_extra   jsonb;
+  v_n       int  := 0;
+  v_org     text := 'sigma';   -- same value as the invoices.org_id column default;
+                               -- named here so the uniqueness scan below is scoped
+                               -- to exactly the rows invoices_org_number_uk covers.
+  v_base    text;
+  v_baselen int;
+  v_attempt int;
+  v_invno   text;
+  v_try     int;
 begin
   select * into v_ord from public.orders where order_id = p_order_id;
   if not found then
     raise exception 'order % not found', p_order_id;
   end if;
+
+  -- §INVOICE-REISSUE — CONCURRENCY. Everything below (the "already invoiced"
+  -- guard, reading the highest suffix, and the insert) has to be one indivisible
+  -- decision. Under READ COMMITTED two simultaneous clicks would each read the
+  -- committed state, both conclude "next is -2", and one would then fail on a raw
+  -- duplicate-key error. A transaction-scoped advisory lock keyed on the ORDER
+  -- serialises them: the second caller waits, then sees the first invoice
+  -- committed and is refused by the primary-invoice guard with a sentence a human
+  -- can read. Only this order is locked, so unrelated invoicing is not blocked,
+  -- and the lock is released at commit or rollback either way.
+  perform pg_advisory_xact_lock(hashtext('sigma_invoice_from_order'), hashtext(p_order_id));
 
   if exists (select 1 from public.invoices
               where order_id = p_order_id and is_primary and status <> 'void') then
@@ -269,28 +305,79 @@ begin
 
   begin v_extra := v_ord.extra_data::jsonb; exception when others then v_extra := '{}'::jsonb; end;
 
-  insert into public.invoices (
-    order_id, order_number, invoice_number,
-    client_name, client_email, client_phone,
-    bill_to_name, bill_to_address, bill_to_city, bill_to_country,
-    property_address, appraiser, service_description,
-    due_date, payment_terms, public_notes,
-    company_snapshot, created_by
-  ) values (
-    v_ord.order_id, v_ord.order_id, v_ord.order_id,       -- number inherited, server-side
-    coalesce(v_ord.client, trim(coalesce(v_extra->>'clientFirst','') || ' ' || coalesce(v_extra->>'clientLast',''))),
-    nullif(v_extra->>'clientEmail',''),
-    coalesce(nullif(v_extra->>'clientCell',''), nullif(v_extra->>'clientWork','')),
-    coalesce(v_ord.client, trim(coalesce(v_extra->>'clientFirst','') || ' ' || coalesce(v_extra->>'clientLast',''))),
-    nullif(v_extra->>'clientAddr',''),
-    nullif(v_extra->>'city',''),
-    nullif(v_extra->>'country',''),
-    trim(coalesce(v_ord.address,'') || case when v_ord.city is not null then ', ' || v_ord.city else '' end),
-    v_ord.appraiser,
-    coalesce(v_ord.property_type, 'Appraisal services'),
-    p_due_date, p_payment_terms, p_public_notes,
-    p_company, p_actor
-  ) returning * into v_inv;
+  v_base    := v_ord.order_id;
+  v_baselen := length(v_base);
+
+  -- The retry loop is a belt-and-braces backstop for a number written by
+  -- something OTHER than this function (a manual insert, a restored row) between
+  -- the read and the write. In normal operation the advisory lock means the first
+  -- pass always succeeds.
+  for v_try in 1..5 loop
+
+    -- Highest attempt number already in use for this order, VOIDS INCLUDED.
+    -- The bare order number counts as attempt 1, so the first re-issue is -2.
+    -- max(), not count(): a gap (…-2 deleted, …-3 present) must still yield -4,
+    -- never a number that is already taken.
+    select coalesce(max(t.n), 0) into v_attempt from (
+      select case
+               when i.invoice_number = v_base then 1
+               when left(i.invoice_number, v_baselen + 1) = v_base || '-'
+                and substring(i.invoice_number from v_baselen + 2) ~ '^[0-9]{1,6}$'
+                 then substring(i.invoice_number from v_baselen + 2)::int
+               else null
+             end as n
+        from public.invoices i
+       where i.org_id = v_org
+         -- both sides of the net: every invoice pointing at this order, AND every
+         -- invoice already holding a number in this order's series even if it were
+         -- somehow attached elsewhere. The second half is what makes the derived
+         -- number agree with what invoices_org_number_uk will actually accept.
+         and ( i.order_id = p_order_id
+               or i.invoice_number = v_base
+               or left(i.invoice_number, v_baselen + 1) = v_base || '-' )
+    ) t;
+
+    v_invno := case when v_attempt = 0 then v_base
+                    else v_base || '-' || (v_attempt + 1)::text end;
+
+    begin
+      insert into public.invoices (
+        org_id, order_id, order_number, invoice_number,
+        client_name, client_email, client_phone,
+        bill_to_name, bill_to_address, bill_to_city, bill_to_country,
+        property_address, appraiser, service_description,
+        due_date, payment_terms, public_notes,
+        company_snapshot, created_by
+      ) values (
+        v_org, v_ord.order_id, v_ord.order_id, v_invno,   -- number derived server-side
+        -- The client snapshot is taken from the ORDER, not from any earlier
+        -- invoice. This is the whole point of a re-issue: the previous invoice
+        -- named the wrong client, and the order is the corrected record.
+        coalesce(v_ord.client, trim(coalesce(v_extra->>'clientFirst','') || ' ' || coalesce(v_extra->>'clientLast',''))),
+        nullif(v_extra->>'clientEmail',''),
+        coalesce(nullif(v_extra->>'clientCell',''), nullif(v_extra->>'clientWork','')),
+        coalesce(v_ord.client, trim(coalesce(v_extra->>'clientFirst','') || ' ' || coalesce(v_extra->>'clientLast',''))),
+        nullif(v_extra->>'clientAddr',''),
+        nullif(v_extra->>'city',''),
+        nullif(v_extra->>'country',''),
+        trim(coalesce(v_ord.address,'') || case when v_ord.city is not null then ', ' || v_ord.city else '' end),
+        v_ord.appraiser,
+        coalesce(v_ord.property_type, 'Appraisal services'),
+        p_due_date, p_payment_terms, p_public_notes,
+        p_company, p_actor
+      ) returning * into v_inv;
+      exit;                                    -- got the number, done
+    exception when unique_violation then
+      -- Could be either unique index. If a live primary appeared, say so in
+      -- words; otherwise the number was taken — recompute and try again.
+      if exists (select 1 from public.invoices
+                  where order_id = p_order_id and is_primary and status <> 'void') then
+        raise exception 'order % already has a primary invoice', p_order_id;
+      end if;
+      if v_try >= 5 then raise; end if;
+    end;
+
+  end loop;
 
   for v_line in select * from jsonb_array_elements(coalesce(p_lines, '[]'::jsonb)) loop
     v_n := v_n + 1;
@@ -314,7 +401,9 @@ begin
 
   insert into public.finance_audit_events (entity, entity_id, invoice_number, action, actor, after_state)
   values ('invoice', v_inv.id, v_inv.invoice_number, 'invoice_created', p_actor,
-          jsonb_build_object('order_id', p_order_id, 'lines', v_n));
+          jsonb_build_object('order_id', p_order_id, 'lines', v_n,
+                             'invoice_number', v_inv.invoice_number,
+                             'attempt', v_attempt + 1));
 
   select to_jsonb(x) into v_extra from (
     select i.*, (select coalesce(jsonb_agg(to_jsonb(l) order by l.line_no), '[]'::jsonb)

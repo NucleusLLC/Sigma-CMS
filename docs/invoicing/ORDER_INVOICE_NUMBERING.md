@@ -8,9 +8,14 @@
 ## The rule
 
 > **The invoice number is the appraisal order number.** `2026-001` → `2026-001`.
+>
+> **A re-issue after a void is suffixed.** `2026-001` → `2026-001-2` → `2026-001-3`.
 
 The order is the source. The invoice never generates a number of its own, and the number
 is never editable by a user.
+
+`order_number` is *always* the plain order number. Only `invoice_number` carries the
+re-issue suffix — see [§INVOICE-REISSUE](#re-issuing-after-a-void) below.
 
 Because of that, a defect in order numbering is a defect in *billing*. The numbering had to
 be made correct before any invoicing work started.
@@ -127,9 +132,59 @@ number was burned.** The next real order is `2026-092`.
 
 ## Rules this establishes for invoicing
 
-1. `invoices.invoice_number` is copied from `orders.order_id` at creation and is immutable.
-2. `invoices.order_number` is stored alongside it — same value, kept separate as the spec requires.
-3. `UNIQUE (invoice_number)` on invoices, and a partial unique index enforcing **one primary
-   invoice per order**.
-4. Voiding keeps the number. Nothing ever reissues it.
+1. `invoices.invoice_number` is derived from `orders.order_id` at creation and is immutable.
+2. `invoices.order_number` is stored alongside it — always the plain order number.
+3. `UNIQUE (org_id, invoice_number)` on invoices, and a partial unique index enforcing
+   **one non-void primary invoice per order**.
+4. Voiding keeps the number. Nothing ever reissues it — a replacement gets a *new*
+   number in the same series (see below).
 5. An order may exist with no invoice; an invoice may never exist without an order.
+
+---
+
+## Re-issuing after a void
+
+**Status:** implemented in **§INVOICE-REISSUE**. Migration:
+`sigma-deploy/supabase/SIGMA_invoicing_reissue.sql`.
+
+### What was wrong
+
+Three rules disagreed, and the disagreement only surfaced the first time an invoice was
+actually voided (order `2026-094`, 2026-07-31):
+
+| Rule | Said |
+|---|---|
+| `invoices_one_primary_per_order` (partial unique, `where is_primary and status <> 'void'`) | a voided invoice frees the slot, so a corrected invoice **can** be raised |
+| `sigma_create_invoice_from_order`'s guard | agrees — refuses only on a **non-void** primary |
+| `invoices_org_number_uk` (`unique (org_id, invoice_number)`) | the voided invoice still **holds** `2026-094`, so the replacement collided |
+| `invoices_number_matches_order` (`check invoice_number = order_number`) | forbade any number that is not literally the order number |
+
+So the create was refused with a duplicate-key error, while the app's own wording told the
+owner to "void it and raise a new one".
+
+### The rule now
+
+A re-issued invoice is **suffixed** against its order number: `2026-094`, `2026-094-2`,
+`2026-094-3`. The invoice stays tied to its order, the document plainly reads as a
+replacement, and **no invoice number is ever reused** — the hard rule established above.
+
+The suffix is derived **server-side** inside the RPC, from the highest suffix already in
+use for that order (voids included) — `max(...) + 1`, never `count(...)`, so a gap or a
+manually inserted row cannot cause a collision. It is never passed in by the client.
+
+### Concurrency
+
+The guard, the suffix read and the insert are wrapped in a transaction-scoped advisory
+lock keyed on the order:
+
+```sql
+perform pg_advisory_xact_lock(hashtext('sigma_invoice_from_order'), hashtext(p_order_id));
+```
+
+Two simultaneous clicks therefore serialise: the second waits, sees the first invoice
+committed, and is refused by the primary-invoice guard in words a human can read rather
+than with a raw duplicate-key error. `invoices_org_number_uk` remains the last-resort
+backstop, and a bounded retry loop re-derives the number if some *other* writer takes it.
+
+The lock is transaction-scoped, not session-scoped, so it is safe under Supabase's
+transaction-mode connection pooling.
