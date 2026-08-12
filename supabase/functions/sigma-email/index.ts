@@ -128,6 +128,20 @@ function sendableAddress(e: string): boolean {
 const CC_MAX = 10;          // a copy list, not a mailing list
 const ADDR_MAX = 254;       // RFC 5321 maximum path length
 
+// §RELAY-GUARD — this function is deliberately reachable with the app's anon key
+//   (§FINANCE-OPEN below), so the token is present-but-unverified. That means anyone
+//   who knows the URL can send mail from the bureau's authenticated mailbox, and
+//   SPF/DKIM/DMARC will vouch for it. The session gate is the real fix and is coming;
+//   until then bound the blast radius, because an authenticated-domain relay only
+//   becomes serious at volume and with large payloads.
+//   Ceilings are set far above real use: 42 sends TOTAL in the table's lifetime and a
+//   busiest-hour-ever of 2, so 20/hour is ~10x headroom and cannot affect legitimate
+//   work. Both checks fail OPEN — a counter hiccup must never hold up a real invoice.
+const HTML_MAX = 512 * 1024;        // 512 KB of message body is already generous
+const ATTACH_B64_MAX = 14 * 1024 * 1024;  // ~10 MB binary once base64 is decoded
+const SEND_MAX_PER_HOUR = 20;
+const SENT_BY_MAX = 200;    // caller-supplied, unverified — cap it so it can't bloat the log
+
 function normalizeCc(raw: unknown, primary: string): { list: string[]; dropped: string[] } {
   // The contract is string[]. A comma/semicolon string is still accepted because
   // that is what this function took before v2.309, and an older client in a stale
@@ -207,7 +221,11 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return jsonRes({ ok: false, error: "invalid JSON body" }, 400, ch); }
-  if (!userEmail && body.sent_by) userEmail = String(body.sent_by);
+  // §RELAY-GUARD — the token above is present-but-unverified, so this fallback is
+  //   caller-controlled and can be forged. Kept (it is what makes the per-order send
+  //   log readable today) but length-capped so it cannot bloat or flood the log.
+  //   It stops being forgeable once the session gate lands.
+  if (!userEmail && body.sent_by) userEmail = String(body.sent_by).slice(0, SENT_BY_MAX);
 
   const invoiceId = body.invoice_id ? String(body.invoice_id) : null;
   const kind = String(body.kind || "invoice");
@@ -224,6 +242,23 @@ Deno.serve(async (req: Request) => {
   }
   if (!subject) return jsonRes({ ok: false, error: "subject is required" }, 400, ch);
   if (!html) return jsonRes({ ok: false, error: "message body is required" }, 400, ch);
+
+  // §RELAY-GUARD — payload ceilings, then an hourly volume ceiling. See the constants.
+  if (html.length > HTML_MAX) {
+    return jsonRes({ ok: false, error: "message body is too large to send" }, 413, ch);
+  }
+  if (attachment?.contentBase64 && attachment.contentBase64.length > ATTACH_B64_MAX) {
+    return jsonRes({ ok: false, error: "attachment is too large to send" }, 413, ch);
+  }
+  try {
+    const since = new Date(Date.now() - 3_600_000).toISOString();
+    const { count } = await sb.from("invoice_emails")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", since);
+    if (typeof count === "number" && count >= SEND_MAX_PER_HOUR) {
+      return jsonRes({ ok: false, error: "hourly send limit reached — please try again shortly" }, 429, ch);
+    }
+  } catch { /* fail open — never block a genuine invoice on the counter */ }
 
   // §INVOICE-CC — validated AFTER the primary recipient, and never able to reject
   // the request: a malformed CC entry is dropped, not raised.
