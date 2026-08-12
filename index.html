@@ -14777,7 +14777,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.314';
+var APP_VERSION = 'v2.315';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -38894,6 +38894,13 @@ function _fromRow(row, order) {
   if (row.map_addr)          order.mapAddr         = row.map_addr;
   if (row.map_zoom  != null) order.mapZoom         = row.map_zoom;
   if (row.location_opinion)  order.locationOpinion = row.location_opinion;
+  // §REPORT-UNGUESSABLE (v2.315) — carry the report naming columns onto the in-memory
+  //   order. Without these two lines _sigmaReportPdfInfo never sees a token, silently
+  //   falls back to the legacy guessable "<job>.pdf", and then pins that name into
+  //   report_path on publish. Truthy guards on purpose: a lean fetch that omits these
+  //   columns must never clear a value already held in memory.
+  if (row.report_path)       order.report_path     = row.report_path;
+  if (row.report_token)      order.report_token    = row.report_token;
   if (row.fee       != null) order.fee             = row.fee;
   if (row.val_data)  { try { order.valData  = JSON.parse(row.val_data);  } catch(e) {} }
   if (row.insp_data) {
