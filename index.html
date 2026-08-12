@@ -38000,7 +38000,14 @@ async function _rlsAuthProbe(note){
       user_email:    (sess && sess.user && sess.user.email) ||
                      ((typeof _authUser !== 'undefined' && _authUser && _authUser.email) || null),
       app_version:   (typeof APP_VERSION !== 'undefined' ? String(APP_VERSION) : null),
-      note:          note || null
+      // §RLS-PROBE (v2.316) — record WHICH login path got this session in. `_cloud` is
+      //   set only by the Supabase sign-in branch; its absence means the local-hash
+      //   fallback, which carries no JWT. That is the number that decides whether the
+      //   policies can be flipped: sessions on the local path are the ones that would
+      //   be locked out, and they are also the ones sigma-email's fail-closed gate
+      //   would cut off from sending invoices.
+      note: (note || '') + ((typeof _authUser !== 'undefined' && _authUser && _authUser._cloud)
+                             ? ' | cloud-login' : ' | local-login')
     });
   } catch(e){ /* intentionally silent */ }
 }

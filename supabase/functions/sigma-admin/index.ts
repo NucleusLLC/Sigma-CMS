@@ -111,10 +111,41 @@ Deno.serve(async (req: Request) => {
   const key = auth.replace(/^Bearer\s+/i, "").trim();
   if (!key) return jsonRes({ ok: false, error: "admin key required" }, 401, ch);
 
+  // §ADMIN-THROTTLE — the 1200 ms penalty below delays ONE response; it does not limit
+  //   concurrency, so thousands of parallel guesses proceed unthrottled and the whole
+  //   defence rests on the secret's entropy. This adds a real ceiling: a counter, not a
+  //   sleep. One shared secret guards create_user / set_password / set_active with the
+  //   service role, so a successful guess is full application takeover.
+  //   Fails OPEN — a counter outage must never lock the owner out of user admin.
+  const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
+  // deno-lint-ignore no-explicit-any
+  let auditDb: any = null;
+  try {
+    auditDb = admin();
+    const since = new Date(Date.now() - 900_000).toISOString();   // 15 minutes
+    const { count } = await auditDb.from("admin_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("ip", clientIp).eq("ok", false).gte("created_at", since);
+    if (typeof count === "number" && count >= 10) {
+      return jsonRes({ ok: false, error: "too many attempts — try again later" }, 429, ch);
+    }
+  } catch { auditDb = null; }
+
   let keyOk = false;
   try { keyOk = await verifyAdminKey(key, storedHash); } catch { keyOk = false; }
+
+  // Every attempt is recorded, accepted or not: without this there is no way to tell
+  // whether the shared secret has been used by someone other than its owner.
+  if (auditDb) {
+    try {
+      auditDb.from("admin_attempts")
+        .insert({ ip: clientIp, action: "auth", ok: keyOk })
+        .then(() => {}, () => {});
+    } catch { /* ignore */ }
+  }
+
   if (!keyOk) {
-    await sleep(1200);   // make guessing expensive
+    await sleep(1200);   // keep the per-response penalty as well
     return jsonRes({ ok: false, error: "Admin key not accepted." }, 401, ch);
   }
 
