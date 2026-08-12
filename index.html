@@ -14777,7 +14777,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.316';
+var APP_VERSION = 'v2.317';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -29694,6 +29694,17 @@ async function _sigmaPublishReportPDF_raster(orderId, reportHtml){
       if (idx !== -1) ORDERS[idx].report_path = info.path;
       await _sb.schema('public').from('orders').update({ report_path: info.path }).eq('order_id', orderId);
     } catch(e){ try{ console.warn('[report pdf] report_path persist', e); }catch(_){} }
+    // §SRC-CLEANUP (v2.317) — the staged "<stem>.src.html" is only ever an INPUT to the
+    //   server-side renderer, and that renderer (render-report-pdf) is not deployed, so
+    //   the raster path below has already produced the PDF without reading it. Left
+    //   behind it is a full copy of the report's source sitting in a PUBLIC bucket —
+    //   31 of them had accumulated to 275 MB, larger than all the PDFs combined, and
+    //   they came back the moment a report was republished. Remove it once the PDF is
+    //   safely uploaded. Best-effort: the report is already published either way, and
+    //   if the server renderer is ever deployed it re-stages its own copy per run.
+    try {
+      if (info.srcPath) await _sb.storage.from(REPORTS_BUCKET).remove([info.srcPath]);
+    } catch(e){ try{ console.warn('[report pdf] staged source cleanup', e); }catch(_){} }
     // Light up the QuickView PDF button if this order's card is open.
     try {
       var b = document.getElementById('qvBtnPdf');
