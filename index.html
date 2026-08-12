@@ -14777,7 +14777,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.313';
+var APP_VERSION = 'v2.314';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -29525,7 +29525,7 @@ async function _sigmaPublishReportPDF(orderId, reportHtml){
     if (!orderId || !reportHtml) return;
     if (typeof _sb === 'undefined' || !_sb || !_sb.storage) { _sigmaPdfStatus('PDF not published — cloud is off', true); return; }
     var info = _sigmaReportPdfInfo({ id: orderId });
-    var srcPath = info.safe + '.src.html';
+    var srcPath = info.srcPath || (info.safe + '.src.html');   // §REPORT-UNGUESSABLE (v2.314)
     // §PDF-EMBED-FONTS (v2.118) — EMBED the report's web-fonts as base64 into the staged
     //   HTML so they render everywhere with NObody needing the font installed locally
     //   (this is the standard way). The renderer then gets a fully self-contained document.
@@ -29686,6 +29686,14 @@ async function _sigmaPublishReportPDF_raster(orderId, reportHtml){
       ORDERS[idx].reportPdf = { path: info.path, url: info.publicUrl, savedAt: (new Date()).toISOString().slice(0,10), ts: _pubTs };
       try { await persistOrders(orderId); } catch(e){ try{console.warn('[report pdf] persist',e);}catch(_){} }
     }
+    // §REPORT-UNGUESSABLE (v2.314) — record where this report actually landed. The name is
+    //   no longer derivable from the job number, so every later load, the QuickView button
+    //   and the render-report-pdf edge function all resolve it from this column instead.
+    //   Best-effort: a failure here must never fail a publish that already succeeded.
+    try {
+      if (idx !== -1) ORDERS[idx].report_path = info.path;
+      await _sb.schema('public').from('orders').update({ report_path: info.path }).eq('order_id', orderId);
+    } catch(e){ try{ console.warn('[report pdf] report_path persist', e); }catch(_){} }
     // Light up the QuickView PDF button if this order's card is open.
     try {
       var b = document.getElementById('qvBtnPdf');
@@ -37730,16 +37738,48 @@ const LS_KEY  = 'appraisalSuite_orders_v1'; // fallback cache
 //   a stable, login-free, deterministic public URL that can be baked into the QR BEFORE
 //   the file is uploaded (no token needed — unlike private signed URLs which expire).
 const REPORTS_BUCKET = 'reports';
+// §REPORT-UNGUESSABLE (v2.314) — the 'reports' bucket is public by design (the cover QR
+//   must resolve with no login, and it is printed BEFORE the file is uploaded). But naming
+//   the file after the job number made the whole bucket enumerable: anyone could walk
+//   2026-001.pdf … 2026-094.pdf and download every finished appraisal without a key.
+//   Fix: each order carries a random `report_token` (DB column, default-generated), and a
+//   report published from v2.314 on lands at "<job>-<token>.pdf" — still public, still
+//   deterministic for the QR, no longer guessable.
+//   Reports published BEFORE v2.314 keep their original name: `orders.report_path` was
+//   backfilled from the bucket's real contents, so already-printed QR codes keep resolving.
+//   If neither column is available (older cache, partial row) we fall back to the exact
+//   pre-v2.314 name — this helper can degrade, but it can never break a working link.
+function _sigmaReportRec(id){
+  try {
+    if (typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length){
+      for (var i = 0; i < ORDERS.length; i++)
+        if (String(ORDERS[i].id) === String(id)) return ORDERS[i];
+    }
+  } catch(e){}
+  return null;
+}
 function _sigmaReportPdfInfo(o){
   var id   = (o && o.id != null) ? String(o.id) : '';
   var safe = id.replace(/[^a-zA-Z0-9._-]/g,'_') || 'report';
-  var path = safe + '.pdf';                                  // key within the reports bucket
+  // Callers such as _sigmaPublishReportPDF pass a bare { id: … }; resolve the real row.
+  var rec  = (o && (o.report_path || o.report_token)) ? o : (_sigmaReportRec(id) || o || {});
+  var stem, path;
+  if (rec && rec.report_path){
+    path = String(rec.report_path);
+    stem = path.replace(/\.pdf$/i, '');
+  } else if (rec && rec.report_token){
+    stem = safe + '-' + String(rec.report_token).replace(/[^a-zA-Z0-9]/g,'');
+    path = stem + '.pdf';
+  } else {
+    stem = safe; path = safe + '.pdf';        // fail-safe = exact pre-v2.314 behaviour
+  }
+  var srcPath = stem + '.src.html';           // staged HTML shares the stem
   var publicUrl = SB_URL + '/storage/v1/object/public/' + REPORTS_BUCKET + '/' + path;
   // §QR-EXPIRY (v2.126) — CLIENT-facing link (cover QR + email). Goes through the
   //   render-report-pdf edge function which redirects to the PDF only if it's < 6 months
   //   old, else shows an "expired" page. Staff buttons use publicUrl directly (no expiry).
   var viewUrl = SB_URL + '/functions/v1/render-report-pdf?j=' + encodeURIComponent(safe);
-  return { id:id, safe:safe, path:path, publicUrl:publicUrl, viewUrl:viewUrl };
+  return { id:id, safe:safe, stem:stem, path:path, srcPath:srcPath, publicUrl:publicUrl, viewUrl:viewUrl };
 }
 // §EMAIL-REPORT (v2.126) — build a mailto: that sends the client the 6-month report link.
 function _sigmaReportEmailHref(o){
@@ -37933,6 +37973,38 @@ if (_sb && !_sb.__pauseWrapped) {
 function _sbOrdersRaw(){ try{ if(window._sbRawSchema) return window._sbRawSchema('public').from('orders'); }catch(e){} return (typeof _sb!=='undefined'&&_sb) ? _sb.schema('public').from('orders') : null; }
 function _sbBucketRaw(){ try{ if(window._sbRawStorageFrom) return window._sbRawStorageFrom('Storage'); }catch(e){} return (typeof _sb!=='undefined'&&_sb&&_sb.storage) ? _sb.storage.from('Storage') : null; }
 window._sbOrdersRaw=_sbOrdersRaw; window._sbBucketRaw=_sbBucketRaw;
+
+// §RLS-PROBE (v2.314) — TEMPORARY telemetry, to be removed once the anon-key policies
+//   are tightened. Every table is currently `USING (true)` for the anon role, i.e. the
+//   anon key that ships in this file grants full read/write to anyone who views source.
+//   Tightening those policies to `authenticated` is a one-line change per table, but it
+//   locks out any session that is NOT carrying a Supabase JWT — and SIGMA has two login
+//   paths: the cloud path (signInWithPassword → real JWT) and the local-hash fallback
+//   (no JWT → role stays `anon`). This records which role each real session actually
+//   uses at the moment it reads orders, so the policies can be flipped on evidence
+//   instead of on a guess. The table is INSERT-only: nothing is ever read back into the
+//   browser, so this adds no new exposure. Failures are swallowed — telemetry must never
+//   affect the app.
+var _rlsProbeDone = false;
+async function _rlsAuthProbe(note){
+  try {
+    if (_rlsProbeDone) return;
+    _rlsProbeDone = true;
+    if (typeof _sb === 'undefined' || !_sb) return;
+    if (typeof window.isSbPaused === 'function' && window.isSbPaused()) return;
+    var sess = null;
+    try { var s = await _sb.auth.getSession(); sess = s && s.data && s.data.session; } catch(e){}
+    await _sb.schema('public').from('rls_auth_probe').insert({
+      observed_role: sess ? 'authenticated' : 'anon',
+      has_session:   !!sess,
+      user_email:    (sess && sess.user && sess.user.email) ||
+                     ((typeof _authUser !== 'undefined' && _authUser && _authUser.email) || null),
+      app_version:   (typeof APP_VERSION !== 'undefined' ? String(APP_VERSION) : null),
+      note:          note || null
+    });
+  } catch(e){ /* intentionally silent */ }
+}
+window._rlsAuthProbe = _rlsAuthProbe;
 
 // Floating button + badge (top-right). Added once on DOMContentLoaded; reflects
 // the pause state and toggles it. Visible on every screen so the user can
@@ -39513,7 +39585,8 @@ window.sbLiveOrders = async function(opts){
     //   transfer the heavy insp_data blob for every order each time (the biggest
     //   driver of slow queries / connection timeouts). insp_data loads on demand
     //   via _ensureInspData() when opening Inspect Data or generating a report.
-    var res = await _sb.schema('public').from('orders').select('order_id,status,due_date,address,city,property_type,appraiser,client,assessed_value,beds,baths,gla_m2,parcel_m2,year_built,map_lat,map_lng,map_addr,map_zoom,fee,updated_at,location_opinion,val_data,extra_data').order('updated_at',{ascending:false});
+    var res = await _sb.schema('public').from('orders').select('order_id,status,due_date,address,city,property_type,appraiser,client,assessed_value,beds,baths,gla_m2,parcel_m2,year_built,map_lat,map_lng,map_addr,map_zoom,fee,updated_at,location_opinion,val_data,extra_data,report_path,report_token').order('updated_at',{ascending:false});
+    try { _rlsAuthProbe('orders-load'); } catch(e){}   // §RLS-PROBE (v2.314) — fire-and-forget
     if (res.error) {
       console.error('[LIVE] Supabase error:', res.error);
       // §LIVEDB-PRESERVE-LOCAL (v1.913) — code-specific error hints.
