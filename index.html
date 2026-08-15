@@ -10499,6 +10499,35 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
           <textarea id="condoResearchText" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="Condominium market commentary — comparable projects, price/m² positioning of the subject, absorption &amp; demand, location premium, and your marketability conclusion…" data-key="condoResearch"></textarea>
         </div>
 
+        <!-- §ROI (v2.320) — R.O.I. sits directly ABOVE Conclusion / Opinion. It is a
+             sibling .fg inside isec-12 ("13. Opinions"), NOT a new isec tab: several
+             loops in this file hardcode 14 sections and `s<=12`, so a 15th panel would
+             fall outside them. The textarea carries data-key so the generic
+             _inspCapture/_inspApplySection walk persists it with no JS change. -->
+        <div class="fg" style="grid-column:1/-1;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#fff;border-radius:4px;font-size:11px;margin-right:7px;">%</span>R.O.I.</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;"><input type="checkbox" id="secChkRoi" onchange="_secInputToggle('roi',this)" style="margin:0;"> Show on report</label>
+            </div>
+          </div>
+          <textarea id="roiText" data-key="roiText" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="Return on investment — assumptions, basis of the projection, and what the split below represents. Paste or compose freely."></textarea>
+
+          <!-- Percentage-split chart. Rows are held as JSON in the hidden textarea
+               below (data-key="roiChart"), so they ride the same capture/restore path
+               as every other field. Only [{label,pct}] is ever stored — roughly 90
+               bytes. No image, no upload, nothing that can bloat insp_data. -->
+          <div style="margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:10px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+              <strong style="font-size:12px;">Chart — percentage split</strong>
+              <button type="button" class="btn-sec" onclick="_roiAddRow()" style="font-size:11px;padding:3px 9px;">+ Add section</button>
+              <span id="roiTotal" style="font-size:11px;color:var(--muted);"></span>
+            </div>
+            <div id="roiRows"></div>
+            <div id="roiPreview" style="margin-top:10px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;"></div>
+            <textarea id="roiChart" data-key="roiChart" style="display:none;"></textarea>
+          </div>
+        </div>
         <!-- §CONCL (v2.221) — Conclusion / Opinion (all appraisal types). Prints in the report on top of the Valuation section. -->
         <div class="fg" style="grid-column:1/-1;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
@@ -10511,6 +10540,7 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
           </div>
           <textarea id="conclusionText" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="Overall conclusion &amp; professional opinion — property, condition, location, marketability and value rationale…" data-key="conclusionOpinion"></textarea>
         </div>
+
 
       </div>
     </div>
@@ -13862,6 +13892,119 @@ function _secCondoOn(o){
 //   OPT-IN: when order.sectionLayout is unset the report renders exactly as before
 //   (zero change). The Index auto-derives from the SAME layout so it can't drift.
 // ═══════════════════════════════════════════════════════════════════════════
+// ── §ROI (v2.320) — R.O.I. section: free narrative + a percentage-split chart ──
+//   The chart is INLINE SVG, drawn here, with nothing stored but [{label,pct}].
+//   Chart.js is loaded in the app (line ~6920) and could draw this, but it is NOT
+//   present in the report window — the report is a separate blob: URL document
+//   carrying inline scripts only. Going through Chart.js would therefore mean
+//   canvas -> toDataURL -> upload to the Storage bucket -> signed URL -> fetch ->
+//   data: URI, five steps whose failure mode is image bytes landing in insp_data.
+//   That column is what took the database down on 2026-07-16 (a 14MB doc inflated
+//   one row to 20MB), and _inspStripPhotos only guards s10._photos, s10._coverPhoto
+//   and _docs — a chart parked anywhere else is invisible to every existing guard.
+//   SVG sidesteps all of it: ~90 bytes stored, vector on paper, and it renders in
+//   the report with no library, no network and no fetch.
+var _ROI_PALETTE = ['#8a6d3b','#b08d57','#6a5a48','#c9a961','#4a5d4e','#7d8471','#9c6b4f','#5c6b73','#a8916c','#3f4a3d'];
+
+function _roiEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Rows the user typed -> drawable slices. Blank/zero/negative/non-numeric are dropped.
+function _roiSlices(rows){
+  var clean=[], t=0;
+  (rows||[]).forEach(function(r){
+    var p=Number(r&&r.pct);
+    if(isFinite(p)&&p>0){ clean.push({label:String((r&&r.label)||'').trim(), pct:p}); t+=p; }
+  });
+  return { slices:clean, total:t };
+}
+
+function _roiArc(cx,cy,r,a0,a1){
+  // A full circle cannot be one arc — start and end coincide and nothing is drawn.
+  if(a1-a0>=359.999){
+    return 'M '+cx+' '+(cy-r)+' A '+r+' '+r+' 0 1 1 '+cx+' '+(cy+r)+' A '+r+' '+r+' 0 1 1 '+cx+' '+(cy-r)+' Z';
+  }
+  var rad=function(d){ return (d-90)*Math.PI/180; };
+  var x1=cx+r*Math.cos(rad(a0)), y1=cy+r*Math.sin(rad(a0));
+  var x2=cx+r*Math.cos(rad(a1)), y2=cy+r*Math.sin(rad(a1));
+  var big=(a1-a0)>180?1:0;
+  return 'M '+cx+' '+cy+' L '+x1.toFixed(2)+' '+y1.toFixed(2)+' A '+r+' '+r+' 0 '+big+' 1 '+x2.toFixed(2)+' '+y2.toFixed(2)+' Z';
+}
+
+// Sweeps are proportional to the ENTERED values, so a set totalling 90 or 110 still
+// draws a complete circle. The total is returned so the caller can say so — a
+// valuation document must never silently rescale a figure the appraiser typed.
+function _roiChartSvg(rows,opts){
+  opts=opts||{};
+  var o=_roiSlices(rows), sl=o.slices, total=o.total;
+  if(!sl.length) return { svg:'', legend:'', total:0, slices:[] };
+  var size=opts.size||300, cx=size/2, cy=size/2, r=size/2-4;
+  var donut=(opts.donut==null?0.55:opts.donut); if(donut<0)donut=0; if(donut>0.9)donut=0.9;
+  var acc=0, paths='';
+  sl.forEach(function(s,i){
+    var sweep=(s.pct/total)*360;
+    paths+='<path d="'+_roiArc(cx,cy,r,acc,acc+sweep)+'" fill="'+_ROI_PALETTE[i%_ROI_PALETTE.length]+'" stroke="#fff" stroke-width="1"/>';
+    acc+=sweep;
+  });
+  var hole=donut>0?('<circle cx="'+cx+'" cy="'+cy+'" r="'+(r*donut).toFixed(2)+'" fill="#fff"/>'):'';
+  var legend=sl.map(function(s,i){
+    return '<div style="display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;">'
+      +'<span style="width:10px;height:10px;flex:0 0 10px;background:'+_ROI_PALETTE[i%_ROI_PALETTE.length]+';border-radius:2px;"></span>'
+      +'<span>'+_roiEsc(s.label||'(unnamed)')+' — '+(Math.round(s.pct*100)/100)+'%</span></div>';
+  }).join('');
+  var svg='<svg viewBox="0 0 '+size+' '+size+'" width="'+size+'" height="'+size+'" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="R.O.I. breakdown">'+paths+hole+'</svg>';
+  return { svg:svg, legend:legend, total:total, slices:sl };
+}
+
+// ── editor state ────────────────────────────────────────────────────────────
+// The rows live as JSON in a hidden textarea with data-key="roiChart", so the
+// generic _inspCapture/_inspApplySection DOM walk saves and restores them with no
+// change to either function.
+function _roiRead(){
+  try{ var el=document.getElementById('roiChart'); var a=JSON.parse((el&&el.value)||'[]'); return Array.isArray(a)?a:[]; }
+  catch(e){ return []; }
+}
+function _roiStore(rows){
+  var el=document.getElementById('roiChart');
+  if(el) el.value=JSON.stringify(rows||[]);
+}
+function _roiAddRow(){ var r=_roiRead(); if(r.length>=10) return; r.push({label:'',pct:''}); _roiStore(r); _roiRender(); }
+function _roiDelRow(i){ var r=_roiRead(); r.splice(i,1); _roiStore(r); _roiRender(); }
+function _roiSet(i,field,val){
+  var r=_roiRead(); if(!r[i]) return;
+  r[i][field] = (field==='pct') ? (val===''?'':Number(val)) : val;
+  _roiStore(r);
+  _roiPaint();          // repaint chart/total only — never re-create the inputs mid-typing
+}
+// Rebuild the row inputs. Called on add/delete/restore, NOT on every keystroke:
+// replacing an input while it has focus would drop the caret on each character.
+function _roiRender(){
+  var host=document.getElementById('roiRows'); if(!host) return;
+  var rows=_roiRead();
+  host.innerHTML = rows.map(function(r,i){
+    return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">'
+      +'<span style="width:12px;height:12px;flex:0 0 12px;border-radius:2px;background:'+_ROI_PALETTE[i%_ROI_PALETTE.length]+';"></span>'
+      +'<input type="text" value="'+_roiEsc(r.label)+'" placeholder="Section name" oninput="_roiSet('+i+',\'label\',this.value)" style="flex:1;min-width:0;">'
+      +'<input type="number" value="'+_roiEsc(r.pct)+'" placeholder="%" min="0" max="100" step="0.01" oninput="_roiSet('+i+',\'pct\',this.value)" style="width:80px;">'
+      +'<button type="button" onclick="_roiDelRow('+i+')" title="Remove this section" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:2px 4px;">&times;</button>'
+      +'</div>';
+  }).join('') || '<div style="font-size:11px;color:var(--muted);">No sections yet — add one to build the chart.</div>';
+  _roiPaint();
+}
+function _roiPaint(){
+  var prev=document.getElementById('roiPreview'), tot=document.getElementById('roiTotal');
+  var out=_roiChartSvg(_roiRead(),{size:190,donut:0.55});
+  if(prev) prev.innerHTML = out.svg ? ('<div>'+out.svg+'</div><div>'+out.legend+'</div>') : '';
+  if(tot){
+    if(!out.slices.length){ tot.textContent=''; tot.style.color='var(--muted)'; }
+    else {
+      var t=Math.round(out.total*100)/100;
+      tot.textContent = 'Total ' + t + '%' + (t===100?'':' — shown as entered');
+      tot.style.color = (t===100) ? 'var(--muted)' : '#9c3b2f';
+    }
+  }
+}
+window._roiAddRow=_roiAddRow; window._roiDelRow=_roiDelRow; window._roiSet=_roiSet; window._roiRender=_roiRender;
+
 var _SECTION_REGISTRY = [
   { id:'introNote',       title:'Introductory Note' },
   { id:'fpOpinion',       title:'Opinion of Floor Plan' },
@@ -13873,6 +14016,7 @@ var _SECTION_REGISTRY = [
   { id:'floorplan',       title:'Floorplan & Dimensions' },
   { id:'location',        title:'Location & Property (map)' },
   { id:'inspDetails',     title:'Inspection Details' },
+  { id:'roi',             title:'R.O.I.' },   // §ROI (v2.320) — default OFF via _orderSecEnabled; see there
   { id:'conclusion',      title:'Conclusion / Opinion' },
   { id:'valuation',       title:'Valuation' },
   // §ANALYTICS (v2.255) / §CONDO-GATE (v2.311) — availability now follows the PROPERTY, not the
@@ -13917,7 +14061,7 @@ function _orderRemovedPages(order){
 function _secPageRemoved(order,p){ return _orderRemovedPages(order).indexOf(p)>=0; }
 // Default page assignment mirrors the current default arrangement so a freshly
 //   customised order starts from a familiar layout.
-var _SECTION_DEFAULT_PAGES = { introNote:'p3', fpOpinion:'p3', renovNotes:'p3', floorplan:'p3', condMatrix:'p4', buildingOpinion:'p4', inspDetails:'p4', locationOpinion:'p5', ropv:'p5', location:'p5', conclusion:'p6', valuation:'p6', condoAnalytics:'p6' };
+var _SECTION_DEFAULT_PAGES = { introNote:'p3', fpOpinion:'p3', renovNotes:'p3', floorplan:'p3', condMatrix:'p4', buildingOpinion:'p4', inspDetails:'p4', locationOpinion:'p5', ropv:'p5', location:'p5', conclusion:'p6', roi:'p6', valuation:'p6', condoAnalytics:'p6' };
 
 function _sectionTitle(id){ for(var i=0;i<_SECTION_REGISTRY.length;i++){ if(_SECTION_REGISTRY[i].id===id) return _SECTION_REGISTRY[i].title; } return id; }
 function _sectionIsKnown(id){ return _SECTION_REGISTRY.some(function(s){ return s.id===id; }); }
@@ -13986,11 +14130,14 @@ function _orderSecEnabled(order,id){
     //   (its Building Type is a condo/apartment/resort) never gains a section on its next re-print.
     //   Type 3 keeps the default-ON rule and is completely unaffected.
     if(id==='condoAnalytics' && !_secCondoAuto(order) && !(m&&typeof m==='object'&&m[id]===true)) return false;
+    // §ROI (v2.320) — OFF unless the order explicitly ticked Show-on-report. The tick is the
+    //   single control: an order that never asked for R.O.I. prints byte-identically to before.
+    if(id==='roi' && !(m&&typeof m==='object'&&m[id]===true)) return false;
   }catch(e){}
   return true;
 }
 // Map of the movable narrative sections to their data-entry "Show on report" checkbox ids.
-var _SEC_INPUT_CHK={ fpOpinion:'secChkFp', floorplan:'secChkFpInfo', buildingOpinion:'secChkBuilding', ropv:'secChkRopv', locationOpinion:'secChkLocation', renovNotes:'secChkRenov', conclusion:'secChkConcl', condoAnalytics:'secChkCondo' };   // §FP-SHOW-FIX (v2.302) — floorplan added: the Floor Plan doc card now carries its own Show-on-report switch
+var _SEC_INPUT_CHK={ fpOpinion:'secChkFp', floorplan:'secChkFpInfo', buildingOpinion:'secChkBuilding', ropv:'secChkRopv', locationOpinion:'secChkLocation', renovNotes:'secChkRenov', conclusion:'secChkConcl', condoAnalytics:'secChkCondo', roi:'secChkRoi' };   // §FP-SHOW-FIX (v2.302) — floorplan added: the Floor Plan doc card now carries its own Show-on-report switch
 // Reflect an order's saved enable-state onto the input-form checkboxes + reveal/hide the
 //   Renovation Notes input (which used to be Type-3-only; now it follows its checkbox on ALL templates).
 function _secInputSync(order){
@@ -14777,7 +14924,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.318';
+var APP_VERSION = 'v2.320';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -18030,6 +18177,11 @@ function _inspApplySection(secIdx, d) {
     // §FP-DETAIL — repaint the saved Floorplan Detail space-schedule table
     if (_oid11 && typeof _fpDetailRestore === 'function') _fpDetailRestore(_oid11);
   }
+  // §ROI (v2.320) — the generic walk above restores the hidden roiChart textarea (it
+  //   carries a data-key like every other field), but JSON in a hidden field draws
+  //   nothing. Rebuild the visible rows and the chart preview from it. Guarded on the
+  //   section index so it costs nothing on the other twelve panels.
+  try { if (Number(secIdx) === 12 && typeof _roiRender === 'function') _roiRender(); } catch(e){}
 }
 
 // ── Save ONE section: localStorage + Supabase ─────────────────────────────────
@@ -32775,6 +32927,26 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       +_sigInline
       +'</div>';
   }
+  // §ROI (v2.320) — R.O.I. block. Pure: no page-render side effects, so unlike the other
+  //   caches it can simply be called from both the custom-layout path and the inline path.
+  //   The chart is inline SVG produced by the same _roiChartSvg the editor previews with,
+  //   so what the appraiser approved on screen is exactly what prints. Nothing is fetched:
+  //   the report opens from a blob: URL where relative paths and external libraries do not
+  //   resolve, and Chart.js is not present in that document.
+  function _roiReportBlock(){
+    var txt = (_secS12(['roiText'])||'').toString().trim();
+    var rows = [];
+    try { var raw=_secS12(['roiChart']); if(raw) rows = JSON.parse(raw) || []; } catch(e){ rows = []; }
+    var ch = (typeof _roiChartSvg==='function') ? _roiChartSvg(rows,{size:250,donut:0.55})
+                                                : {svg:'',legend:'',total:0,slices:[]};
+    if(!txt && !ch.svg) return '';
+    var body = '';
+    // esc() returns an em dash for empty input, so only call it when there IS text.
+    if(txt) body += '<div class="rep-op">'+esc(txt)+'</div>';
+    if(ch.svg) body += '<div style="display:flex;gap:20px;align-items:center;margin-top:10px;flex-wrap:wrap;">'
+                     + '<div>'+ch.svg+'</div><div>'+ch.legend+'</div></div>';
+    return _secOpBox('R.O.I.','Return on investment · percentage split', body);
+  }
   var _SEC_RENDER = {
     fpOpinion:      function(){ var t=_secFpTxt(); return _secOpBox('Opinion of Floor Plan','Spatial layout · circulation · functional efficiency', t?'<div class="rep-op">'+esc(t)+'</div>':'<div style="font-size:10px;color:#aaa;font-style:italic;">No floor plan opinion entered.</div>'); },
     renovNotes:     function(){ var t=_secS12(['renovNotes']); return t?_secOpBox('Renovation Notes &amp; Remarks','Renovation scope · works · materials &amp; finishes · impact on value','<div class="rep-op">'+esc(t)+'</div>'):''; },
@@ -32786,6 +32958,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     location:       function(){ return _locBlockCache||''; },
     inspDetails:    function(){ return _inspBlockCache||''; },
     conclusion:     function(){ return _conclBlockCache||''; },
+    roi:            function(){ return _orderSecEnabled(order,'roi') ? _roiReportBlock() : ''; },
     valuation:      function(){ return _valBlockCache||''; },
     signoff:        function(){ return _secSignoffBody(!_secMovedDecl); },   // §SEC-ADDPAGE — Declaration included unless it was moved out on its own
     declaration:    function(){ return _declBlockCache; },                   // §SEC-ADDPAGE
@@ -33649,6 +33822,12 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     var _p6Html='<div class="page"><div class="inner">'
       +pgHdr(_valTitleHtml)
       +'<div class="page-body">'
+      // §ROI-INLINE (v2.320) — R.O.I. prints directly beneath Conclusion / Opinion on the
+      //   Valuation page for orders with NO custom layout, mirroring how conclusion itself is
+      //   emitted. Custom-layout orders take the _SEC_RENDER.roi path instead. Both are gated
+      //   on the Show-on-report tick, which defaults OFF (see _orderSecEnabled), so an order
+      //   that never asked for R.O.I. prints byte-identically to before this feature existed.
+      + (_secCustom ? '' : (_orderSecEnabled(order,'roi') ? _roiReportBlock() : ''))
       // §CONCL (v2.221) — Conclusion / Opinion prints at the top of the Valuation page (only when text exists).
       + (_conclBlockCache = (function(){var _s12c=(order.inspData&&order.inspData.s12)||{};try{var _l=localStorage.getItem('insp_'+order.id+'_12');if(_l)Object.assign(_s12c,JSON.parse(_l));}catch(e){}var _co=((_s12c.conclusionOpinion||'')+'').trim();if(!_co)return '';return '<div class="sec-h" style="margin-bottom:3px;">Conclusion / Opinion</div>'+'<div style="border:1px solid #d4c9b0;border-left:3px solid '+RC.rcAccentColor+';padding:5px 8px;margin-bottom:9px;"><div class="rep-op">'+esc(_co)+'</div></div>';})(), _secCustom ? '' : _conclBlockCache)
       + (_valBlockCache = ('<div class="sec-h">'+_valTitleHtml+'</div>' +
@@ -34789,7 +34968,7 @@ try {
   //   which is why unticking Opinion of Floor Plan / Renovation Notes / Opinions of
   //   Building worked while an identically-unticked Floorplan still printed on the
   //   inline (non-Section-Order) render paths. Its report heading is "Floorplan Info".
-  var _secTitleById = { fpOpinion:'Opinion of Floor Plan', floorplan:'Floorplan Info', renovNotes:'Renovation Notes & Remarks', buildingOpinion:'Opinions of Building, Equipment & Finishes', locationOpinion:'Opinion of the Location', ropv:'R.O.P.V. — Spatial Planning Regulations', conclusion:'Conclusion / Opinion', condMatrix:'Condition Assessment Matrix', location:'Location & Property' };
+  var _secTitleById = { roi:'R.O.I.', fpOpinion:'Opinion of Floor Plan', floorplan:'Floorplan Info', renovNotes:'Renovation Notes & Remarks', buildingOpinion:'Opinions of Building, Equipment & Finishes', locationOpinion:'Opinion of the Location', ropv:'R.O.P.V. — Spatial Planning Regulations', conclusion:'Conclusion / Opinion', condMatrix:'Condition Assessment Matrix', location:'Location & Property' };
   var _disT=[]; Object.keys(_secTitleById).forEach(function(_id){ try{ if(!_orderSecEnabled(order,_id)) _disT.push(_secTitleById[_id]); }catch(e){} });
   if(_disT.length){
     var _disScript='<scr'+'ipt>(function(){try{'
