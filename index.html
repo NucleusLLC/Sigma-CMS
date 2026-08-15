@@ -14046,7 +14046,7 @@ function _roiCalcRender(){
       +'<input type="text" value="'+_rcEsc(r.name)+'" placeholder="Accommodation" oninput="_roiCalcSet(\'rev\','+i+',\'name\',this.value)" '+inp+' style="flex:1;min-width:0;font-size:11px;padding:2px 4px;">'
       +'<input type="number" value="'+_rcEsc(r.units)+'" placeholder="Units" oninput="_roiCalcSet(\'rev\','+i+',\'units\',this.value)" '+num+'>'
       +'<input type="number" value="'+_rcEsc(r.adr)+'" placeholder="ADR" oninput="_roiCalcSet(\'rev\','+i+',\'adr\',this.value)" '+num+'>'
-      +'<input type="number" value="'+_rcEsc(r.nights)+'" placeholder="Nights" title="Blank = derived from occupancy" oninput="_roiCalcSet(\'rev\','+i+',\'nights\',this.value)" '+num+'>'
+      +'<input type="number" data-roi-nights="1" value="'+_rcEsc(r.nights)+'" placeholder="Nights" title="Blank = use the nights derived from occupancy" oninput="_roiCalcSet(\'rev\','+i+',\'nights\',this.value)" '+num+'>'
       +del('rev',i)+'</div>';
   }).join('');
   var cost=o.cost.map(function(x,i){
@@ -14061,14 +14061,31 @@ function _roiCalcRender(){
     +'<input type="number" id="roiFmv" value="'+_rcEsc(o.fmv==null?'':o.fmv)+'" oninput="_roiCalcTop(\'fmv\',this.value)" style="width:120px;font-size:11px;padding:2px 4px;text-align:right;">'
     +'<label style="font-size:11px;color:var(--muted);">Occupancy %</label>'
     +'<input type="number" id="roiOcc" value="'+_rcEsc(o.occupancy==null?'':o.occupancy)+'" oninput="_roiCalcTop(\'occupancy\',this.value)" style="width:70px;font-size:11px;padding:2px 4px;text-align:right;">'
+    // §ROI-DAYS (v2.324) — the occupied-nights figure was always derived from occupancy,
+    //   but only ever appeared in the rendered output, so the appraiser could not see it
+    //   move while typing. Show it live next to the input it comes from.
+    +'<span id="roiDays" style="font-size:11px;color:var(--muted);white-space:nowrap;"></span>'
     +'</div>'
     +'<div style="font-size:11px;font-weight:600;margin:6px 0 3px;">Accommodation <button type="button" onclick="_roiCalcAdd(\'rev\')" style="font-size:11px;padding:1px 7px;margin-left:6px;">+ line</button></div>'+rev
     +'<div style="font-size:11px;font-weight:600;margin:8px 0 3px;">Operating costs <button type="button" onclick="_roiCalcAdd(\'cost\')" style="font-size:11px;padding:1px 7px;margin-left:6px;">+ line</button></div>'+cost;
   _roiCalcPaint();
 }
 function _roiCalcPaint(){
+  var o=_roiCalcRead(), c=_roiCompute(o);
+  // §ROI-DAYS (v2.324) — read-out + placeholders track occupancy as it is typed.
+  try {
+    var d=document.getElementById('roiDays');
+    if(d) d.textContent = c.occ>0
+      ? ('= ' + c.defNights + ' nights per unit / year')
+      : 'set an occupancy % to derive nights';
+    // A blank per-line Nights box MEANS "use the derived figure", so show that figure
+    // as its placeholder rather than the word "Nights" - otherwise the number driving
+    // every revenue line is invisible until the report is generated.
+    var ns=document.querySelectorAll('[data-roi-nights]');
+    for(var i=0;i<ns.length;i++) ns[i].placeholder = (c.occ>0 ? String(c.defNights) : 'Nights');
+  } catch(e){}
   var el=document.getElementById('roiCalcPreview'); if(!el) return;
-  el.innerHTML=_roiCalcHtml(_roiCalcRead())||'<div style="font-size:11px;color:var(--muted);">Enter a market value, occupancy and at least one accommodation line.</div>';
+  el.innerHTML=_roiCalcHtml(o)||'<div style="font-size:11px;color:var(--muted);">Enter a market value, occupancy and at least one accommodation line.</div>';
 }
 window._roiCalcAdd=_roiCalcAdd; window._roiCalcDel=_roiCalcDel; window._roiCalcSet=_roiCalcSet;
 window._roiCalcTop=_roiCalcTop; window._roiCalcRender=_roiCalcRender; window._roiCalcHtml=_roiCalcHtml;
@@ -15247,7 +15264,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.323';
+var APP_VERSION = 'v2.324';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
