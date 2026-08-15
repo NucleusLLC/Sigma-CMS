@@ -14777,7 +14777,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.318';
+var APP_VERSION = 'v2.319';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -34800,6 +34800,94 @@ try {
     try{ console.log('[SEC-DISABLE] queued removal of', _disT.length, 'section(s):', _disT.join(' | ')); }catch(e){}
   }
 } catch(_disErr){ try{ console.warn('[SEC-DISABLE] failed', _disErr); }catch(e){} }
+// §TEXT-REFLOW (v2.319) — long prose used to run underneath the footer and then vanish.
+//   `.inner` ends at 297 − rcMarginBottom (8mm default) = 289mm, but the footer sits at
+//   bottom:12mm and is ~4mm tall, so its top edge is ~281mm. Text drawn between 281mm and
+//   289mm was painted over by the footer (z-index:4), and everything past 289mm was hard
+//   -clipped by `overflow:hidden` — silently, with no error and nothing wrong-looking in
+//   the builder. Whole sentences simply stopped existing on client-facing reports.
+//
+//   WHY THIS RUNS IN THE REPORT WINDOW AND NOT IN THE BUILDER
+//   The builder emits a string; it cannot know rendered heights. Worse, the two scripts
+//   above (§SEC-DEDUP-INLINE, §SEC-DISABLE) DELETE content after load, so any height
+//   computed here would describe a document that no longer exists moments later. So the
+//   only honest place to measure is the finished DOM, after those passes have run — which
+//   is why this block is appended last and therefore executes last.
+//
+//   WHY CONTINUATION PAGES INSTEAD OF NEW NUMBERED PAGES
+//   Page numbers come from `_pgList.indexOf(id)+1`, resolved BEFORE any HTML exists, and
+//   the TOC numbers plus every `__DEDPG_` placeholder were already baked from it. Inserting
+//   a normally-numbered sheet would shift every downstream number and silently falsify the
+//   TOC. A continuation sheet instead REPEATS its parent's number, so nothing downstream
+//   moves: `_pgList`, the TOC and the anchors stay exactly as generated. Only the sheet
+//   total changes, and that is re-stamped below.
+//
+//   Overflow cascades: a continuation sheet is appended to the work list, so a block three
+//   pages long keeps spilling until it fits. Hard-capped so a pathological input cannot
+//   spin the report window.
+try {
+  var _rfScript = '<scr'+'ipt>(function(){'
+    + 'var MAXNEW=40,done=false;'
+    + 'function go(){if(done)return;done=true;try{run();}catch(e){try{console.warn("[TEXT-REFLOW]",e);}catch(_){}}}'
+    // Derive px-per-mm from the same millimetres @page uses, rather than assuming 96dpi.
+    + 'function mmpx(){var p=document.createElement("div");p.style.cssText="position:absolute;left:-99999px;top:0;width:1mm;height:100mm;";document.body.appendChild(p);var v=(p.offsetHeight||377.95)/100;p.parentNode.removeChild(p);return v;}'
+    // The floor of the text block = the highest of the footer bar and the page number,
+    // measured live. A 12mm constant here would be a second copy of a number the user can
+    // change in Report Customization.
+    + 'function floorOf(pg,MM){var pr=pg.getBoundingClientRect(),t=pr.bottom-12*MM;'
+    +   'var f=pg.querySelector(".pg-ftr-fixed");if(f){var fr=f.getBoundingClientRect();if(fr.height>0&&fr.top<t)t=fr.top;}'
+    +   'var n=pg.querySelector(".pg-num");if(n){var nr=n.getBoundingClientRect();if(nr.height>0&&nr.top<t)t=nr.top;}'
+    +   'return t-1.5*MM;}'
+    // Word-level cut, used only when a single block is itself taller than a page. Restricted
+    // to leaf prose (no element children) so no markup is ever torn in half.
+    + 'function splitLeaf(el,limit){if(el.children.length)return null;var t=(el.textContent||"");if(t.trim().length<40)return null;'
+    +   'var w=t.split(/(\\s+)/),lo=0,hi=w.length,best=-1;'
+    +   'while(lo<=hi){var mid=(lo+hi)>>1;el.textContent=w.slice(0,mid).join("");'
+    +     'if(el.getBoundingClientRect().bottom<=limit){best=mid;lo=mid+1;}else{hi=mid-1;}}'
+    +   'if(best<=0){el.textContent=t;return null;}'
+    +   'var head=w.slice(0,best).join(""),tail=w.slice(best).join("");'
+    +   'if(!tail.trim()){el.textContent=t;return null;}'
+    +   'el.textContent=head;var c=el.cloneNode(false);c.removeAttribute("id");c.textContent=tail;return c;}'
+    + 'function run(){'
+    +   'var MM=mmpx(),added=0,list=[].slice.call(document.querySelectorAll(".page"));'
+    +   'for(var i=0;i<list.length&&added<MAXNEW;i++){'
+    +     'var pg=list[i],inner=pg.querySelector(".inner");if(!inner)continue;'
+    +     'var body=inner.querySelector(".page-body");if(!body||!body.children.length)continue;'
+    +     'var limit=floorOf(pg,MM);'
+    +     'if(body.getBoundingClientRect().bottom<=limit)continue;'
+    +     'var kids=[].slice.call(body.children),cut=-1;'
+    +     'for(var k=0;k<kids.length;k++){if(kids[k].getBoundingClientRect().bottom>limit){cut=k;break;}}'
+    +     'if(cut<0)continue;'
+    +     'var tail=null;'
+    +     'if(cut===0){tail=splitLeaf(kids[0],limit);if(!tail)continue;}'   // nothing splittable: leave it rather than emit an empty sheet
+    +     'var clone=pg.cloneNode(true);clone.removeAttribute("id");'
+    +     '[].forEach.call(clone.querySelectorAll("[id]"),function(e){e.removeAttribute("id");});'
+    +     'var cb=clone.querySelector(".page-body");if(!cb){continue;}'
+    +     'while(cb.firstChild)cb.removeChild(cb.firstChild);'
+    // Repeat the parent's number, marked, so nothing downstream renumbers.
+    +     'var pn=pg.querySelector(".pg-num"),cn=clone.querySelector(".pg-num");'
+    // "Page 7 of 12" stays true: 12 is the count of NUMBERED pages, which reflow never
+    // changes. A continuation sheet drops the "of N" and marks itself instead, so the
+    // denominator is never quietly turned into a physical sheet count that disagrees
+    // with the TOC. Strips any existing marker so a third sheet is not "(cont.) (cont.)".
+    +     'if(cn){var base=(pn?(pn.textContent||""):"").replace(/\\s*\\(cont\\.\\)\\s*$/,"").replace(/\\s*\\bof\\s+\\d+/i,"").trim();'
+    +       'cn.textContent=base?(base+" (cont.)"):"(cont.)";}'
+    +     'if(tail){cb.appendChild(tail);}'
+    +     'for(var m=(tail?cut+1:cut);m<kids.length;m++){cb.appendChild(kids[m]);}'
+    +     'if(!cb.children.length){continue;}'
+    +     'pg.parentNode.insertBefore(clone,pg.nextSibling);'
+    +     'list.splice(i+1,0,clone);added++;'                                // re-examine the spill sheet
+    +   '}'
+    + '}'
+    + 'if(document.readyState==="complete"){fonts();}else{addEventListener("load",fonts);}'
+    // Fonts change line heights; measuring before they settle produces a cut in the wrong place.
+    + 'function fonts(){try{if(document.fonts&&document.fonts.ready){document.fonts.ready.then(go);setTimeout(go,1200);}else{go();}}catch(e){go();}}'
+    + '})();</scr'+'ipt>';
+  if (RC.rcTextReflow !== false) {
+    if(/<\/body>/i.test(html)) html=html.replace(/<\/body>(?![\s\S]*<\/body>)/i,_rfScript+'</body>'); else html=html+_rfScript;
+  }
+} catch(_rfErr){ try{ console.warn('[TEXT-REFLOW] failed', _rfErr); }catch(e){} }
+
 // §NO-PREOPEN (v1.963) — store the finished HTML and let the caller open the
 //   window on a user click. This is what removes the annoying blank pop-up that
 //   appeared during generation: NO window is opened here at all.
