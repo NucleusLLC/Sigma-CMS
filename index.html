@@ -10528,6 +10528,15 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
               <strong style="font-size:12px;">Chart — percentage split</strong>
               <button type="button" class="btn-sec" onclick="_roiAddRow()" style="font-size:11px;padding:3px 9px;">+ Add section</button>
+              <select onchange="if(this.value){_roiApplyPalette(this.value);this.selectedIndex=0;}" title="Apply a colour palette to every slice" style="font-size:11px;padding:2px 5px;">
+                <option value="">Palette…</option>
+                <option value="report">Report (warm)</option>
+                <option value="slate">Slate</option>
+                <option value="forest">Forest</option>
+                <option value="mono">Monochrome</option>
+                <option value="vivid">Vivid</option>
+              </select>
+              <button type="button" onclick="_roiResetColors()" title="Clear per-slice colours and use the default palette" style="font-size:11px;padding:3px 8px;border:1px solid var(--line);background:none;border-radius:4px;cursor:pointer;color:var(--muted);">Reset colours</button>
               <span id="roiTotal" style="font-size:11px;color:var(--muted);"></span>
             </div>
             <div id="roiRows"></div>
@@ -13912,6 +13921,22 @@ function _secCondoOn(o){
 //   SVG sidesteps all of it: ~90 bytes stored, vector on paper, and it renders in
 //   the report with no library, no network and no fetch.
 var _ROI_PALETTE = ['#8a6d3b','#b08d57','#6a5a48','#c9a961','#4a5d4e','#7d8471','#9c6b4f','#5c6b73','#a8916c','#3f4a3d'];
+// §ROI-COLOR (v2.322) — named palettes for one-click restyling. "report" is the
+//   original warm set and stays first so an existing chart is unchanged by default.
+var _ROI_PALETTES = {
+  report:  _ROI_PALETTE,
+  slate:   ['#3f5666','#5b7488','#7c93a5','#9fb2bf','#2c3e4c','#6b8296','#8aa0ae','#4e6675','#a8bac6','#35485a'],
+  forest:  ['#3f4a3d','#4a5d4e','#5f7a5f','#7d8471','#93a08a','#2f3a2e','#6b7f63','#88997e','#54654f','#a2ad97'],
+  mono:    ['#2a231c','#4a4038','#6a5e52','#8a7d6f','#a99c8d','#c4b9ac','#5c5148','#7a6e62','#98897a','#b5a898'],
+  vivid:   ['#c8922a','#2e7d8f','#a6413a','#4f7c3f','#7a5aa0','#c96a2b','#3a6ea5','#8a9a2e','#b04a7a','#2f8f7a']
+};
+// A slice's own colour wins; otherwise fall back to the active palette by position,
+// so charts saved before this feature render exactly as they did.
+function _roiColor(s,i,pal){
+  if(s && s.color) return s.color;
+  var p = (pal && _ROI_PALETTES[pal]) || _ROI_PALETTE;
+  return p[i%p.length];
+}
 
 function _roiEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -13920,7 +13945,7 @@ function _roiSlices(rows){
   var clean=[], t=0;
   (rows||[]).forEach(function(r){
     var p=Number(r&&r.pct);
-    if(isFinite(p)&&p>0){ clean.push({label:String((r&&r.label)||'').trim(), pct:p}); t+=p; }
+    if(isFinite(p)&&p>0){ clean.push({label:String((r&&r.label)||'').trim(), pct:p, color:(r&&r.color)||''}); t+=p; }
   });
   return { slices:clean, total:t };
 }
@@ -13949,13 +13974,13 @@ function _roiChartSvg(rows,opts){
   var acc=0, paths='';
   sl.forEach(function(s,i){
     var sweep=(s.pct/total)*360;
-    paths+='<path d="'+_roiArc(cx,cy,r,acc,acc+sweep)+'" fill="'+_ROI_PALETTE[i%_ROI_PALETTE.length]+'" stroke="#fff" stroke-width="1"/>';
+    paths+='<path d="'+_roiArc(cx,cy,r,acc,acc+sweep)+'" fill="'+_roiColor(s,i,opts.palette)+'" stroke="#fff" stroke-width="1"/>';
     acc+=sweep;
   });
   var hole=donut>0?('<circle cx="'+cx+'" cy="'+cy+'" r="'+(r*donut).toFixed(2)+'" fill="#fff"/>'):'';
   var legend=sl.map(function(s,i){
     return '<div style="display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;">'
-      +'<span style="width:10px;height:10px;flex:0 0 10px;background:'+_ROI_PALETTE[i%_ROI_PALETTE.length]+';border-radius:2px;"></span>'
+      +'<span style="width:10px;height:10px;flex:0 0 10px;background:'+_roiColor(s,i,opts.palette)+';border-radius:2px;"></span>'
       +'<span>'+_roiEsc(s.label||'(unnamed)')+' — '+(Math.round(s.pct*100)/100)+'%</span></div>';
   }).join('');
   var svg='<svg viewBox="0 0 '+size+' '+size+'" width="'+size+'" height="'+size+'" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="R.O.I. breakdown">'+paths+hole+'</svg>';
@@ -13974,6 +13999,17 @@ function _roiStore(rows){
   var el=document.getElementById('roiChart');
   if(el) el.value=JSON.stringify(rows||[]);
 }
+function _roiApplyPalette(name){
+  var p=_ROI_PALETTES[name]; if(!p) return;
+  var rows=_roiRead();
+  rows.forEach(function(r,i){ r.color = p[i%p.length]; });
+  _roiStore(rows); _roiRender();
+}
+function _roiResetColors(){
+  var rows=_roiRead(); rows.forEach(function(r){ delete r.color; });
+  _roiStore(rows); _roiRender();
+}
+window._roiApplyPalette=_roiApplyPalette; window._roiResetColors=_roiResetColors;
 function _roiAddRow(){ var r=_roiRead(); if(r.length>=10) return; r.push({label:'',pct:''}); _roiStore(r); _roiRender(); }
 function _roiDelRow(i){ var r=_roiRead(); r.splice(i,1); _roiStore(r); _roiRender(); }
 function _roiSet(i,field,val){
@@ -13989,7 +14025,7 @@ function _roiRender(){
   var rows=_roiRead();
   host.innerHTML = rows.map(function(r,i){
     return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">'
-      +'<span style="width:12px;height:12px;flex:0 0 12px;border-radius:2px;background:'+_ROI_PALETTE[i%_ROI_PALETTE.length]+';"></span>'
+      +'<input type="color" value="'+_roiColor(r,i)+'" oninput="_roiSet('+i+',\'color\',this.value)" title="Slice colour" style="width:26px;height:22px;padding:0;border:1px solid var(--line);border-radius:3px;background:none;cursor:pointer;flex:0 0 26px;">'
       +'<input type="text" value="'+_roiEsc(r.label)+'" placeholder="Section name" oninput="_roiSet('+i+',\'label\',this.value)" style="flex:1;min-width:0;">'
       +'<input type="number" value="'+_roiEsc(r.pct)+'" placeholder="%" min="0" max="100" step="0.01" oninput="_roiSet('+i+',\'pct\',this.value)" style="width:80px;">'
       +'<button type="button" onclick="_roiDelRow('+i+')" title="Remove this section" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:2px 4px;">&times;</button>'
@@ -15058,7 +15094,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.321';
+var APP_VERSION = 'v2.322';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
