@@ -10520,6 +10520,18 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
           </div>
           <textarea id="roiText" data-key="roiText" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="Return on investment — assumptions, basis of the projection, and what the split below represents. Paste or compose freely."></textarea>
 
+          <!-- §ROI-CALC (v2.323) — structured calculation. The appraiser enters market
+               value, occupancy, the accommodation schedule and the operating costs; every
+               other figure is derived at render time, so no printed number can drift from
+               the inputs it came from. Stored as JSON in a hidden data-key field. -->
+          <div style="margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:10px;">
+            <div style="font-size:12px;font-weight:600;margin-bottom:2px;">R.O.I. calculation</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Enter the inputs — gross income, NOI and the yields are calculated for you and printed as a clean table.</div>
+            <div id="roiCalcRows"></div>
+            <div id="roiCalcPreview" style="margin-top:10px;"></div>
+            <textarea id="roiCalc" data-key="roiCalc" style="display:none;"></textarea>
+          </div>
+
           <!-- Percentage-split chart. Rows are held as JSON in the hidden textarea
                below (data-key="roiChart"), so they ride the same capture/restore path
                as every other field. Only [{label,pct}] is ever stored — roughly 90
@@ -13920,6 +13932,147 @@ function _secCondoOn(o){
 //   and _docs — a chart parked anywhere else is invisible to every existing guard.
 //   SVG sidesteps all of it: ~90 bytes stored, vector on paper, and it renders in
 //   the report with no library, no network and no fetch.
+// ── §ROI-CALC (v2.323) — structured R.O.I. calculation ──────────────────────────
+//   Replaces pasting an AI-written narrative table. The appraiser enters the four
+//   things that are actually known — market value, occupancy, the accommodation
+//   schedule and the operating costs — and every other figure is DERIVED here.
+//   That is the point: a pasted figure is whatever the model wrote, and nothing
+//   checks that $49,275 is really 1 x $225 x 219, or that 11.87% follows from
+//   $144,540 / $1,217,486. Derived figures cannot drift from their inputs, because
+//   they are recomputed at render time from the stored inputs on every draw.
+//   The same function renders the editor preview and the report, so what the
+//   appraiser approved on screen is exactly what prints.
+function _rcNum(v){ var x=Number(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(x)?x:0; }
+function _rcMoney(v,cur){ var x=Math.round(_rcNum(v)); return (cur||'$')+(x<0?'-':'')+Math.abs(x).toLocaleString('en-US'); }
+function _rcPct(v,d){ d=(d==null?2:d); var m=Math.pow(10,d); return (Math.round(_rcNum(v)*m)/m)+'%'; }
+function _rcEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function _roiCompute(c){
+  c=c||{};
+  var occ=_rcNum(c.occupancy);
+  var defNights = occ>0 ? Math.round(365*occ/100) : 365;
+  var rev=(c.rev||[]).map(function(r){
+    var units=_rcNum(r.units), adr=_rcNum(r.adr);
+    var nights=(r.nights===''||r.nights==null)?defNights:_rcNum(r.nights);
+    return { name:String(r.name||'').replace(/^\s+|\s+$/g,''), units:units, adr:adr, nights:nights, total:units*adr*nights };
+  }).filter(function(r){ return r.name || r.total; });
+  var gross=rev.reduce(function(s,r){return s+r.total;},0);
+  var totalUnits=rev.reduce(function(s,r){return s+r.units;},0);
+  // A percentage cost is a percentage OF GROSS INCOME — the convention in every
+  // operating statement. A blank pct falls back to a fixed amount.
+  var cost=(c.cost||[]).map(function(x){
+    var hasPct=(x.pct!==''&&x.pct!=null);
+    return { name:String(x.name||'').replace(/^\s+|\s+$/g,''),
+             pct: hasPct?_rcNum(x.pct):null,
+             amount: hasPct ? gross*_rcNum(x.pct)/100 : _rcNum(x.amount) };
+  }).filter(function(x){ return x.name || x.amount; });
+  var totalCost=cost.reduce(function(s,x){return s+x.amount;},0);
+  var noi=gross-totalCost, fmv=_rcNum(c.fmv);
+  return { occ:occ, defNights:defNights, rev:rev, cost:cost, gross:gross, totalUnits:totalUnits,
+           totalCost:totalCost, noi:noi, fmv:fmv,
+           grossYield: fmv>0?gross/fmv*100:0,
+           netRoi:     fmv>0?noi/fmv*100:0,
+           monthlyNoi: noi/12,
+           costRatio:  gross>0?totalCost/gross*100:0,
+           valid: gross>0 };
+}
+
+function _roiCalcHtml(c,opt){
+  var o=_roiCompute(c); if(!o.valid) return '';
+  var cur=(opt&&opt.currency)||'$', M=function(v){return _rcMoney(v,cur);};
+  var TH='padding:3px 6px;border-bottom:1px solid #d4c9b0;font-weight:600;font-size:.93em;';
+  var TD='padding:3px 6px;border-bottom:1px solid #ece5d8;';
+  var R='text-align:right;';
+  var TOT='padding:4px 6px;border-top:1.5px solid #c8922a;font-weight:700;';
+  var revRows=o.rev.map(function(r){
+    return '<tr><td style="'+TD+'">'+_rcEsc(r.name)+'</td>'
+      +'<td style="'+TD+R+'">'+(r.units||'')+'</td>'
+      +'<td style="'+TD+R+'">'+(r.adr?M(r.adr):'')+'</td>'
+      +'<td style="'+TD+R+'">'+(r.nights||'')+'</td>'
+      +'<td style="'+TD+R+'">'+M(r.total)+'</td></tr>';
+  }).join('');
+  var costRows=o.cost.map(function(x){
+    return '<tr><td style="'+TD+'">'+_rcEsc(x.name)+'</td>'
+      +'<td style="'+TD+R+'">'+(x.pct!=null?_rcPct(x.pct,2):'')+'</td>'
+      +'<td style="'+TD+R+'">('+M(x.amount)+')</td></tr>';
+  }).join('');
+  return '<table style="border-collapse:collapse;width:100%;margin:2px 0 10px 0;font-size:.95em;">'
+    +'<thead><tr><th style="'+TH+'text-align:left;">Accommodation</th><th style="'+TH+R+'">Units</th>'
+    +'<th style="'+TH+R+'">ADR</th><th style="'+TH+R+'">Nights</th><th style="'+TH+R+'">Annual Revenue</th></tr></thead>'
+    +'<tbody>'+revRows
+    +'<tr><td style="'+TOT+'">Gross Annual Rental Income</td><td style="'+TOT+R+'">'+(o.totalUnits||'')+'</td>'
+    +'<td style="'+TOT+'"></td><td style="'+TOT+'"></td><td style="'+TOT+R+'">'+M(o.gross)+'</td></tr></tbody></table>'
+    +'<table style="border-collapse:collapse;width:100%;margin:2px 0 10px 0;font-size:.95em;">'
+    +'<thead><tr><th style="'+TH+'text-align:left;">Operating Analysis</th><th style="'+TH+R+'">% of Revenue</th>'
+    +'<th style="'+TH+R+'">Annual</th></tr></thead><tbody>'
+    +'<tr><td style="'+TD+'">Gross Rental Income</td><td style="'+TD+R+'">100%</td><td style="'+TD+R+'">'+M(o.gross)+'</td></tr>'
+    +costRows
+    +'<tr><td style="'+TOT+'">Net Operating Income (NOI)</td><td style="'+TOT+R+'">'+_rcPct(100-o.costRatio,2)+'</td>'
+    +'<td style="'+TOT+R+'">'+M(o.noi)+'</td></tr></tbody></table>'
+    +'<table style="border-collapse:collapse;width:100%;font-size:.95em;">'
+    +'<tr><td style="'+TD+'">Free Market Value</td><td style="'+TD+R+'">'+M(o.fmv)+'</td></tr>'
+    +'<tr><td style="'+TD+'">Monthly Average NOI</td><td style="'+TD+R+'">'+M(o.monthlyNoi)+'</td></tr>'
+    +'<tr><td style="'+TOT+'">Gross Rental Yield</td><td style="'+TOT+R+'">'+_rcPct(o.grossYield,2)+'</td></tr>'
+    +'<tr><td style="'+TOT+'">Net R.O.I. / Yield</td><td style="'+TOT+R+'">'+_rcPct(o.netRoi,2)+'</td></tr></table>'
+    +(o.occ>0 ? '<div style="font-size:.86em;color:#6a5a48;margin-top:6px;">Based on a stabilised '
+        +_rcPct(o.occ,0)+' annual occupancy, equivalent to approximately '+o.defNights
+        +' occupied nights per unit per year.</div>' : '');
+}
+
+// ── editor ──────────────────────────────────────────────────────────────────────
+// Stored as JSON in a hidden textarea with data-key="roiCalc", so the generic
+// _inspCapture/_inspApplySection walk persists it with no change to either.
+function _roiCalcRead(){
+  try{ var el=document.getElementById('roiCalc'); var o=JSON.parse((el&&el.value)||'{}');
+       if(!o||typeof o!=='object') o={}; o.rev=Array.isArray(o.rev)?o.rev:[]; o.cost=Array.isArray(o.cost)?o.cost:[]; return o; }
+  catch(e){ return {rev:[],cost:[]}; }
+}
+function _roiCalcStore(o){ var el=document.getElementById('roiCalc'); if(el) el.value=JSON.stringify(o||{}); }
+function _roiCalcTop(f,v){ var o=_roiCalcRead(); o[f]=v; _roiCalcStore(o); _roiCalcPaint(); }
+function _roiCalcAdd(kind){ var o=_roiCalcRead(); if(o[kind].length>=12) return;
+  o[kind].push(kind==='rev'?{name:'',units:'',adr:'',nights:''}:{name:'',pct:''}); _roiCalcStore(o); _roiCalcRender(); }
+function _roiCalcDel(kind,i){ var o=_roiCalcRead(); o[kind].splice(i,1); _roiCalcStore(o); _roiCalcRender(); }
+// Repaint only the computed figures on keystroke — rebuilding the inputs mid-typing
+// would drop the caret on every character.
+function _roiCalcSet(kind,i,f,v){ var o=_roiCalcRead(); if(!o[kind][i]) return; o[kind][i][f]=v; _roiCalcStore(o); _roiCalcPaint(); }
+function _roiCalcRender(){
+  var host=document.getElementById('roiCalcRows'); if(!host) return;
+  var o=_roiCalcRead();
+  var inp='style="min-width:0;font-size:11px;padding:2px 4px;"';
+  var num='style="width:74px;font-size:11px;padding:2px 4px;text-align:right;"';
+  var del=function(k,i){ return '<button type="button" onclick="_roiCalcDel(\''+k+'\','+i+')" title="Remove" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:2px 4px;">&times;</button>'; };
+  var rev=o.rev.map(function(r,i){
+    return '<div style="display:flex;gap:5px;margin-bottom:4px;align-items:center;">'
+      +'<input type="text" value="'+_rcEsc(r.name)+'" placeholder="Accommodation" oninput="_roiCalcSet(\'rev\','+i+',\'name\',this.value)" '+inp+' style="flex:1;min-width:0;font-size:11px;padding:2px 4px;">'
+      +'<input type="number" value="'+_rcEsc(r.units)+'" placeholder="Units" oninput="_roiCalcSet(\'rev\','+i+',\'units\',this.value)" '+num+'>'
+      +'<input type="number" value="'+_rcEsc(r.adr)+'" placeholder="ADR" oninput="_roiCalcSet(\'rev\','+i+',\'adr\',this.value)" '+num+'>'
+      +'<input type="number" value="'+_rcEsc(r.nights)+'" placeholder="Nights" title="Blank = derived from occupancy" oninput="_roiCalcSet(\'rev\','+i+',\'nights\',this.value)" '+num+'>'
+      +del('rev',i)+'</div>';
+  }).join('');
+  var cost=o.cost.map(function(x,i){
+    return '<div style="display:flex;gap:5px;margin-bottom:4px;align-items:center;">'
+      +'<input type="text" value="'+_rcEsc(x.name)+'" placeholder="Cost item" oninput="_roiCalcSet(\'cost\','+i+',\'name\',this.value)" style="flex:1;min-width:0;font-size:11px;padding:2px 4px;">'
+      +'<input type="number" value="'+_rcEsc(x.pct)+'" placeholder="% of rev" oninput="_roiCalcSet(\'cost\','+i+',\'pct\',this.value)" '+num+'>'
+      +del('cost',i)+'</div>';
+  }).join('');
+  host.innerHTML =
+     '<div style="display:flex;gap:8px;align-items:center;margin-bottom:7px;flex-wrap:wrap;">'
+    +'<label style="font-size:11px;color:var(--muted);">Free Market Value</label>'
+    +'<input type="number" id="roiFmv" value="'+_rcEsc(o.fmv==null?'':o.fmv)+'" oninput="_roiCalcTop(\'fmv\',this.value)" style="width:120px;font-size:11px;padding:2px 4px;text-align:right;">'
+    +'<label style="font-size:11px;color:var(--muted);">Occupancy %</label>'
+    +'<input type="number" id="roiOcc" value="'+_rcEsc(o.occupancy==null?'':o.occupancy)+'" oninput="_roiCalcTop(\'occupancy\',this.value)" style="width:70px;font-size:11px;padding:2px 4px;text-align:right;">'
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:600;margin:6px 0 3px;">Accommodation <button type="button" onclick="_roiCalcAdd(\'rev\')" style="font-size:11px;padding:1px 7px;margin-left:6px;">+ line</button></div>'+rev
+    +'<div style="font-size:11px;font-weight:600;margin:8px 0 3px;">Operating costs <button type="button" onclick="_roiCalcAdd(\'cost\')" style="font-size:11px;padding:1px 7px;margin-left:6px;">+ line</button></div>'+cost;
+  _roiCalcPaint();
+}
+function _roiCalcPaint(){
+  var el=document.getElementById('roiCalcPreview'); if(!el) return;
+  el.innerHTML=_roiCalcHtml(_roiCalcRead())||'<div style="font-size:11px;color:var(--muted);">Enter a market value, occupancy and at least one accommodation line.</div>';
+}
+window._roiCalcAdd=_roiCalcAdd; window._roiCalcDel=_roiCalcDel; window._roiCalcSet=_roiCalcSet;
+window._roiCalcTop=_roiCalcTop; window._roiCalcRender=_roiCalcRender; window._roiCalcHtml=_roiCalcHtml;
+
 var _ROI_PALETTE = ['#8a6d3b','#b08d57','#6a5a48','#c9a961','#4a5d4e','#7d8471','#9c6b4f','#5c6b73','#a8916c','#3f4a3d'];
 // §ROI-COLOR (v2.322) — named palettes for one-click restyling. "report" is the
 //   original warm set and stays first so an existing chart is unchanged by default.
@@ -15094,7 +15247,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.322';
+var APP_VERSION = 'v2.323';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -18352,6 +18505,7 @@ function _inspApplySection(secIdx, d) {
   //   nothing. Rebuild the visible rows and the chart preview from it. Guarded on the
   //   section index so it costs nothing on the other twelve panels.
   try { if (Number(secIdx) === 12 && typeof _roiRender === 'function') _roiRender(); } catch(e){}
+  try { if (Number(secIdx) === 12 && typeof _roiCalcRender === 'function') _roiCalcRender(); } catch(e){}
   // §OP-FORMAT (v2.321) — textFormat is an ORDER flag, not an inspData field, so the
   //   generic data-key walk above never touches it. Reflect it onto the tick.
   try {
@@ -33131,6 +33285,15 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     var body = '';
     // esc() returns an em dash for empty input, so only call it when there IS text.
     if(txt) body += '<div class="rep-op">'+_opFmt(txt)+'</div>';
+    // §ROI-CALC (v2.323) — the same renderer the editor previews with, so what the
+    //   appraiser approved on screen is exactly what prints.
+    try {
+      var _rcRaw=_secS12(['roiCalc']);
+      if(_rcRaw && typeof _roiCalcHtml==='function'){
+        var _rcHtml=_roiCalcHtml(JSON.parse(_rcRaw));
+        if(_rcHtml) body += '<div style="margin-top:'+(txt?'10px':'0')+';">'+_rcHtml+'</div>';
+      }
+    } catch(e){}
     if(ch.svg) body += '<div style="display:flex;gap:20px;align-items:center;margin-top:10px;flex-wrap:wrap;">'
                      + '<div>'+ch.svg+'</div><div>'+ch.legend+'</div></div>';
     return _secOpBox('R.O.I.','Return on investment · percentage split', body);
