@@ -13700,9 +13700,17 @@ function saOpenPropertyMap(){
 
   // ── ROPV zoning / roads / districts (live ArcGIS overlays, off by default) ──
   var ROPV_ZONE='https://services1.arcgis.com/ysHrYgMfqeaQCSoy/arcgis/rest/services/ROPV_Deelgebieden_20210205/FeatureServer/53/query?where=1%3D1&outFields=Legenda,aanduiding,Gebiedsnaa&outSR=4326&f=geojson';
+  // §ZONE-L54 (v2.325) — the ROPV service splits Aruba's zoning across TWO complementary
+  //   polygon layers, 53 and 54. Only 53 was ever fetched, so the 168 features in 54 had
+  //   nothing to draw — which is why central Oranjestad rendered as bare basemap while the
+  //   districts around it were coloured. The two are disjoint (no point falls in both) and
+  //   together they tile the island; 54 alone carries roughly 73% of the mapped area.
+  //   Confirmed against the live service: a point at Oranjestad centre returns 0 features
+  //   from 53 and "Centrum Oranjestad" from 54.
+  var ROPV_ZONE2='https://services1.arcgis.com/ysHrYgMfqeaQCSoy/arcgis/rest/services/ROPV_Deelgebieden_20210205/FeatureServer/54/query?where=1%3D1&outFields=Legenda,aanduiding,Gebiedsnaa&outSR=4326&f=geojson';
   var ROPV_ROADS='https://services1.arcgis.com/ysHrYgMfqeaQCSoy/arcgis/rest/services/ROPV_Deelgebieden_20210205/FeatureServer/32/query?where=1%3D1&outFields=OBJECTID&outSR=4326&f=geojson';
   var ARUBA_DIST='https://services2.arcgis.com/IsDCghZ73NgoYoz5/arcgis/rest/services/Aruba_admin_boundaries/FeatureServer/0/query?where=1%3D1&outFields=NAME1,NAME2&outSR=4326&f=geojson';
-  var ZONE_COL={'Bedrijventerrein Barcadera':'#d79e9e','Bedrijventerrein San Nicolas':'#730000','Centrum Oranjestad':'#fa5736','Centrum San Nicolas':'#fa5736','Havenfront Oranjestad':'#e60000','Landelijk gebied':'#ffff00','Marinegebied':'#00c5ff','Marinezones':'#70daff','Natuur en landschap':'#b3c200','Natuurgebied':'#709958','Stedelijk woongebied':'#e6a83a','Strand':'#ffffbe','Toeristisch gebied Oostkust':'#ff94e8','Toeristisch gebied Westkust':'#ff94e8','Woongebied met waarden':'#ff8a3d'};
+  var ZONE_COL={'Bedrijventerrein Barcadera':'#d79e9e','Bedrijventerrein San Nicolas':'#730000','Centrum Oranjestad':'#fa5736','Centrum San Nicolas':'#fa5736','Havenfront Oranjestad':'#e60000','Landelijk gebied':'#ffff00','Marinegebied':'#00c5ff','Marinezones':'#70daff','Natuur en landschap':'#b3c200','Natuurgebied':'#709958','Stedelijk woongebied':'#e6a83a','Strand':'#ffffbe','Toeristisch gebied Oostkust':'#ff94e8','Toeristisch gebied Westkust':'#ff94e8','Woongebied met waarden':'#ff8a3d','Luchthaven':'#c8c8c8','Transformatiegebied':'#c9a0dc'};
   function zoneColor(l){ return ZONE_COL[l]||'#9aa0a6'; }
   var zoneGroup=null, zoneOn=false, zoneLoading=false;
   var zoneBtn=ov.querySelector('#saMapZone');
@@ -13713,7 +13721,16 @@ function saOpenPropertyMap(){
     if(zoneGroup){ zoneOn=!zoneOn; if(zoneOn){ zoneGroup.addTo(map); } else { map.removeLayer(zoneGroup); } zoneBtnOn(zoneOn); return; }
     zoneLoading=true; setS('Loading ROPV zoning…');
     try{
-      var zg=await (await fetch(ROPV_ZONE)).json();
+      // Each layer is fetched independently so one failing still draws the other —
+      //   .json().catch() alone would not do this, because a rejected fetch throws
+      //   before .json() is ever reached. If BOTH fail we rethrow, so the existing
+      //   handler still reports it rather than silently drawing an empty overlay.
+      var _zGet=async function(u){ try{ var r=await fetch(u); if(!r.ok) return null; return await r.json(); }catch(e){ return null; } };
+      var _zA=await _zGet(ROPV_ZONE);
+      var _zB=await _zGet(ROPV_ZONE2);
+      if(!_zA && !_zB) throw new Error('both ROPV zoning layers failed to load');
+      var zg={type:'FeatureCollection',features:((_zA&&_zA.features)||[]).concat((_zB&&_zB.features)||[])};
+      try{ console.log('[ROPV] zoning features: '+(((_zA&&_zA.features)||[]).length)+' (layer 53) + '+(((_zB&&_zB.features)||[]).length)+' (layer 54) = '+zg.features.length); }catch(e){}
       var rg=await (await fetch(ROPV_ROADS)).json();
       var dg=await (await fetch(ARUBA_DIST)).json();
       zoneGroup=L.layerGroup();
@@ -15264,7 +15281,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.324';
+var APP_VERSION = 'v2.325';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
