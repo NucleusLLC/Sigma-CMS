@@ -15281,7 +15281,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.325';
+var APP_VERSION = 'v2.326';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15319,6 +15319,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.326',type:'fix',date:'08-17-2026',ts:'08-17-2026 23:30',_static:true,title:'Your valuation figures can no longer be wiped by closing the window',desc:'A saved valuation could be silently replaced with blanks. The safeguard that was meant to prevent this only covered the automatic background save — so simply CLOSING the Valuation window, or switching to another browser tab, went round it and wrote an empty table over figures that were already saved. No warning, and nothing to recover afterwards. Closing a window is no longer treated as a request to erase anything. Clearing a valuation on purpose is still possible, but only from the Save button, and it now asks you to confirm first. Save also refuses to write an amount it cannot read as a number: typing 275,000 or AWG 275,000 into an amount box leaves the text on screen while the box reports nothing at all, which is how a figure you could plainly see could be saved as empty. Those boxes are now outlined in red and nothing is saved until they are corrected — enter 275000. The status message no longer says Saved when a blank table was in fact refused.'},
   {v:'v2.313',type:'fix',date:'08-07-2026',ts:'08-07-2026 10:00',_static:true,title:'Staff can sign in on the first try, and Team Login Management is readable in dark mode',desc:'Two fixes. The important one is the login. Seanna and Tristan both reported having to type the same password over and over before it was accepted, and there was nothing wrong with either their passwords or their accounts. The connection to the server was being set up in the wrong order: the library that talks to the server is loaded in a way that finishes only after the whole page has been read, but the code that builds the connection ran while the page was still being read — so it found nothing to build with, and the connection stayed empty. Nothing repaired it until a background check ran a full minute later. In the meantime the sign-in screen was already on screen and accepting clicks, so anyone who typed their password in that first minute had it checked against nothing at all, and was told it was incorrect. It never even reached the server. Trying again a minute later worked, which is exactly what they described. This affected people whose password is only held on the server — anyone whose account was set up on another computer, which is both of them. It never affected this office computer, because passwords entered here are also checked against a copy held on the machine itself. The connection is now built as soon as the page is ready, and if sign-in is somehow still not ready the screen says so plainly instead of claiming the password is wrong. A password is never reported as incorrect unless it was actually checked. Neither account needed repairing — both were in good order the whole time. Second, Settings. The Team Login Management list was printing every person on a bright white card in dark mode, with pale text on it that was almost impossible to read. One dark-mode rule had a broken line in it which quietly excluded those cards, so they kept a plain white background. Fixed, along with the remove button beside each person, which was invisible when you hovered over it in any of the dark themes. The light themes are completely unchanged.'},
   {v:'v2.312',type:'fix',date:'08-04-2026',ts:'08-04-2026 23:45',_static:true,title:'Presumable Free Market Value on the report now agrees with the two figures beneath it',desc:'On a report with a Presumable Valuation, the large Presumable Free Market Value at the top of that section was printing the sub-total of the valuation rows while the Presumable Execution Value below it was worked out from the sub-total plus your value adjustments. On any appraisal carrying an adjustment the page therefore disagreed with itself — a PFMV of 450,000 sitting above a PEV of 400,000 at an execution rate of 80 percent, when 80 percent of 450,000 is 360,000. The adjustments table printed immediately underneath, showing the sub-total being carried up or down to the presumable figure, so the page contained both the right working and a headline that ignored it. The headline now shows the value after adjustments, which is what the section says it is, and the execution and re-construction values below it follow from that same number. The component table above still lists the raw sub-total, so the page reads in the order it should: the rows, their sub-total, the adjustments, and then the value they lead to. Nothing else about the report changes. An appraisal with no value adjustments prints exactly as it always has, byte for byte, and so does one that uses the separate Presumable calculator, which was never affected. In practice this reached only older appraisals where the Presumable calculator had never been opened — every current job uses that calculator and took the correct path already.'},
   {v:'v2.311',type:'fix',date:'08-04-2026',ts:'08-04-2026 23:00',_static:true,title:'Terms on page 2 without having to ask, correct valuations in the Overview-List, and Condominium Analytics for condo, apartment and resort jobs',desc:'Three things. First, the invoice. The Terms and Conditions were still printing at the foot of page one and running off the sheet, with no page numbers, even though that was supposed to have been settled. Nothing was broken in the printing — the switch that turns it on simply was not in your saved settings. Your branding was last saved several hours before that switch existed, so the invoice had no way of knowing you wanted it and fell back to the old layout. It now defaults to on for any settings that have never expressed a preference, which means yours. You do not have to tick anything: the terms move to their own second sheet, both sheets carry the running footer, and the page numbers read Page 1 of 2 and Page 2 of 2. If you ever untick it deliberately, that choice is remembered and never overridden. Second, the Overview-List. On New Construction jobs, and on any job valued on a presumable basis, the FMV, CEV and CRV columns were showing the wrong figures — the value of the land rather than the projected value of the finished property, which is the number the whole appraisal exists to produce. It was also printing a Re-Construction Value on jobs where the report deliberately prints none. The table now follows exactly the same rules the report follows, whichever way a job is valued, and a figure that comes from a presumable valuation is marked with a small green P so you can tell an as-is value from an as-completed one at a glance; hover it and the current figures are shown too. Where the report prints nothing, the table now shows a dash instead of inventing a number. Two smaller faults went with it: a valuation row set to zero percent was quietly halving the price per m² by counting its area but not its cost, and the status shown for a job In Review disagreed with the Workflow board one click away. Both corrected, and the status now reads from the Workflow board itself so the two can never drift apart again. Third, Condominium Analytics. It was only ever offered on New Construction reports. It is now offered on any job whose Building Type is a condo, an apartment complex or a hotel or resort, whatever kind of appraisal it is — including Parcel Only, where it reads the building type recorded during the inspection. It stays entirely opt-in: tick Show on report, or add it from the Report Section Order tool. Nothing is taken away from anyone — New Construction reports keep it exactly as before, and a house job is unaffected. Deliberately excluded: a house with an apartment in it, which is a house with a let unit rather than an apartment building, and which is nearly a third of the book.'},
@@ -26994,6 +26995,35 @@ var _valSrvTimer     = null;   // §VAL-DB-AUTOSAVE (v2.097) — debounced DB pu
 var _valDirty        = false;
 var VAL_LS_PREFIX    = 'valDraft_';
 
+// §VAL-SAFE-SAVE (v2.326) — an <input type="number"> whose typed content is not a
+//   valid number ("275,000", "AWG 275,000") keeps DISPLAYING that text while
+//   reporting value === '' and validity.badInput === true. Capture then writes an
+//   empty string for a box the appraiser can plainly see is filled in. Returns the
+//   offending elements so Save can refuse and point at them.
+function _valBadInputList() {
+  var out = [];
+  try {
+    var root = document.getElementById('valOverlay');
+    if (!root) return out;
+    root.querySelectorAll('input[type="number"]').forEach(function(el) {
+      if (el.value === '' && el.validity && el.validity.badInput) out.push(el);
+    });
+  } catch(e) {}
+  return out;
+}
+function _valMarkBadInputs(els) {
+  try {
+    var root = document.getElementById('valOverlay');
+    if (root) root.querySelectorAll('input[type="number"]').forEach(function(el) {
+      el.style.outline = ''; el.style.background = '';
+    });
+    (els || []).forEach(function(el) {
+      el.style.outline = '2px solid #dc2626'; el.style.background = '#fef2f2';
+    });
+    if (els && els.length && els[0].focus) { try { els[0].focus(); } catch(e) {} }
+  } catch(e) {}
+}
+
 // ── Currency helpers ──────────────────────────────────────────────────────────
 function _valAwgRate() {
   var el = document.getElementById('vmAwgRate');
@@ -27212,7 +27242,10 @@ async function _valPushToServer(_autosave) {
   //   is intentional and always allowed through, so the user can still clear a table.
   if (_autosave && !_valHasTableContent(data) && idx !== -1 && _valHasTableContent(ORDERS[idx].valData)) {
     console.warn('[VAL-GUARD] blocked empty autosave for ' + valModalOrder.id + ' — kept existing valuation rows');
-    _valSetStatus('s', '✓ Saved', 'No change · ' + _valNow());
+    // §VAL-SAFE-SAVE (v2.326) — say what actually happened. Reporting "Saved · No
+    //   change" for a write that was REFUSED reads as confirmation that the blank
+    //   table on screen is now the saved state, which is the opposite of the truth.
+    _valSetStatus('s', '✓ Saved figures kept', 'Blank table not written · ' + _valNow());
     return;
   }
   if (idx !== -1) {
@@ -27552,8 +27585,14 @@ function openValModal(order) {
 function closeValModal() {
   clearTimeout(_valSaveTimer);
   clearTimeout(_valSrvTimer);   // §VAL-CLOBBER-GUARD (v2.249) — don't let a queued autosave fire after close
-  // Push unsaved changes before closing
-  try{if(_valDirty&&valModalOrder){_valLocalSave();_valPushToServer();}}catch(e){}
+  // Push unsaved changes before closing.
+  // §VAL-SAFE-SAVE (v2.326) — passes the guard flag. This call used to omit it,
+  //   so _autosave was undefined and §VAL-CLOBBER-GUARD below was skipped: merely
+  //   CLOSING the window with a blank-looking table wrote those blanks over a
+  //   saved valuation, with no warning and nothing to recover from. Closing a
+  //   window is not a request to erase anything. To clear a table on purpose,
+  //   press Save — which asks first.
+  try{if(_valDirty&&valModalOrder){_valLocalSave();_valPushToServer(true);}}catch(e){}
   document.getElementById('valOverlay').classList.remove('open');
   valModalOrder = null;
   _valDirty = false;
@@ -27729,7 +27768,42 @@ function _valDecorateMoveBtns(){
 }
 
 // ── SAVE (explicit button) ────────────────────────────────────────────────────
-async function saveValModal() { await _valPushToServer(); }
+async function saveValModal() {
+  // §VAL-SAFE-SAVE (v2.326) — the explicit Save button deliberately bypasses
+  //   §VAL-CLOBBER-GUARD so that a table CAN be cleared on purpose. That same
+  //   bypass is what silently destroyed the saved figures on order 2026-102:
+  //   the boxes captured as empty and Save wrote the blanks straight over a
+  //   valuation that had a real total. Two checks now stand in front of it.
+  //   Neither blocks a legitimate clear — the second one just makes you mean it.
+
+  // 1. Refuse rather than silently blank a box that is visibly filled in.
+  var _bad = _valBadInputList();
+  if (_bad.length) {
+    _valMarkBadInputs(_bad);
+    _valSetStatus('e', '⚠ Not saved — check the amounts', 'Use 275000, not "275,000"');
+    alert('Nothing has been saved.\n\n' + _bad.length + ' amount' + (_bad.length === 1 ? ' is' : 's are') +
+          ' not a valid number. Enter figures without thousand separators or currency text — ' +
+          '275000, not "275,000" or "AWG 275,000".\n\nThe boxes concerned are outlined in red.');
+    return;
+  }
+  _valMarkBadInputs([]);
+
+  // 2. Emptying a valuation that currently holds figures is legitimate, but is
+  //    never something to do by accident — and it cannot be undone.
+  try {
+    var _d   = _valCapture();
+    var _idx = ORDERS.findIndex(function(o){ return valModalOrder && o.id === valModalOrder.id; });
+    if (!_valHasTableContent(_d) && _idx !== -1 && _valHasTableContent(ORDERS[_idx].valData)) {
+      if (!confirm('This will clear every valuation figure saved for ' + (valModalOrder ? valModalOrder.id : 'this order') +
+                   '.\n\nThe saved amounts cannot be recovered afterwards.\n\nClear them?')) {
+        _valSetStatus('s', '✓ Saved', 'No change · ' + _valNow());
+        return;
+      }
+    }
+  } catch(e) {}
+
+  await _valPushToServer();
+}
 
 // ── RESTORE SAVED DATA ───────────────────────────────────────────────────────
 function restoreVMData(data) {
@@ -49071,7 +49145,10 @@ function _flushAllDrafts(pushToServer) {
     if (typeof valModalOrder !== 'undefined' && valModalOrder && typeof _valDirty !== 'undefined' && _valDirty) {
       clearTimeout(_valSaveTimer);
       _valLocalSave();
-      if (pushToServer) _valPushToServer();
+      // §VAL-SAFE-SAVE (v2.326) — guard flag. This fires on tab-switch / focus
+      //   loss, which is emphatically not a request to erase a valuation; without
+      //   the flag it took the same unguarded path that blanked 2026-102.
+      if (pushToServer) _valPushToServer(true);
     }
   } catch(e) {}
 }
