@@ -3063,6 +3063,19 @@ body.compact .main{padding:1rem;}body.compact td,body.compact .ni{padding-top:6p
   outline: 2px solid var(--gold-lt, #e0a93c);
   outline-offset: 2px;
 }
+/* §DRAFT-BADGE (v2.330) — the status badge while DRAFT is on. A fixed red rather
+   than var(--red): that token is a soft #f87171 in several themes, which would not
+   carry a warning under white text. Deliberately the same red as the DRAFT
+   watermark printed on the report, so the screen and the paper agree. */
+.qv-status-badge.qv-status-draft {
+  background: #c62828;
+  color: #fff;
+  /* .qv-status-badge and .sb declare no border, so this must be the whole
+     shorthand — a bare border-color would have styled nothing. */
+  border: 1px solid #ef5350;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
 .qv-hero-bottom {
   position: absolute; bottom: 14px; left: 16px; right: 50px; z-index: 5;
 }
@@ -15358,7 +15371,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.329';
+var APP_VERSION = 'v2.330';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15396,6 +15409,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.330',type:'feature',date:'08-18-2026',ts:'08-18-2026 05:00',_static:true,title:'Quickview shows DRAFT in place of the status while DRAFT is on',desc:'With the DRAFT switch on, the status badge in Quickview now reads DRAFT in red instead of In Review, Pending or whatever the order happens to be, so an unfinished report is obvious the moment you open the panel. The order keeps its real status underneath - nothing about where the job sits has changed, and the badge goes straight back to showing it when you switch DRAFT off. If the status changed while DRAFT was on, the badge shows the new one.'},
   {v:'v2.329',type:'tweak',date:'08-18-2026',ts:'08-18-2026 04:00',_static:true,title:'The DRAFT switch now looks like a switch',desc:'The DRAFT control in Quickview looked like a label rather than something you could press, because it sat between two badges that are not clickable and shared their exact shape. It is now a raised button that lifts slightly when you point at it and presses in when you click. Off and on are told apart by four things rather than by colour alone - the button reads DRAFT OFF with a hollow dot, or DRAFT ON in warning red with a filled dot and a pushed-in look - so it is readable at a glance and for anyone who does not distinguish red easily. Nothing about what the switch does has changed.'},
   {v:'v2.328',type:'feature',date:'08-18-2026',ts:'08-18-2026 03:00',_static:true,title:'Discounts, BBO shown on the invoice, and a monthly BBO figure',desc:'Three things. First, you can give a discount on an invoice, either as an amount in florins or as a percentage, and the total works itself out. The button is on the invoice row in Finance. Discounting an invoice you have already issued is allowed but asks you first, and it is written to the audit trail. Second, the invoice now shows the BBO that is included in it, instead of the 0.00 it has always printed. Because BBO is inside the price and not added on top, it is worked out as the total times 7 divided by 107 - on a 1,000 florin invoice that is 65.42, not 70.00. The same figure now appears in the invoice email and the WhatsApp message, so the message and the attached PDF can no longer disagree. Third, a new BBO tab in Finance shows, month by month, how much turnover tax you owe, with a CSV to hand to the accountant. It counts what you invoiced in the month and leaves out drafts, voided and credited invoices - and it tells you separately how much is sitting in drafts, because those become taxable the day you finalise them. The rate lives in Finance under Branding and is dated: to change it you add the new rate with the day it starts, and every invoice already issued keeps the rate it was charged at. You can add a different rate for another island the same way.'},
   {v:'v2.327',type:'feature',date:'08-18-2026',ts:'08-18-2026 01:00',_static:true,title:'Mark a report as DRAFT',desc:'Quickview has a new DRAFT button, next to the order status. Switch it on and the report prints with DRAFT across every page in red at an angle, and both your signature and your stamp are left off - so a report sent out for comment cannot be mistaken for a finished one, or be signed and stamped before you meant it to be. Switch it off and the signature and stamp come back and the DRAFT wording disappears. The setting belongs to the order, not to the computer you are sitting at, so a colleague opening the same order sees the same thing. An order that has never used DRAFT is completely unaffected. Note that an already published PDF does not change on its own - print the report again after switching.'},
@@ -29621,6 +29635,26 @@ function qvUpdateDraftBtn(order){
   b.title = on
     ? 'DRAFT is ON — the report prints a red DRAFT watermark and omits the appraiser signature & stamp. Click to turn it off.'
     : "Mark this order's report as DRAFT — red DRAFT watermark on every page, appraiser signature & stamp removed.";
+
+  // §DRAFT-BADGE (v2.330) — while DRAFT is on the status badge reads DRAFT in red,
+  //   in place of "In Review" or whatever the order actually is.
+  //   The order's REAL status is not touched — only what the badge displays. The
+  //   OFF branch re-derives the badge from order.status rather than restoring a
+  //   remembered value, so the badge and the status can never drift apart: if the
+  //   status changed while DRAFT was on, turning DRAFT off still shows the truth.
+  try {
+    var sb = document.getElementById('qvStatusBadge');
+    if (sb) {
+      if (on) {
+        sb.textContent = 'DRAFT';
+        sb.className   = 'qv-status-badge sb qv-status-draft';
+      } else if (order) {
+        sb.textContent = order.status;
+        sb.className   = 'qv-status-badge sb '
+          + ((typeof STATUS_CLASSES !== 'undefined' && STATUS_CLASSES[order.status]) || '');
+      }
+    }
+  } catch(e) {}
 }
 function qvToggleDraft(){
   if(!_qvLastOrder) return;
