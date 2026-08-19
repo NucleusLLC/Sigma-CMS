@@ -11000,9 +11000,10 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
           <div class="doc-file-list" id="dlist-3"></div>
           <div class="doc-status missing" id="dstat-3">Not uploaded</div>
           <div class="doc-note" style="margin-top:8px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px;">
               <label style="font-weight:600;">Opinion of Floor Plan</label>
               <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;margin-left:auto;margin-right:10px;" title="Show this section on the report"><input type="checkbox" id="secChkFp" onchange="_secInputToggle('fpOpinion',this)" style="cursor:pointer;margin:0;"> Show on report</label>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="fpOpinionLessBtn" class="ai-len-btn" onclick="_aiTextResize('fpOpinion',-10)">Less Text −</button><span class="ai-len-tgt" id="fpOpinionLenTgt" title="Target length in words">—</span><button type="button" id="fpOpinionMoreBtn" class="ai-len-btn" onclick="_aiTextResize('fpOpinion',10)">More Text +</button></span>
               <button id="btnFpAI" onclick="genFloorplanOpinion()" style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;background:linear-gradient(135deg,var(--au,#c8922a),#a07020);color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg> AI Analyze</button>
             </div>
             <textarea id="fpOpinionText" data-key="s11f3" rows="5" placeholder="Click 'AI Analyze' to generate an opinion from the uploaded floor plan, or type manually…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r,5px);font-size:12px;background:var(--surface-2);color:var(--ink);outline:none;resize:vertical;font-family:inherit;line-height:1.5;" oninput="_inspOnChange()"></textarea>
@@ -15950,7 +15951,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.339';
+var APP_VERSION = 'v2.341';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15988,6 +15989,8 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.341',type:'feature',date:'08-19-2026',ts:'08-19-2026 07:00',_static:true,title:'More Text and Less Text on the Floor Plan opinion',desc:'The Opinion of Floor Plan now has the same Less Text and More Text buttons as the other AI-written sections, with the current target length between them. Each press asks for ten words more or fewer and rewrites the paragraph you already have rather than writing a new one, keeping every fact and measurement as it stands.'},
+  {v:'v2.340',type:'fix',date:'08-19-2026',ts:'08-19-2026 06:30',_static:true,title:'Invoice pages that run onto a second sheet now keep their margins',desc:'When the terms and conditions are set to print on a second sheet, any page after the first was printing with no margins at all - text came within three millimetres of the paper edge, inside the border most desktop printers cannot print, so it could be cut off. Margins now repeat properly on every sheet: the closest ink to an edge went from 2.8 mm to 16.2 mm. The footer and page number sit three millimetres further from the edge as a result, which is the safe direction. A second problem turned up while checking it: the footer band was printing over the last block of text on forty of forty-eight test invoices. That is fixed too. Invoices that do not use the second sheet for terms are completely unchanged.'},
   {v:'v2.339',type:'fix',date:'08-19-2026',ts:'08-19-2026 05:00',_static:true,title:'The invoice preview now shows the real page breaks',desc:'The invoice preview was showing everything on one long sheet no matter how long the invoice was, so the bank details looked like they were on page 1 when the printer was always going to put them on page 2. The preview now draws the page breaks exactly where the printer makes them, checked against real printed files across ninety-six invoices on both paper sizes - the preview and the printout now agree to within half a millimetre. Nothing about the printed invoice has changed; only the preview was wrong. If the bank details are landing on the second page, that is now visible before you print rather than after.'},
   {v:'v2.338',type:'fix',date:'08-19-2026',ts:'08-19-2026 04:00',_static:true,title:'Glass no longer paints over things that carried meaning',desc:'A sweep of the whole glass styling for places where it was covering something it should not have. Three found and fixed. The gold accent bar along the top of the orders panel had been replaced by a plain hairline in every dark theme - each theme uses its own colour there and all six had lost it. A stray two-pixel bar with a shadow under the Orders card grid, drawn on an empty container that previously showed nothing, is gone. And the Cyber theme has its neon edge back on the dashboard cards; it had been swallowed, and it is what makes that theme look like itself. Everything else was checked in a real browser against every dark theme: status colours, the green and red movement figures, the value cards, the workflow bars and the appraisal-type buttons all keep their own colours.'},
   {v:'v2.337',type:'fix',date:'08-19-2026',ts:'08-19-2026 03:00',_static:true,title:'The report prints the address you typed',desc:'On orders where a location had been pinned on the Map, the report header was printing the address the map lookup returned instead of the Street Address you entered under Project Data - and it cut that address off at the first comma. So a two-number parcel entered as Midden Weg 21, 23 printed as Midden Weg 21, losing half of it, while the Introductory Note on the same page printed it correctly. Your typed Street Address is now what the report uses. The map lookup is only used when the address field was left empty. Nothing you have entered was changed or lost - this only affected what was displayed, so re-opening an affected report now shows the full address.'},
@@ -24886,22 +24889,26 @@ function _finPageShadow(){ return 'margin:0 auto;box-shadow:0 6px 30px rgba(0,0,
 //   keep-together rules stop the totals/balance/terms blocks splitting across a break.
 //   §INVOICE-TERMS-P2 (v2.307) — `pg2` appends the SECOND-SHEET rules and NOTHING else,
 //   so with "Add to 2nd Page" unticked the stylesheet is byte-for-byte what it was
-//   before. What those rules do is swap the sheet over to the REPORT's page-box
-//   convention: @page margin:0 and the .page keeps its own padding, instead of @page
-//   owning the margins and the .page being flattened.
-//   Why it has to change rather than just moving a number: the report anchors its footer
-//   at a distance from the PAPER edge, and under the invoice's own convention the print
-//   .page box is the *printable area*, not the paper — so a report-style offset lands in
-//   the @page margin, outside that box, and an absolutely positioned box hanging past it
-//   is exactly what a browser answers with a blank extra sheet (measured: two sheets of
-//   content came out as a 3-page PDF). Under the report convention the .page IS the
-//   paper in print exactly as it already is on screen, so one offset is correct in the
-//   preview, the printout and the rasterised PDF alike, and nothing else moves: page-1
-//   content still starts mv/mh from the paper edge, because the padding that used to
-//   come from @page now comes from the .page itself.
-//   Sheet breaks mirror the report too (break-after on every .page, auto on the last),
-//   which is what stops a trailing blank sheet.
-function _finPrintCss(P, pg2){
+//   before.
+//   §INVOICE-ONE-CONVENTION (v2.340) — and what those rules do is no longer swap the
+//   page-box convention over. v2.307 did (@page{margin:0} with the .page keeping its own
+//   padding, the way the reports are built) because the running footer is measured from
+//   the PAPER edge and, under the invoice's own convention, the print .page box is the
+//   printable area rather than the paper — so a report-style offset lands in the @page
+//   margin, outside the box, and a positioned box hanging past it is what a browser
+//   answers with a blank extra sheet (measured then: two sheets of content, a 3-page PDF).
+//   That reasoning was right about the footer and wrong about the cost. Element padding
+//   is laid down once at the top of a box's first fragment and once at the foot of its
+//   last; a .page that spans three sheets therefore gets NO margin on the sheets between,
+//   and the invoice printed its bank block 6.1mm from the paper edge on A4 — inside the
+//   unprintable border, where it is physically clipped. @page margins repeat on every
+//   sheet because they belong to the page box, not to an element, which is the whole
+//   reason the invoice's own convention exists. So the footer's offsets are converted
+//   into that convention instead (subtract the margin the box no longer carries in print,
+//   see below and _finRptFooter) and the document has ONE page-box convention throughout.
+//   Sheet breaks are still explicit (break-after on every .page, auto on the last), which
+//   is what stops a trailing blank sheet.
+function _finPrintCss(P, pg2, fb){
   return '<style>'
     + '@page{size:' + P.w + 'mm ' + P.h + 'mm;margin:' + P.mv + 'mm ' + P.mh + 'mm;}'
     + '@media print{'
@@ -24920,13 +24927,33 @@ function _finPrintCss(P, pg2){
     //   from print here, and carried past the emailed PDF by data-html2canvas-ignore.
     +   '.fin-brk{display:none!important;}'
     + '}'
-    + (pg2 ? '@page{margin:0;}'                                  // §INVOICE-TERMS-P2 (v2.307)
-        + '@media print{'
-        +   '.page{width:' + P.w + 'mm!important;max-width:' + P.w + 'mm!important;min-height:' + P.h + 'mm!important;'
-        +     'padding:' + P.mv + 'mm ' + P.mh + 'mm!important;box-sizing:border-box!important;'
+    // §INVOICE-ONE-CONVENTION (v2.340) — THE SECOND SHEET NO LONGER SWITCHES CONVENTIONS.
+    //   v2.307 gave the T&C mode the REPORT's page box — @page{margin:0} with the .page
+    //   carrying its own padding — so that a footer measured from the paper edge would
+    //   land correctly. It does, on a .page that is exactly one sheet. It cannot on one
+    //   that is not: CSS padding is a property of the BOX, so it is laid down once at the
+    //   top of the first fragment and once at the foot of the last, and every sheet in
+    //   between gets nothing. Measured on real printed PDFs: the bank block landed 6.1mm
+    //   from the paper edge on A4 and 6.0mm on Letter, and a 24-line invoice put ink
+    //   8.6mm from the foot — inside the unprintable border of ordinary desktop printers,
+    //   where it is physically clipped. @page margins do repeat, on every sheet, because
+    //   they belong to the page box and not to any element; so the document now uses the
+    //   invoice's own convention throughout and there is only ONE convention left in it.
+    //   What still has to be said here is what the .page loses in print: its padding. The
+    //   running footer is positioned against the .page's PADDING box, which on screen is
+    //   the paper and in print is the printable area, so the same band needs the margin
+    //   subtracted out of its offsets — see _finRptFooter, which writes the screen half of
+    //   exactly these three numbers. min-height keeps a short invoice a full sheet tall so
+    //   the footer still sits at the foot of the sheet rather than under the last line.
+    + (pg2 ? '@media print{'
+        +   '.page{min-height:' + (P.h - 2 * P.mv) + 'mm!important;'
         +     'page-break-after:always;break-after:page;}'
         +   '.page:last-child{page-break-after:auto;break-after:auto;}'
-        +   '.fin-pg2{height:' + P.h + 'mm!important;overflow:hidden!important;margin-top:0!important;}'
+        +   '.fin-pg2{height:' + (P.h - 2 * P.mv) + 'mm!important;min-height:' + (P.h - 2 * P.mv) + 'mm!important;'
+        +     'overflow:hidden!important;margin-top:0!important;}'
+        +   '.fin-ftr{bottom:0!important;'
+        +     'left:' + Math.max(0, (fb ? fb.l : 18) - P.mh) + 'mm!important;'
+        +     'right:' + Math.max(0, (fb ? fb.r : 18) - P.mh) + 'mm!important;}'
         + '}' : '')
     + '</style>';
 }
@@ -25048,16 +25075,22 @@ function _finRptFooterCfg(){
 // §INVOICE-TERMS-P2 (v2.307) — where the footer band sits, matched to the report's.
 //   The SPAN is read from RC because pgFtr() genuinely reads those two keys, so moving
 //   the report margins in Settings → Report Customization moves this band with them.
-//   The vertical is the constant below and NOT an RC key: the report's footer is a
-//   literal bottom:12mm inside pgFtr(), so "the same footer as the reports" means 12mm
-//   full stop. rcMarginBottom was the obvious candidate and is deliberately not used —
-//   it defaults to 20mm, which would sit the two footers on different lines.
-//   ⚠ MIRRORS pgFtr() at index.html:29555 (and _pgNumPlacements just above it). If the
-//   report's footer line ever moves, it has to be changed in BOTH places.
-var FIN_RPT_FOOTER_BOTTOM_MM = 12;
-function _finRptFooterBox(c){
+// §INVOICE-ONE-CONVENTION (v2.340) — the VERTICAL is no longer a constant 12mm copied off
+//   pgFtr(). That number was only ever right while the invoice borrowed the report's page
+//   box, where the .page IS the paper; the invoice's own .page is the printable area in
+//   print, so the offset has to be expressed in that frame. It is now P.mv — the same
+//   millimetre that feeds @page, the on-screen sheet and the measuring pass — which puts
+//   the band exactly on the sheet's bottom margin and cannot drift away from it. Measured
+//   effect on the paper: the band's lowest ink moves from 13.4mm to 16.4mm above the foot
+//   on A4 (13.2 → 16.2 on Letter), i.e. 3mm FURTHER from the edge, which is the safe
+//   direction — 8-12mm is inside the unprintable border of common desktop printers.
+//   rcMarginBottom is still deliberately not used: it defaults to 20mm and would put the
+//   band above the sheet's own margin rather than on it.
+//   ⚠ NO LONGER MIRRORS pgFtr() at index.html:29555. The report's footer keeps its literal
+//   12mm because the report's .page really is the paper. Do not "resynchronise" them.
+function _finRptFooterBox(c, P){
   var num = function(v, d){ v = parseFloat(v); return isFinite(v) ? v : d; };
-  return { b: FIN_RPT_FOOTER_BOTTOM_MM,
+  return { b: (P && P.mv != null) ? P.mv : 15,
            l: Math.max(0, Math.min(60, num(c.rcMarginLeft,  18))),
            r: Math.max(0, Math.min(60, num(c.rcMarginRight, 18))) };
 }
@@ -25065,7 +25098,7 @@ function _finRptFooterBox(c){
 //   The "Page 1 of 2" text is a placeholder; _finPgNumJs() stamps the real numbers in
 //   once the document has laid out and the true sheet count is known.
 function _finRptFooter(inv, co, P){
-  var c = _finRptFooterCfg(), esc = _erEsc, B = _finRptFooterBox(c);
+  var c = _finRptFooterCfg(), esc = _erEsc, B = _finRptFooterBox(c, P);
   var line = (c.rcFooterLine !== false)
     ? ('border-top:' + ((c.rcFooterLineThickness != null) ? c.rcFooterLineThickness : 1) + 'px solid ' + (c.rcFooterLineColor || '#d4c9b0') + ';')
     : 'border-top:none;';
@@ -25073,9 +25106,13 @@ function _finRptFooter(inv, co, P){
   //   print. The invoice number is already on the face of the invoice; repeating it in
   //   the footer was the owner's call to drop.
   var txt = c.rcFooterText || '';
-  // Offsets are from the PAPER edge, and they hold in print because the pg2 stylesheet
-  //   switches the sheet to the report's page-box convention (@page margin:0, the .page
-  //   keeps its own padding) — see _finPrintCss.
+  // §INVOICE-ONE-CONVENTION (v2.340) — these three offsets are the SCREEN half of the
+  //   band. They are resolved against the .page's PADDING box, which on screen is the
+  //   paper, so they read as distances from the paper edge exactly as they always did.
+  //   In print the .page hands its padding back to the @page margin, so that padding box
+  //   becomes the printable area and _finPrintCss subtracts P.mv / P.mh from these same
+  //   numbers. Both halves come off one P, so the band lands in the identical place in
+  //   the preview and on the paper — which is the only reason it may be moved at all.
   return '<div class="fin-ftr" style="position:absolute;bottom:' + B.b + 'mm;left:' + B.l + 'mm;right:' + B.r + 'mm;z-index:4;">'
     + '<div style="' + line + 'padding-top:4px;display:flex;align-items:baseline;justify-content:space-between;gap:14px;">'
     +   '<div style="font-size:' + ((c.rcFooterFontSize != null) ? c.rcFooterFontSize : 7.5) + 'px;color:#8a7a6a;font-family:' + (c.rcPageNumFont || 'IBM Plex Mono') + ',ui-monospace,monospace;">' + esc(txt) + '</div>'
@@ -25145,8 +25182,8 @@ function _finRptFooter(inv, co, P){
 //   The FIT pass deliberately stays a one-shot: the T&C sheet carries no images, so its
 //   geometry is already final at parse time, and re-running a shrink loop is the one
 //   thing here that would not be idempotent.
-function _finPgNumJs(P, pg2){
-  return '<scr' + 'ipt>(function(){var PG2=' + (pg2 ? 1 : 0) + ';try{'
+function _finPgNumJs(P){
+  return '<scr' + 'ipt>(function(){try{'
     // ── fit the T&C to its sheet ───────────────────────────────────────────────
     + 'var tn=document.querySelector(".fin-tnc"),bd=document.querySelector(".fin-tnc-body"),ft=null;'
     + 'if(tn&&bd){var pg=tn.parentNode;ft=pg.querySelector(".fin-ftr");'
@@ -25177,10 +25214,11 @@ function _finPgNumJs(P, pg2){
     //   a block fitted that the printer had already moved. THE limits now come off the
     //   same P that feeds @page and the on-screen sheet, which is the whole point of
     //   _finPaper: `sh - mv` for sheet 1, and `sh - 2*mv` for each sheet after it.
-    //   ⚠ …except under the report convention (PG2), where @page{margin:0} means a
-    //   continuation sheet has NO margins at all — measured, the bank block landed 6.1mm
-    //   from the paper edge on A4 — so there the later limit really is the full `sh`.
-    //   The preview draws that honestly rather than pretending otherwise.
+    //   ⚠ v2.329 carried an exception here: under the report convention @page{margin:0}
+    //   left a continuation sheet with no margins at all, so the later limit was the full
+    //   `sh` and the preview drew that honestly. §INVOICE-ONE-CONVENTION (v2.340) deleted
+    //   the convention rather than the exception — a sheet with no margins was clipping
+    //   real invoices — so there is one rule again, and PG2 is gone from this pass.
     //
     //   And the cuts are no longer thrown away: `cuts` carries where each sheet ended and
     //   which box starts the next one, so draw() can put a real page break on screen. The
@@ -25207,19 +25245,18 @@ function _finPgNumJs(P, pg2){
     + 'if(e.closest&&e.closest(".fin-brk"))continue;'
     + 'r=e.getBoundingClientRect();as.push([r.top-top,r.bottom-top,e,e.tagName==="TR",0]);}'
     + 'as.sort(function(a,c){return a[0]-c[0];});'
-    + 'var pb=sh,L,lastIdx=-1;'
-    + 'for(j=0;j<as.length;j++)if(!as[j][4])lastIdx=j;'
+    + 'var pb=sh,L;'
     + 'for(j=0;j<as.length;j++){'
     + 'if(as[j][4]){pb=parseFloat(as[j][2].getAttribute("data-pb"))||pb;continue;}'
-    // Under the invoice's own convention @page owns the margins, so every box is limited
-    //   by the sheet's content box — one rule, and it held on all 48 measured documents.
-    //   Under the REPORT convention (@page{margin:0}) the page box is the whole paper and
-    //   the .page carries its own padding, so a box is limited by the paper — EXCEPT the
-    //   last one, which must also leave room for the .page's own bottom padding. Measured
-    //   on A4: a payment-terms box ending at 289.9mm was printed on sheet 1, while the
-    //   bank block ending at 286.2mm — the last box, so + 15mm of padding = 301.2mm — was
-    //   pushed off. Both numbers come off real printed PDFs, not from emulation.
-    + 'L=(PG2&&j!==lastIdx)?pb-1:pb-mv;'
+    // @page owns the margins on every sheet, so every box — row or block, first sheet or
+    //   fifth — is limited by that sheet's content box and by nothing else. One rule.
+    //   §INVOICE-ONE-CONVENTION (v2.340) retired the second one: while the T&C mode used
+    //   @page{margin:0} a box was limited by the whole paper EXCEPT the last, which also
+    //   had to leave room for the .page's own bottom padding (measured on A4 at the time:
+    //   a payment-terms box ending at 289.9mm printed on sheet 1, while the bank block
+    //   ending at 286.2mm plus 15mm of padding did not). The special case went with the
+    //   convention that needed it.
+    + 'L=pb-mv;'
     + 'if(as[j][1]>L+0.5)return {el:as[j][2],pb:pb,tr:as[j][3],hh:hh};}'
     + 'return null;}'
     // §INVOICE-PREVIEW-PAGED (v2.329) — put ONE break on screen, where the printer puts it.
@@ -25229,12 +25266,9 @@ function _finPgNumJs(P, pg2){
     //   is reprinted — all three change the answer, and none of them has to be modelled
     //   if the result is simply measured and corrected.
     + 'function cut(pg,s,mv,mh,GAP,sh){'
-    // The walk-back limit is the sheet's ORDINARY-content bottom, which is not the same as
-    //   the limit scan() applies to an unbreakable box: under the report convention the
-    //   page box is the whole paper, and measured on a real PDF a one-line rule was left
-    //   at 284.5mm on A4 while a .fin-keep ending at 286.2mm was pushed off. Under the
-    //   invoice's own convention @page owns the margins and the two limits coincide.
-    + 'var pgTop=pg.getBoundingClientRect().top,el=s.el,pv,pr,lim=s.pb-(PG2?0:mv),sp,box,ref,hc,ht;'
+    // The walk-back limit is the sheet's content bottom — the same limit scan() applies,
+    //   now that @page owns the margins on every sheet and there is only one of them.
+    + 'var pgTop=pg.getBoundingClientRect().top,el=s.el,pv,pr,lim=s.pb-mv,sp,box,ref,hc,ht;'
     // §INVOICE-PREVIEW-PAGED (v2.329) — BREAK AT THE BOUNDARY, NOT AT THE ATOM.
     //   scan() returns the unbreakable box that no longer fits, but the print engine also
     //   carries over anything BETWEEN the paper's edge and that box — the one-line
@@ -25263,7 +25297,7 @@ function _finPgNumJs(P, pg2){
     + 'box.style.margin="0 -"+mh+"px";'
     + 'sp.setAttribute("data-html2canvas-ignore","true");'
     + 'ref.parentNode.insertBefore(sp,ref);'
-    + 'var want=s.pb+GAP+(PG2?0:mv),h=1,i,d;'
+    + 'var want=s.pb+GAP+mv,h=1,i,d;'
     + 'for(i=0;i<4;i++){box.style.height=h+"px";'
     + 'd=want-(ref.getBoundingClientRect().top-pgTop);if(Math.abs(d)<0.5)break;h+=d;if(h<1)h=1;}'
     + 'box.style.height=h+"px";'
@@ -25276,10 +25310,29 @@ function _finPgNumJs(P, pg2){
     + 'return true;}'
     + 'function clr(){var b=document.querySelectorAll(".fin-brk"),i;'
     +   'for(i=b.length-1;i>=0;i--)if(b[i].parentNode)b[i].parentNode.removeChild(b[i]);}'
+    // §INVOICE-FTR-CLEARANCE (v2.340) — keep the running footer off the last block.
+    //   The band is absolutely positioned against the .page, so it settles at the foot of
+    //   the BOX, and the box's last block ends in exactly the same place — which is why the
+    //   band was printing straight through the bank block on 40 of the 48 measured T&C
+    //   documents (worst −2.6mm before this release; moving the band 3mm further from the
+    //   paper edge would have made it −5.6mm). The band's own height is given back as a
+    //   trailing margin on the last in-flow block, measured off the band rather than
+    //   guessed, so it tracks whatever font size Report Customization is set to.
+    //   It has to be a MARGIN and not a spacer element: a trailing margin is truncated by
+    //   the print engine at a fragment boundary, so it can never be pushed onto a sheet of
+    //   its own, and this file has receipts for what a stray box at the foot of a page
+    //   does. The 2mm is a typographic gap between the rule and the block above it, not
+    //   fitting slack — nothing is being squeezed to make anything fit.
+    + 'function reserve(pg){var f=pg.querySelector(".fin-ftr");if(!f)return;'
+    +   'var k=pg.children,i,c,last=null;'
+    +   'for(i=0;i<k.length;i++){c=k[i];if(c===f)continue;'
+    +   'if(String(c.className||"").indexOf("fin-brk")>=0)continue;last=c;}'
+    +   'if(last)last.style.marginBottom=(f.getBoundingClientRect().height+mmpx(2))+"px";}'
     + 'function cnt(){try{'
     + 'clr();'
     + 'var sh=mmpx(' + P.h + '),mv=mmpx(' + P.mv + '),mh=mmpx(' + P.mh + '),GAP=26;'
     + 'var ps=document.querySelectorAll(".page"),tot=0,end=[],i,s,n,g;'
+    + 'for(i=0;i<ps.length;i++)reserve(ps[i]);'
     + 'for(i=0;i<ps.length;i++){'
     + 'if(ps[i].className.indexOf("fin-pg2")>=0){n=1;}'
     + 'else{n=1;g=0;while((s=scan(ps[i],sh,mv))&&g++<80){cut(ps[i],s,mv,mh,GAP,sh);n++;}}'
@@ -25381,7 +25434,7 @@ function _finInvoiceHtml(inv, lines, co){
                  .filter(Boolean).map(esc).join('<br>');
 
   return '<!doctype html><html><head><meta charset="utf-8"><title>Invoice ' + esc(inv.invoice_number) + '</title>'
-    + _finPrintCss(P, _t2)                                     // §INVOICE-PRINT (v2.291) · §INVOICE-TERMS-P2 (v2.307)
+    + _finPrintCss(P, _t2, _t2 ? _finRptFooterBox(_finRptFooterCfg(), P) : null)   // §INVOICE-PRINT (v2.291) · §INVOICE-ONE-CONVENTION (v2.340)
     + '</head>'
     + '<body style="' + FIN_PAGE_BODY + '">'
     + '<div class="page" style="width:' + P.w + 'mm;min-height:' + P.h + 'mm;box-sizing:border-box;padding:' + P.mv + 'mm ' + P.mh + 'mm;background:#fff;' + _finPageShadow()
@@ -25524,7 +25577,7 @@ function _finInvoiceHtml(inv, lines, co){
     //   at the foot of page 1 and push the bank block over. With the option off there is
     //   no .fin-tnc and no .fin-pgnum, so the fit pass and the stamp are both no-ops and
     //   nothing but the sheet breaks is added — the printed document is unchanged.
-    + _finPgNumJs(P, _t2)
+    + _finPgNumJs(P)
 
     + '</body></html>';
 }
@@ -50937,7 +50990,21 @@ var _AI_LEN_FIELDS = {
   conclusion : { ta:'conclusionText', btn:'conclusionBtn', sta:'conclusionStatus',
                  sect:12, keys:['conclusionOpinion'], orderKeys:[], mirror:[],
                  seed:115,
-                 subject:'the final "Conclusion / Opinion" of an Aruba appraisal report' }
+                 subject:'the final "Conclusion / Opinion" of an Aruba appraisal report' },
+  // §AI-LEN-S11 (v2.332) — "Opinion of Floor Plan". NOT an s12 field: it lives in
+  //   Inspect Data → Documents (section 11) and carries data-key="s11f3", so its own
+  //   generator (genFloorplanOpinion) writes insp_<id>_11.s11f3 + inspData.s11.s11f3 and
+  //   stamps _ts on that blob — and it assigns ta.value WITHOUT firing 'input'. The two
+  //   extra flags below make _aiLenPersist reproduce that write exactly:
+  //     stampTs — refresh the section blob's _ts, as the generator does
+  //     noInput — do NOT dispatch 'input' (the generator does not; firing it would hand
+  //               this field to the generic data-key auto-save instead, a different path)
+  //     staShow — #fpAIStatus ships display:none, so unhide it before writing messages
+  //   seed 80 ≈ the 3–4 formal sentences genFloorplanOpinion is asked for.
+  fpOpinion  : { ta:'fpOpinionText', btn:'btnFpAI', sta:'fpAIStatus',
+                 sect:11, keys:['s11f3'], orderKeys:[], mirror:[],
+                 seed:80, stampTs:true, noInput:true, staShow:true,
+                 subject:'the "Opinion of Floor Plan" of an Aruba appraisal report' }
 };
 
 function _aiLenWords(s){ var m=String(s||'').match(/\S+/g); return m?m.length:0; }
@@ -50989,7 +51056,12 @@ function _aiLenSyncAll(){
 // then persistOrders. Writing only the textarea would lose the text on reload.
 function _aiLenPersist(cfg, text, ta){
   ta.value=text;
-  ta.dispatchEvent(new Event('input',{bubbles:true}));
+  // §AI-LEN-S11 — a `noInput` field mirrors a generator that assigns ta.value WITHOUT
+  //   firing 'input'. Firing it for such a field would additionally hand the textarea to
+  //   the generic data-key auto-save (_inspOnChange → _inspLocalSave, 1.5s debounced,
+  //   against whatever section the CURRENT tab maps to) — a second, different write path
+  //   the generator never uses. Everything the field needs is written explicitly below.
+  if(!cfg.noInput) ta.dispatchEvent(new Event('input',{bubbles:true}));
   (cfg.mirror||[]).forEach(function(mid){
     var m=document.getElementById(mid);
     if(m){ m.value=text; m.dispatchEvent(new Event('input',{bubbles:true})); }
@@ -51005,6 +51077,7 @@ function _aiLenPersist(cfg, text, ta){
     var _cur={};
     try{ var _raw=localStorage.getItem('insp_'+_inspOrderId+'_'+cfg.sect); if(_raw)_cur=JSON.parse(_raw); }catch(e){}
     (cfg.keys||[]).forEach(function(kk){ _cur[kk]=text; });
+    if(cfg.stampTs) _cur._ts=Date.now();   // §AI-LEN-S11 — genFloorplanOpinion stamps _ts on the s11 blob
     localStorage.setItem('insp_'+_inspOrderId+'_'+cfg.sect, JSON.stringify(_cur));
   }catch(e){}
   try{ persistOrders(_inspOrderId); }catch(e){}
@@ -51017,6 +51090,10 @@ async function _aiTextResize(k, delta){
   var sta=document.getElementById(cfg.sta);
   var gbtn=document.getElementById(cfg.btn);
   var pressed=document.getElementById(k+(delta>0?'MoreBtn':'LessBtn'));
+  // §AI-LEN-S11 — #fpAIStatus ships display:none and is only unhidden by its generator.
+  //   Unhide it here too, or "nothing to resize" / "already at the limit" / error text
+  //   would be written into an invisible element. No-op for the four span statuses.
+  if(sta && cfg.staShow) sta.style.display='block';
   if(!ta || _aiLenBusy[k]) return;
 
   var cur=(ta.value||'').trim();
@@ -51030,8 +51107,10 @@ async function _aiTextResize(k, delta){
     _aiLenSync(k);
     return;
   }
-  var _key=localStorage.getItem('appraisalSuite_anthKey_v1')||'';
-  if(!_key){ _key=prompt('Enter Anthropic API Key:'); if(!_key) return; localStorage.setItem('appraisalSuite_anthKey_v1',_key.trim()); }
+  // §AI-LEN-S11 — same two-slot lookup the generators use; Settings → API Keys writes
+  //   appraisalApi_apiAnthropicKey, so checking only the first slot prompted needlessly.
+  var _key=localStorage.getItem('appraisalSuite_anthKey_v1')||localStorage.getItem('appraisalApi_apiAnthropicKey')||'';
+  if(!_key.trim()){ _key=prompt('Enter Anthropic API Key:'); if(!_key) return; localStorage.setItem('appraisalSuite_anthKey_v1',_key.trim()); }
 
   _aiLenBusy[k]=true;
   var _pressedHtml=pressed?pressed.innerHTML:'';
