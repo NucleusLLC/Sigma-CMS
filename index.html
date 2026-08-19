@@ -7900,37 +7900,184 @@ body.glass .app-card:hover, body.glass #view-dashboard .app-card:hover{
 }
 
 /* ── QUICKVIEW ────────────────────────────────────────────────────────────
-   Two separate faults here, and the user saw both as "no transparency".
+   v2.334. v2.333 gave the card an .82 fill over the blurred overlay and the
+   user still read it as a slab. Three measured faults, all fixed below.
 
-   (a) `#qvCard{background:#1c1c1e !important}` @3881 pinned the card fully
-       opaque, outranking BOTH `body.glass .qv-card` and the file's own
-       earlier `.qv-card{background:rgba(14,12,10,.82)!important}` @3485.
-       The fill below RESTORES that .82 value — it is the file's own
-       intended translucency, not a new number.
+   (a) THE OVERLAY WAS A BACKDROP ROOT — and NOT because of its blur.
+       `.qv-overlay.open{animation:qvFadeUp .28s … both !important}` @3482
+       animates OPACITY 0→1. In Chrome an opacity-animated element stays a
+       backdrop root even after the animation has filled forwards, so any
+       backdrop-filter on #qvCard samples only what the overlay itself
+       painted. Effect: the overlay scrim got applied TWICE and roughly
+       .22 x .22 x .945 = 4.6% of the page reached the card face.
+       Measured, one point in the card centre, white ground behind:
+         as shipped ................................... rgb(32,31,29)
+         same, but #qvCard{backdrop-filter:none} ...... rgb(32,31,29)  <- no-op
+         same, but #qvOverlay{animation:none} ......... rgb(72,71,70)
+         same, keyframes changed to transform-only .... rgb(72,71,70)
+         no animation but #qvOverlay{opacity:.999} .... rgb(32,31,29)
+       So it is the opacity in the keyframes. Removing the overlay's
+       backdrop-filter (v2.333's read) was necessary but not sufficient.
+       Under body.glass the overlay is now a plain dim scrim with no filter
+       and no animation, and the entrance motion moves to the CARD, where an
+       opacity animation is harmless — an element's own opacity does not
+       spoil its own backdrop-filter (measured: rgb(72,71,70), unchanged).
 
-   (b) The card carried backdrop-filter:blur(24px), but its ancestor
-       `.qv-overlay` already carries blur(18px) @3479. A blurred ancestor is
-       a backdrop root: the child's backdrop-filter then samples only what
-       the ancestor painted, so it does nothing. Verified in Chrome with an
-       A/B probe — a child with its own blur inside a blurred parent was
-       pixel-identical to a child with no blur at all, while the same child
-       over an unblurred parent blurred normally. So the overlay stays the
-       blur layer and the card is a plain translucent fill; stacking a second
-       blur only costs a compositor pass. */
-body.glass #qvCard,
-body.glass .qv-card{
-  background: rgba(14,12,10,.82) !important;
+   (b) THE CARD'S INSIDES WERE OPAQUE. .qv-action-bar @3897, .qv-specs @3930,
+       .qv-val-card @4003 and .qv-meta-item @4020 are each pinned to a solid
+       rgb(42,42,44) and together cover most of the card. With the shipped
+       CSS, eleven sample points spread across the card interior over a live
+       bar chart ALL read rgb(42,42,44) +/-1 — a uniform slab, whatever the
+       card fill was. They are now translucent films, so the glass is
+       actually seen. The same eleven points after: rgb(29,67,44) over a
+       green bar, rgb(25,68,75) over cyan, rgb(77,38,38) over red,
+       rgb(72,70,69) over white, rgb(30,54,39) in a gap.
+
+   (c) .82 IS NOT TRANSLUCENT. The fill is now the concept's own
+       rgba(255,255,255,.055) (var(--g-fill)).
+
+   ── DEVIATION FROM dark-a.html, and why ──────────────────────────────────
+   Fill, border and rim are the concept's, unchanged. What differs:
+     - blur 24px / saturate 140%, not the concept's 10px / 115%. These are
+       the card's OWN pre-existing values from `.qv-card` @3489 — a modal
+       floating over a live dashboard needs more diffusion than a panel
+       sitting on a static page ground.
+     - the scrim rgba(6,5,4,.80) has no concept counterpart at all; the
+       concept has no modal. .80 is the LOWEST scrim at which every text role
+       inside the card still clears 4.5:1 with the card sitting over a
+       full-bleed band of the brightest colour the dashboard charts paint.
+     - tile fills .045 / .05 against the concept's --bar-fill .03 (and the
+       concept gives .qv-specs no fill at all, which is matched exactly).
+       Slightly heavier so a tile still reads as a tile against a card that
+       is itself only .055.
+     - .qv-type-toggle takes a DARK smoked fill, not a white film. Precedent
+       is the concept's own .qv-status-badge{background:rgba(10,8,6,.58)},
+       which exists for exactly this case — a control whose pale text must
+       stay legible over unpredictable ground. Without it the three type-
+       button roles fell from 5.38/6.42/10.44 to 3.74/4.46/12.17.
+
+   ── CONTRAST, measured in Chrome, worst case ─────────────────────────────
+   Card over a full-bleed band of the brightest chart green (#4fd9a0);
+   backdrop sampled from a glyph-free render of the same frame:
+     qv-val-usd 5.53 · qv-val-card-name 5.58 · qv-val-formula 6.21 ·
+     qv-type-btn-sub 6.27 · qv-track-label 6.44 · qv-ab-lbl 6.78 ·
+     qv-type-toggle-label 7.25 · qv-type-btn-num 7.48 · qv-type-saving 7.80 ·
+     qv-meta-lbl 8.00 · qv-val-card-tag 9.09 · qv-tpl-label 9.65 ·
+     qv-val-awg 10.29 · qv-spec-val 12.00 · qv-type-btn-title 12.17 ·
+     qv-meta-val 15.94.   Floor 4.5. Lowest is 5.53.
+   Repeated over a full-bleed #ffffff band — brighter than the dashboard can
+   actually paint — the lowest is 4.68. Nothing fails there either.
+
+   Five roles had to move to get there. Four were low-alpha white
+   (.45/.40/.50/.30), which composites brighter as the ground does; they go
+   to the concept's solid --muted #d0c8bd, exactly as the MUTED TEXT block
+   below already does for .kpi-label/.slbl. The fifth, .qv-type-toggle-label,
+   was var(--slate-lt) rgb(42,90,106) and measured 2.26:1 on the OLD opaque
+   card — a pre-existing failure, not one glass introduced. And
+   .qv-val-card-name moves #e0a93c -> #e8b84a, the gold already used by
+   .qv-type-btn-num @6360, purely for margin (4.11 -> 4.72).
+
+   Every !important here exists to beat a pre-existing !important, named at
+   its rule. Nothing escapes body.glass; with the class off the Quickview
+   renders pixel-identical to before (verified: same screenshot SHA256). */
+
+/* 1. The overlay stops being a backdrop root, so the CARD can refract.
+      Beats `.qv-overlay{background/backdrop-filter …!important}` @3478-3480
+      and `.qv-overlay.open{animation …!important}` @3482. */
+body.glass .qv-overlay,
+body.glass .qv-overlay.open{
+  background: rgba(6,5,4,.80) !important;
   -webkit-backdrop-filter: none !important;
           backdrop-filter: none !important;
+  animation: none !important;
+}
+/* The entrance motion, moved off the overlay onto the card. */
+body.glass .qv-overlay.open #qvCard,
+body.glass .qv-overlay.open .qv-card{
+  animation: qvFadeUp .28s cubic-bezier(.16,1,.3,1) both !important;
+}
+
+/* 2. The card is the pane. !important plus the ID twin beat
+      `#qvCard{background …!important}` @3881 and
+      `.qv-card{background/backdrop-filter …!important}` @3486-3490. */
+body.glass #qvCard,
+body.glass .qv-card{
+  background: var(--g-fallback) !important;
+  background: var(--g-fill) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
+          backdrop-filter: blur(24px) saturate(140%) !important;
   border: var(--g-border) !important;
   box-shadow: var(--g-rim), 0 24px 64px rgba(0,0,0,.6) !important;
 }
-/* Light mode keeps the paper fill — a dark card on Paper Glass would read as
-   a different product. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+  body.glass #qvCard,
+  body.glass .qv-card{ background: var(--g-fallback) !important; }
+}
+
+/* 3. The card's insides. Each beats its own `#qvCard .x{background:#2a2a2c
+      !important}` @3897 / @3930 / @4003 / @4020. The backdrop-filters these
+      elements carry (@3744-3779) are dead once the card is the backdrop
+      root, so they are dropped rather than left costing a compositor pass. */
+body.glass #qvCard .qv-action-bar{
+  background: rgba(255,255,255,.045) !important;
+  -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+}
+body.glass #qvCard .qv-specs{
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+}
+body.glass #qvCard .qv-val-card,
+body.glass #qvCard .qv-meta-item{
+  background: rgba(255,255,255,.05) !important;
+  -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+}
+/* The workflow bar above each step — solid #3a3a3c @3991. */
+body.glass #qvCard .qv-track-step::before{
+  background: rgba(255,255,255,.16) !important;
+}
+body.glass #qvCard .qv-tracker,
+body.glass #qvCard .qv-ab-btn{
+  -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+}
+
+/* 4. Text that composites against the ground. See the contrast note above. */
+body.glass #qvCard .qv-spec-lbl,
+body.glass #qvCard .qv-section-title,
+body.glass #qvCard .qv-val-formula,
+body.glass #qvCard .qv-type-toggle-label,
+body.glass #qvCard .qv-track-step .qv-track-label,
+body.glass #qvCard .qv-track-step.pending .qv-track-label{
+  color: #d0c8bd !important;
+}
+body.glass #qvCard .qv-val-card-name{
+  color: #e8b84a !important;
+}
+/* Smoked, not white-filmed — see the .qv-status-badge precedent above. */
+body.glass #qvCard .qv-type-toggle{
+  background: rgba(10,8,6,.55) !important;
+}
+
+/* Light — Paper Glass. Dead while §GLASS-DARK-ONLY holds, kept in step with
+   the dark branch so the light recipe stays shippable. */
 body.glass:not([class*="theme-dark"]) #qvCard,
 body.glass:not([class*="theme-dark"]) .qv-card{
   background: rgba(255,253,248,.82) !important;
   box-shadow: var(--g-rim), var(--g-shadow-hov) !important;
+}
+body.glass:not([class*="theme-dark"]) #qvCard .qv-type-toggle{
+  background: rgba(255,253,248,.55) !important;
+}
+body.glass:not([class*="theme-dark"]) #qvCard .qv-spec-lbl,
+body.glass:not([class*="theme-dark"]) #qvCard .qv-section-title,
+body.glass:not([class*="theme-dark"]) #qvCard .qv-val-formula,
+body.glass:not([class*="theme-dark"]) #qvCard .qv-type-toggle-label,
+body.glass:not([class*="theme-dark"]) #qvCard .qv-track-step .qv-track-label,
+body.glass:not([class*="theme-dark"]) #qvCard .qv-track-step.pending .qv-track-label{
+  color: #5f574f !important;
 }
 
 /* ── MUTED TEXT ON GLASS ──────────────────────────────────────────────────
@@ -15733,7 +15880,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.333';
+var APP_VERSION = 'v2.334';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15771,6 +15918,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.334',type:'fix',date:'08-19-2026',ts:'08-19-2026 01:30',_static:true,title:'Quickview is now actually see-through',desc:'Quickview still looked like a solid dark panel. Two reasons, both now fixed. The fade-in animation on the window behind the card made the browser flatten everything underneath it, so only about five percent of the page ever reached the card face - no setting on the card itself could have changed that. And the card was lined with solid tiles on the inside, which covered nearly all of it regardless. The card now genuinely refracts the page behind it and picks up the colour of whatever it is over. Six pieces of small text inside the card were brightened so they stay easily readable against the lighter backdrop, two of which were already too faint before this and are now fixed as well. Every piece of text in the card was measured against the brightest thing the dashboard can put behind it and all of it is comfortably above the readability standard. One visible difference: the page behind Quickview is no longer blurred, because blurring it is exactly what stopped the card being see-through in the first place.'},
   {v:'v2.333',type:'fix',date:'08-19-2026',ts:'08-19-2026 01:00',_static:true,title:'The glass look now actually looks like glass',desc:'The version released yesterday applied the glass styling correctly but you could not see it: five separate things in the existing stylesheet were painting over it. The tinted background it needed was never drawn at all, three screens painted their own solid sheet on top of it, several panels forced a solid colour that overrode the translucency, the Quickview card was pinned solid by a rule that could not be overridden normally, and the panel that holds the orders list was never included. All five are fixed and the result was checked in a real browser this time, screen by screen, rather than assumed from the code. Quickview now genuinely shows the page through it. Five pieces of small text that would have become hard to read against the new background were brightened; six others were already too faint before any of this and are left for a separate fix. Glass currently applies to the dark themes only - on the light themes several cards force white text, which on a pale glass panel is unreadable. That is an older fault of the light theme rather than of the glass, and the light version is written and waiting for it to be put right.'},
   {v:'v2.332',type:'feature',date:'08-18-2026',ts:'08-18-2026 07:00',_static:true,title:'A new glass look',desc:'The sidebar, the orders table, the Quickview card, the figure tiles and the secondary buttons are now frosted translucent panels that sit above a softly tinted background and lift slightly as you point at them. There are two versions and the app picks the right one automatically: a light Paper Glass and a dark Bureau Glass. They are not the same recipe with the colours swapped - a pale panel needs far more fill and more colour saturation than a dark one or it simply disappears, so each was tuned on its own. Text contrast was measured rather than judged by eye, including the worst case of a hovered panel over the brightest part of the background, and every piece of text clears the accessibility standard. If you prefer the old flat look, there is a Glass Look switch in Settings under Appearance - turning it off restores the previous appearance exactly, with nothing left behind.'},
   {v:'v2.331',type:'feature',date:'08-18-2026',ts:'08-18-2026 06:00',_static:true,title:'Make an AI paragraph longer or shorter, ten words at a time',desc:'Every AI-written section now has Less Text and More Text buttons beside Generate, with the current target length shown between them. Each press asks for ten words more or ten words fewer. It rewrites the paragraph you already have rather than writing a new one: the instruction is to keep every fact, figure, measurement and conclusion exactly as they stand, to add nothing new, and to keep the same order and tone - so making it longer elaborates on what is there instead of inventing more findings, and making it shorter must not drop anything material. The starting point is the real length of the text in front of you, rounded to the nearest ten, so the first press moves it by the amount you expect. It will not go below 30 or above 400 words, and the button greys out at the limit rather than making a pointless request. Available on Building Opinion, Location Opinion, Renovation Notes and Conclusion. Shortening a paragraph towards the 30-word floor is where it is worth reading the result before you accept it.'},
