@@ -7436,6 +7436,7 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
     <button class="fin-tab" id="finTabBtn-invoices"  onclick="finSetTab('invoices')">Invoices</button>
     <button class="fin-tab" id="finTabBtn-statements" onclick="finSetTab('statements')">Statements</button>
     <button class="fin-tab" id="finTabBtn-reports"    onclick="finSetTab('reports')">Reports</button>
+    <button class="fin-tab" id="finTabBtn-bbo"        onclick="finSetTab('bbo')">BBO</button>
     <button class="fin-tab" id="finTabBtn-settings"   onclick="finSetTab('settings')">Branding</button>
   </div>
 
@@ -7480,6 +7481,11 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
   <!-- Reports tab -->
   <div id="finTab-reports" style="display:none;">
     <div id="finReports"></div>
+  </div>
+
+  <!-- §BBO-TAB (v2.328) — monthly turnover-tax liability -->
+  <div id="finTab-bbo" style="display:none;">
+    <div id="finBbo"></div>
   </div>
 
   <!-- Branding / company settings tab -->
@@ -15303,7 +15309,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.327';
+var APP_VERSION = 'v2.328';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15341,6 +15347,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.328',type:'feature',date:'08-18-2026',ts:'08-18-2026 03:00',_static:true,title:'Discounts, BBO shown on the invoice, and a monthly BBO figure',desc:'Three things. First, you can give a discount on an invoice, either as an amount in florins or as a percentage, and the total works itself out. The button is on the invoice row in Finance. Discounting an invoice you have already issued is allowed but asks you first, and it is written to the audit trail. Second, the invoice now shows the BBO that is included in it, instead of the 0.00 it has always printed. Because BBO is inside the price and not added on top, it is worked out as the total times 7 divided by 107 - on a 1,000 florin invoice that is 65.42, not 70.00. The same figure now appears in the invoice email and the WhatsApp message, so the message and the attached PDF can no longer disagree. Third, a new BBO tab in Finance shows, month by month, how much turnover tax you owe, with a CSV to hand to the accountant. It counts what you invoiced in the month and leaves out drafts, voided and credited invoices - and it tells you separately how much is sitting in drafts, because those become taxable the day you finalise them. The rate lives in Finance under Branding and is dated: to change it you add the new rate with the day it starts, and every invoice already issued keeps the rate it was charged at. You can add a different rate for another island the same way.'},
   {v:'v2.327',type:'feature',date:'08-18-2026',ts:'08-18-2026 01:00',_static:true,title:'Mark a report as DRAFT',desc:'Quickview has a new DRAFT button, next to the order status. Switch it on and the report prints with DRAFT across every page in red at an angle, and both your signature and your stamp are left off - so a report sent out for comment cannot be mistaken for a finished one, or be signed and stamped before you meant it to be. Switch it off and the signature and stamp come back and the DRAFT wording disappears. The setting belongs to the order, not to the computer you are sitting at, so a colleague opening the same order sees the same thing. An order that has never used DRAFT is completely unaffected. Note that an already published PDF does not change on its own - print the report again after switching.'},
   {v:'v2.326',type:'fix',date:'08-17-2026',ts:'08-17-2026 23:30',_static:true,title:'Your valuation figures can no longer be wiped by closing the window',desc:'A saved valuation could be silently replaced with blanks. The safeguard that was meant to prevent this only covered the automatic background save — so simply CLOSING the Valuation window, or switching to another browser tab, went round it and wrote an empty table over figures that were already saved. No warning, and nothing to recover afterwards. Closing a window is no longer treated as a request to erase anything. Clearing a valuation on purpose is still possible, but only from the Save button, and it now asks you to confirm first. Save also refuses to write an amount it cannot read as a number: typing 275,000 or AWG 275,000 into an amount box leaves the text on screen while the box reports nothing at all, which is how a figure you could plainly see could be saved as empty. Those boxes are now outlined in red and nothing is saved until they are corrected — enter 275000. The status message no longer says Saved when a blank table was in fact refused.'},
   {v:'v2.313',type:'fix',date:'08-07-2026',ts:'08-07-2026 10:00',_static:true,title:'Staff can sign in on the first try, and Team Login Management is readable in dark mode',desc:'Two fixes. The important one is the login. Seanna and Tristan both reported having to type the same password over and over before it was accepted, and there was nothing wrong with either their passwords or their accounts. The connection to the server was being set up in the wrong order: the library that talks to the server is loaded in a way that finishes only after the whole page has been read, but the code that builds the connection ran while the page was still being read — so it found nothing to build with, and the connection stayed empty. Nothing repaired it until a background check ran a full minute later. In the meantime the sign-in screen was already on screen and accepting clicks, so anyone who typed their password in that first minute had it checked against nothing at all, and was told it was incorrect. It never even reached the server. Trying again a minute later worked, which is exactly what they described. This affected people whose password is only held on the server — anyone whose account was set up on another computer, which is both of them. It never affected this office computer, because passwords entered here are also checked against a copy held on the machine itself. The connection is now built as soon as the page is ready, and if sign-in is somehow still not ready the screen says so plainly instead of claiming the password is wrong. A password is never reported as incorrect unless it was actually checked. Neither account needed repairing — both were in good order the whole time. Second, Settings. The Team Login Management list was printing every person on a bright white card in dark mode, with pale text on it that was almost impossible to read. One dark-mode rule had a broken line in it which quietly excluded those cards, so they kept a plain white background. Fixed, along with the remove button beside each person, which was invisible when you hovered over it in any of the dark themes. The light themes are completely unchanged.'},
@@ -21294,7 +21301,7 @@ function finByOrder(orderId){
 async function _finAuthed(){ return (typeof _sb !== 'undefined' && !!_sb); }
 
 /* ── Load ─────────────────────────────────────────────────────────────────── */
-function finInit(){ try{ finSetTab(FIN_TAB || 'invoices'); }catch(e){} try{ _finCompanyPull(); }catch(e){} finRender(); if(!FIN.loading) finFetch(false); }
+function finInit(){ try{ finSetTab(FIN_TAB || 'invoices'); }catch(e){} try{ _finCompanyPull(); }catch(e){} try{ _finTaxLoad(); }catch(e){} finRender(); if(!FIN.loading) finFetch(false); }
 
 async function finFetch(force){
   if(!_sb){ FIN.error = 'Cloud sync unavailable.'; FIN.authed = false; finRender(); return; }
@@ -21451,9 +21458,14 @@ function finRowHtml(r){
     h += '<div id="finPays-' + r.id + '" style="margin:12px 0 4px;"></div>';
     h += '<div id="finEmails-' + r.id + '" style="margin:12px 0 4px;"></div>';
     h += '<div id="finPayForm-' + r.id + '"></div>';
+    h += '<div id="finDiscForm-' + r.id + '"></div>';   // §BBO-DISCOUNT (v2.328)
 
     h += '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:14px;">';
     h += '<button class="btn-sec" onclick="finPreviewInvoice(\'' + r.id + '\')">👁 Preview</button>';
+    // §BBO-DISCOUNT (v2.328) — a void invoice is terminal and the server refuses it,
+    //   so it gets no button rather than a button that fails.
+    if(r.status !== 'void')
+      h += '<button class="btn-sec" onclick="finDiscountForm(\'' + r.id + '\')" title="Apply or remove a discount on this invoice">% Discount</button>';
     // §INVOICE-EDIT (v2.301) — carries the number shown on this very row, so the
     //   edit screen refuses to open on any other invoice. Void gets no button.
     if(r.status !== 'void')
@@ -21639,6 +21651,89 @@ async function finCreateForOrder(orderId){
   } catch(e){
     alert('Could not create the invoice:\n\n' + (e && e.message || e));
     return null;
+  }
+}
+
+// ── §BBO-DISCOUNT (v2.328) — invoice-level discount ──────────────────────────
+//   The arithmetic is NOT done here. The browser sends the intent; the database
+//   clamps it, recomputes the total, recomputes the tax on the DISCOUNTED figure
+//   and re-applies payments. Deliberate: sigma_invoice_recalc is the only writer
+//   of invoices.total, and a second opinion computed in the page is precisely how
+//   a displayed figure drifts away from the stored one.
+function finDiscountForm(id){
+  var host = document.getElementById('finDiscForm-' + id);
+  if(!host) return;
+  if(host.innerHTML.trim()){ host.innerHTML = ''; return; }   // toggle shut
+  var r    = finById(id) || {};
+  var cur  = String(r.discount_type || 'none');
+  var val  = Number(r.discount_value || 0);
+  var amt  = Number(r.discount_amount || 0);
+  var subT = Number(r.subtotal || 0);
+  var esc  = _erEsc;
+  host.innerHTML =
+      '<div style="margin:10px 0;padding:12px 14px;border:1px solid var(--line);border-radius:9px;background:rgba(196,151,64,.05);">'
+    +   '<div style="font-size:12px;font-weight:600;margin-bottom:8px;">Discount on ' + esc(r.invoice_number || '') + '</div>'
+    +   (amt > 0
+          ? '<div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;">Currently ' + _finMoney(amt, r.currency)
+            + (cur === 'percent' ? ' (' + val + '% of ' + _finMoney(subT, r.currency) + ')' : '') + ' off.</div>'
+          : '')
+    +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    +     '<select id="finDiscType-' + id + '" style="padding:6px 8px;font-size:12px;">'
+    +       '<option value="amount"'  + (cur === 'amount'  ? ' selected' : '') + '>Amount (' + esc(r.currency || 'AWG') + ')</option>'
+    +       '<option value="percent"' + (cur === 'percent' ? ' selected' : '') + '>Percentage (%)</option>'
+    +     '</select>'
+    +     '<input type="number" id="finDiscVal-' + id + '" step="0.01" min="0" value="' + (val > 0 ? val : '') + '" placeholder="0.00" style="width:110px;padding:6px 8px;font-size:12px;text-align:right;">'
+    +     '<input type="text" id="finDiscWhy-' + id + '" value="' + esc(r.discount_reason || '') + '" placeholder="Reason (optional)" style="flex:1;min-width:150px;padding:6px 8px;font-size:12px;">'
+    +     '<button class="btn-sec" onclick="finApplyDiscount(\'' + id + '\')">Apply</button>'
+    +     (amt > 0 ? '<button class="btn-sec" onclick="finApplyDiscount(\'' + id + '\',true)" style="border-color:#f87171;color:#f87171;">Remove</button>' : '')
+    +     '<button class="btn-sec" onclick="finDiscountForm(\'' + id + '\')">Cancel</button>'
+    +   '</div>'
+    +   '<div style="font-size:10.5px;color:var(--muted);margin-top:8px;">The total and the included tax are recalculated by the database.</div>'
+    + '</div>';
+}
+
+async function finApplyDiscount(id, remove){
+  var r    = finById(id) || {};
+  var type = remove ? 'none' : ((document.getElementById('finDiscType-' + id) || {}).value || 'amount');
+  var raw  = remove ? 0 : Number((document.getElementById('finDiscVal-' + id) || {}).value || 0);
+  var why  = remove ? 'discount removed' : String((document.getElementById('finDiscWhy-' + id) || {}).value || '').trim();
+
+  if(!remove){
+    if(!(raw > 0)){ alert('Enter a discount greater than zero, or press Remove.'); return; }
+    if(type === 'percent' && raw > 100){ alert('A percentage discount cannot exceed 100%.'); return; }
+    var subT = Number(r.subtotal || 0);
+    if(type === 'amount' && raw > subT){
+      alert('That discount (' + _finMoney(raw, r.currency) + ') is more than the invoice subtotal of ' + _finMoney(subT, r.currency) + '.');
+      return;
+    }
+    // A finalised invoice has already gone to the client. Changing what it says is
+    // legitimate, but it is never something to do without meaning to.
+    if(r.status && r.status !== 'draft'){
+      if(!confirm('Invoice ' + (r.invoice_number || '') + ' has already been issued.\n\nApplying a discount changes a document the client may already hold. It is recorded in the audit trail.\n\nContinue?')) return;
+    }
+  }
+
+  try {
+    var args = { p_invoice: id, p_type: type, p_value: raw, p_reason: why || null, p_allow_overpay: false };
+    var res  = await _sb.rpc('sigma_set_invoice_discount', args);
+    if(res.error){
+      // The server refuses a discount that would take the invoice below what has
+      // already been paid. Offer the overpayment rather than only reporting failure.
+      if(/already been paid|overpay|balance/i.test(res.error.message || '')){
+        if(!confirm(res.error.message + '\n\nApply it anyway and leave the invoice overpaid?')) return;
+        args.p_allow_overpay = true;
+        var res2 = await _sb.rpc('sigma_set_invoice_discount', args);
+        if(res2.error){ alert('Could not apply the discount:\n\n' + res2.error.message); return; }
+      } else {
+        alert('Could not apply the discount:\n\n' + res.error.message);
+        return;
+      }
+    }
+    var host = document.getElementById('finDiscForm-' + id); if(host) host.innerHTML = '';
+    await finFetch(false);
+    try { if(typeof editingOrder !== 'undefined' && editingOrder && typeof finBillingRender === 'function') finBillingRender(); } catch(e){}
+  } catch(e){
+    alert('Could not apply the discount:\n\n' + (e && e.message ? e.message : e));
   }
 }
 
@@ -23267,13 +23362,137 @@ var FIN_TAB = 'invoices';
 
 function finSetTab(t){
   FIN_TAB = t;
-  ['invoices','statements','reports','settings'].forEach(function(x){
+  ['invoices','statements','reports','bbo','settings'].forEach(function(x){
     var panel = document.getElementById('finTab-'+x); if(panel) panel.style.display = (x===t)?'':'none';
     var btn = document.getElementById('finTabBtn-'+x); if(btn) btn.classList.toggle('active', x===t);
   });
   if(t==='reports')    finReportsRender();
   if(t==='statements') finStatementsInit();
+  if(t==='bbo')        finBboRender();       // §BBO-TAB (v2.328)
   if(t==='settings')   finSettingsRender();
+}
+
+// ── §BBO-TAB (v2.328) — monthly BBO liability ────────────────────────────────
+//   Queried from the SERVER for the chosen period, never summed out of FIN.rows:
+//   that cache is capped at 500 invoices (finFetch), so a report built from it
+//   would silently under-report old months once the bureau passes the cap. Failing
+//   quietly on a tax return is the worst way to fail.
+var _FIN_BBO = { from:'', to:'', data:null, loading:false };
+
+function _finBboDefaultRange(){
+  var d = new Date(), y = d.getFullYear();
+  return { from: y + '-01-01', to: y + '-12-31' };
+}
+
+async function finBboRender(){
+  var host = document.getElementById('finBbo'); if(!host) return;
+  if(!_FIN_BBO.from){ var r = _finBboDefaultRange(); _FIN_BBO.from = r.from; _FIN_BBO.to = r.to; }
+
+  var head =
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'
+    +   '<div style="font-size:15px;font-weight:600;">Turnover tax due</div>'
+    +   '<div style="flex:1;"></div>'
+    +   '<label style="font-size:11.5px;color:var(--muted);">From</label>'
+    +   '<input type="date" id="bboFrom" value="' + _erEsc(_FIN_BBO.from) + '" style="padding:6px 8px;font-size:12px;">'
+    +   '<label style="font-size:11.5px;color:var(--muted);">To</label>'
+    +   '<input type="date" id="bboTo" value="' + _erEsc(_FIN_BBO.to) + '" style="padding:6px 8px;font-size:12px;">'
+    +   '<button class="btn-sec" onclick="finBboRun()">Show</button>'
+    + '</div>';
+
+  if(_FIN_BBO.loading){ host.innerHTML = head + '<div style="font-size:12px;color:var(--muted);">Working it out…</div>'; return; }
+  if(!_FIN_BBO.data){ host.innerHTML = head + '<div style="font-size:12px;color:var(--muted);">Choose a period and press Show.</div>'; finBboRun(); return; }
+
+  var d = _FIN_BBO.data || {};
+  var months = d.months || [], totals = d.totals || [], exc = d.exceptions || [], dp = d.draft_pending || {};
+  var h = head;
+
+  if(!months.length){
+    h += '<div style="font-size:12px;color:var(--muted);">No issued invoices in this period.</div>';
+  } else {
+    h += '<table class="fin-rpt-tbl" style="width:100%;border-collapse:collapse;font-size:12.5px;">'
+      +  '<tr style="text-align:left;border-bottom:2px solid var(--line);">'
+      +    '<th style="padding:8px 10px;">Month</th><th style="padding:8px 10px;text-align:right;">Invoices</th>'
+      +    '<th style="padding:8px 10px;text-align:right;">Invoiced</th><th style="padding:8px 10px;text-align:right;">Discount</th>'
+      +    '<th style="padding:8px 10px;text-align:right;">Net of tax</th><th style="padding:8px 10px;text-align:right;">Tax due</th>'
+      +    '<th style="padding:8px 10px;text-align:right;">Collected</th><th style="padding:8px 10px;text-align:right;">Tax on collected</th>'
+      +  '</tr>';
+    months.forEach(function(m){
+      h += '<tr style="border-bottom:1px solid var(--line);">'
+        +  '<td style="padding:8px 10px;font-weight:600;">' + _erEsc(m.month) + '</td>'
+        +  '<td style="padding:8px 10px;text-align:right;">' + Number(m.count || 0) + '</td>'
+        +  '<td style="padding:8px 10px;text-align:right;">' + _finMoney(m.gross, m.currency) + '</td>'
+        +  '<td style="padding:8px 10px;text-align:right;color:' + (Number(m.discount) > 0 ? '#166534' : 'var(--muted)') + ';">' + (Number(m.discount) > 0 ? '\u2212' + _finMoney(m.discount, m.currency) : '\u2014') + '</td>'
+        +  '<td style="padding:8px 10px;text-align:right;">' + _finMoney(m.net, m.currency) + '</td>'
+        +  '<td style="padding:8px 10px;text-align:right;font-weight:800;">' + _finMoney(m.tax, m.currency) + '</td>'
+        +  '<td style="padding:8px 10px;text-align:right;color:var(--muted);">' + _finMoney(m.collected, m.currency) + '</td>'
+        +  '<td style="padding:8px 10px;text-align:right;color:var(--muted);">' + _finMoney(m.tax_on_collected, m.currency) + '</td>'
+        +  '</tr>';
+    });
+    totals.forEach(function(t){
+      h += '<tr style="border-top:2px solid var(--line);font-weight:800;">'
+        +  '<td style="padding:9px 10px;">Total ' + _erEsc(t.currency || '') + '</td>'
+        +  '<td style="padding:9px 10px;text-align:right;">' + Number(t.count || 0) + '</td>'
+        +  '<td style="padding:9px 10px;text-align:right;">' + _finMoney(t.gross, t.currency) + '</td>'
+        +  '<td style="padding:9px 10px;text-align:right;">' + (Number(t.discount) > 0 ? '\u2212' + _finMoney(t.discount, t.currency) : '\u2014') + '</td>'
+        +  '<td style="padding:9px 10px;text-align:right;">' + _finMoney(t.net, t.currency) + '</td>'
+        +  '<td style="padding:9px 10px;text-align:right;">' + _finMoney(t.tax, t.currency) + '</td>'
+        +  '<td colspan="2"></td></tr>';
+    });
+    h += '</table>';
+    h += '<div style="margin-top:10px;display:flex;gap:9px;flex-wrap:wrap;">'
+      +    '<button class="btn-sec" onclick="finBboCsv()">⬇ CSV</button>'
+      +  '</div>';
+  }
+
+  // Accrual, stated plainly. "Tax due" is what was INVOICED in the month; the
+  // collected columns are there so a cash-basis cross-check does not need a
+  // second screen. Do not let the reader guess which one they are looking at.
+  h += '<div style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.6;">'
+    +    '<b>Tax due</b> is the tax included in what you <b>invoiced</b> in the month (accrual), excluding drafts, voided and credited invoices. '
+    +    'Tax is included in the price, so it is worked out as total × rate ÷ (100 + rate) — on a ' + _finMoney(1000, 'AWG') + ' invoice at 7% that is ' + _finMoney(65.42, 'AWG') + ', not ' + _finMoney(70, 'AWG') + '. '
+    +    '<b>Tax on collected</b> is the same figure apportioned to what has actually been paid, for a cash-basis check.'
+    + '</div>';
+
+  if(Number(dp.count) > 0){
+    h += '<div style="margin-top:10px;padding:10px 12px;border-left:3px solid #c49740;background:rgba(196,151,64,.07);font-size:11.5px;">'
+      +    '<b>' + Number(dp.count) + ' draft invoice' + (Number(dp.count) === 1 ? '' : 's') + '</b> worth ' + _finMoney(dp.gross, 'AWG') + ' fall in this period and are <b>not</b> counted above. '
+      +    'They become taxable the moment they are finalised — and they keep their original invoice date, so finalising an old draft changes a month you may already have filed.'
+      + '</div>';
+  }
+
+  if(exc.length){
+    h += '<div style="margin-top:10px;padding:10px 12px;border-left:3px solid #f87171;background:rgba(248,113,113,.07);font-size:11.5px;">'
+      +    '<b>' + exc.length + ' invoice' + (exc.length === 1 ? '' : 's') + ' need' + (exc.length === 1 ? 's' : '') + ' a look</b> — not folded into the totals above:<ul style="margin:6px 0 0 16px;">';
+    exc.forEach(function(x){
+      h += '<li>' + _erEsc(x.invoice_number) + ' (' + _erEsc(x.invoice_date) + ') — ' + _erEsc(x.why) + '</li>';
+    });
+    h += '</ul></div>';
+  }
+
+  host.innerHTML = h;
+}
+
+async function finBboRun(){
+  var f = (document.getElementById('bboFrom') || {}).value || _FIN_BBO.from;
+  var t = (document.getElementById('bboTo')   || {}).value || _FIN_BBO.to;
+  _FIN_BBO.from = f; _FIN_BBO.to = t; _FIN_BBO.loading = true;
+  try { finBboRender(); } catch(e){}
+  try {
+    var res = await _sb.rpc('sigma_bbo_report', { p_from: f || null, p_to: t || null });
+    _FIN_BBO.data = res.error ? { months:[], totals:[], exceptions:[], draft_pending:{} } : (res.data || {});
+    if(res.error) console.warn('[BBO] ' + res.error.message);
+  } catch(e){ _FIN_BBO.data = { months:[], totals:[], exceptions:[], draft_pending:{} }; }
+  _FIN_BBO.loading = false;
+  try { finBboRender(); } catch(e){}
+}
+
+function finBboCsv(){
+  var d = _FIN_BBO.data || {}, months = d.months || [];
+  var rows = months.map(function(m){
+    return [m.month, m.currency, m.count, m.gross, m.discount, m.net, m.tax, m.collected, m.tax_on_collected];
+  });
+  var csv = _finCsv(['Month','Currency','Invoices','Invoiced','Discount','Net of tax','Tax due','Collected','Tax on collected'], rows);
+  _finDownload('bbo-' + (_FIN_BBO.from || '') + '-to-' + (_FIN_BBO.to || '') + '.csv', csv);
 }
 
 // CSV — RFC-4180 quoting, downloaded as a file.
@@ -23490,6 +23709,11 @@ function _finStatementHtml(client, from, to, invs, co){
     +   '<tr><td style="padding:3px 10px;color:#6a5a48;">90+ days</td><td style="padding:3px 10px;text-align:right;">'+money(buckets.d90_plus)+'</td></tr>'
     +   '<tr style="border-top:2px solid #c49740;"><td style="padding:7px 10px;font-weight:800;font-size:14px;">Total outstanding</td><td style="padding:7px 10px;text-align:right;font-weight:800;font-size:14px;">'+money(totalOut)+'</td></tr>'
     + '</table></div>'
+    // §BBO-STATEMENT (v2.328) — one line, so the statement cannot contradict the
+    //   invoices it summarises. Deliberately NOT itemised per invoice: a statement is
+    //   an aging summary and itemising tax here would invite it being filed as a
+    //   tax document, which it is not.
+    + '<div style="margin-top:10px;text-align:right;font-size:10px;color:#8a7a6a;font-style:italic;">All amounts are tax-inclusive.</div>'
     + '<div style="margin-top:34px;text-align:center;font-size:10px;color:#a89a86;">'+esc(co.name)+' · statement generated '+esc(_finDate(new Date().toISOString()))+'</div>'
     + '</div></body></html>';
 }
@@ -23632,6 +23856,87 @@ function _finCompanyPush(profile){
 }
 
 /* ── Branding / company settings tab ──────────────────────────────────────── */
+// ── §BBO-RATES-UI (v2.328) — the turnover-tax rate schedule ──────────────────
+//   The schedule is APPEND-ONLY on purpose. Changing a rate adds a row with a later
+//   start date; the old row stays as the record of what was actually charged then.
+//   Editing history in place would silently restate invoices that have already been
+//   issued and filed — which is the one thing the whole design exists to prevent.
+//   (Invoices carry their own stamped rate anyway, so an added row never disturbs
+//   an invoice that already exists. It applies from its start date onward.)
+async function finTaxRatesRender(){
+  var host = document.getElementById('coTaxRates'); if(!host) return;
+  var rows = [];
+  try {
+    var r = await _sb.schema('public').from('tax_rates')
+              .select('id,jurisdiction,tax_code,label,rate,valid_from,valid_to,note')
+              .order('jurisdiction', { ascending:true })
+              .order('valid_from', { ascending:false });
+    if(!r.error && r.data) rows = r.data;
+  } catch(e){}
+
+  var esc = _erEsc, today = new Date().toISOString().slice(0,10);
+  var h = '<div style="padding-top:16px;border-top:1px solid rgba(255,255,255,.08);">'
+        + '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">Turnover tax (BBO)</div>'
+        + '<div style="font-size:11px;color:#a8a29e;margin-bottom:10px;">The rate is included in your prices. Each invoice keeps the rate that applied on its own invoice date, so changing the rate here never alters an invoice you have already issued. To change a rate, add a new one with the date it starts.</div>';
+
+  if(rows.length){
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">'
+      +  '<tr style="text-align:left;color:#a8a29e;"><th style="padding:5px 8px;">Island</th><th style="padding:5px 8px;">Tax</th>'
+      +  '<th style="padding:5px 8px;text-align:right;">Rate</th><th style="padding:5px 8px;">From</th><th style="padding:5px 8px;">Until</th><th style="padding:5px 8px;"></th></tr>';
+    rows.forEach(function(t){
+      var live = String(t.valid_from) <= today && (!t.valid_to || String(t.valid_to) >= today);
+      h += '<tr style="border-top:1px solid rgba(255,255,255,.06);">'
+        +  '<td style="padding:6px 8px;">' + esc(t.jurisdiction) + '</td>'
+        +  '<td style="padding:6px 8px;">' + esc(t.label || t.tax_code) + '</td>'
+        +  '<td style="padding:6px 8px;text-align:right;font-weight:700;">' + String(Number(Number(t.rate).toFixed(3))) + '%</td>'
+        +  '<td style="padding:6px 8px;">' + esc(t.valid_from) + '</td>'
+        +  '<td style="padding:6px 8px;">' + esc(t.valid_to || '—') + '</td>'
+        +  '<td style="padding:6px 8px;">' + (live ? '<span style="color:#2dd4bf;font-size:11px;">in force</span>' : '<span style="color:#a8a29e;font-size:11px;">past</span>') + '</td>'
+        +  '</tr>';
+    });
+    h += '</table>';
+  } else {
+    h += '<div style="font-size:12px;color:#f87171;margin-bottom:10px;">No rate is set. Invoices will show no tax until one is added.</div>';
+  }
+
+  h += '<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">'
+    +   '<div><div style="font-size:10.5px;color:#a8a29e;">Island</div><input class="finput" id="trJur" value="AW" style="width:70px;"></div>'
+    +   '<div><div style="font-size:10.5px;color:#a8a29e;">Tax code</div><input class="finput" id="trCode" value="BBO" style="width:80px;"></div>'
+    +   '<div><div style="font-size:10.5px;color:#a8a29e;">Prints as</div><input class="finput" id="trLabel" value="BBO" style="width:90px;"></div>'
+    +   '<div><div style="font-size:10.5px;color:#a8a29e;">Rate %</div><input class="finput" type="number" step="0.001" min="0" id="trRate" placeholder="7" style="width:80px;text-align:right;"></div>'
+    +   '<div><div style="font-size:10.5px;color:#a8a29e;">Starts</div><input class="finput" type="date" id="trFrom" value="' + esc(today) + '" style="width:150px;"></div>'
+    +   '<button class="btn-sec" onclick="finTaxRateAdd()">Add rate</button>'
+    +   '<div id="trMsg" style="font-size:11.5px;"></div>'
+    + '</div>'
+    + '</div>';
+  host.innerHTML = h;
+}
+
+async function finTaxRateAdd(){
+  var g = function(id){ return (document.getElementById(id) || {}).value; };
+  var msg = document.getElementById('trMsg');
+  var say = function(t, ok){ if(msg){ msg.textContent = t; msg.style.color = ok ? '#2dd4bf' : '#f87171'; } };
+  var jur = String(g('trJur') || '').trim().toUpperCase();
+  var code = String(g('trCode') || '').trim().toUpperCase();
+  var label = String(g('trLabel') || '').trim() || code;
+  var rate = Number(g('trRate'));
+  var from = String(g('trFrom') || '').trim();
+
+  if(!jur || !code){ say('Island and tax code are both needed.'); return; }
+  if(!isFinite(rate) || rate < 0 || rate >= 100){ say('Enter a rate between 0 and 100.'); return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(from)){ say('Enter the date the new rate starts.'); return; }
+  if(!confirm('Add ' + label + ' ' + rate + '% for ' + jur + ', starting ' + from + '?\n\nInvoices already issued keep the rate they were stamped with. This applies to invoices dated on or after that day.')) return;
+
+  try {
+    var r = await _sb.schema('public').from('tax_rates')
+              .insert([{ jurisdiction: jur, tax_code: code, label: label, rate: rate, valid_from: from }]);
+    if(r.error){ say('Could not add it: ' + r.error.message); return; }
+    say('Added.', true);
+    await _finTaxLoad();
+    finTaxRatesRender();
+  } catch(e){ say('Could not add it: ' + (e && e.message ? e.message : e)); }
+}
+
 function finSettingsRender(){
   var host = document.getElementById('finSettings');
   if(!host) return;
@@ -23743,6 +24048,9 @@ function finSettingsRender(){
     +   '<div style="font-size:11px;color:#a8a29e;margin-top:6px;">Line breaks are kept exactly as you type them. Leave blank to print no terms. Press <b style="color:#e7e5e4;">Save branding</b>, then <b style="color:#e7e5e4;">Preview a sample invoice</b> to see it on paper.</div>'
     + '</div>'
     + '</div>'
+    // §BBO-RATES-UI (v2.328) — the tax-rate schedule. Rendered asynchronously
+    //   because it comes from its own table, not the company profile blob.
+    + '<div id="coTaxRates" style="margin-top:20px;"></div>'
     // actions
     + '<div style="display:flex;align-items:center;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08);">'
     +   '<button onclick="finSaveBranding()" style="padding:9px 20px;background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;border:none;border-radius:8px;font-family:Sora,sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;">Save branding</button>'
@@ -23752,6 +24060,7 @@ function finSettingsRender(){
   // hold a working copy of the logo (may be replaced by upload/clear before save)
   FIN._logoDraft = co.logoUrl || '';
   try { finCcValidate(); } catch(e){}   // §INVOICE-CC (v2.309) — synchronous, never awaits (v2.295)
+  try { finTaxRatesRender(); } catch(e){}   // §BBO-RATES-UI (v2.328) — own table, own fetch
 }
 
 // §INVOICE-CC (v2.309) — CC list ⇄ textarea. Splits on newlines (commas and semicolons
@@ -23874,7 +24183,11 @@ async function finPreviewSampleInvoice(){
     bill_to_name:'Sample Client', bill_to_address:'Caya Betico Croes 1', bill_to_city:'Oranjestad', bill_to_country:'Aruba',
     property_address:'Sample property, Oranjestad', appraiser:'J. Laclé',
     invoice_date:new Date().toISOString().slice(0,10), due_date:new Date(Date.now()+30*864e5).toISOString().slice(0,10),
-    currency:'AWG', subtotal:600, total:600, amount_paid:0, balance:600, payment_terms:(co.paymentTerms||'Due at Receipt'), public_notes:'Thank you for your business.' };
+    currency:'AWG', subtotal:600, total:600, amount_paid:0, balance:600, payment_terms:(co.paymentTerms||'Due at Receipt'), public_notes:'Thank you for your business.',
+    // §BBO-INVOICE (v2.328) — the sample carries the CURRENT rate, since it is not a
+    //   real invoice row and has no stamped rate of its own.
+    tax_amount:_finTaxIncluded(600), tax_rate:_FIN_TAX.rate, tax_label:_FIN_TAX.label,
+    discount_type:'none', discount_value:0, discount_amount:0 };
   var lines = [{ description:'Appraisal report', quantity:1, unit_price:450, discount:0, line_total:450 },
                { description:'Site inspection', quantity:1, unit_price:150, discount:0, line_total:150 }];
   var w = window.open('', '_blank');
@@ -24287,6 +24600,21 @@ function _finInvoiceHtml(inv, lines, co){
 
   var paid = Number(inv.amount_paid || 0);
   var bal  = Number(inv.balance != null ? inv.balance : (Number(inv.total) - paid));
+
+  // §BBO-INVOICE (v2.328) — every figure here comes off the invoice ROW, which the
+  //   database stamped when the lines were costed. Never a live lookup: a rate change
+  //   must not restate an invoice that has already gone to a client.
+  var _bboDisc  = Number(inv.discount_amount || 0);
+  var _bboTax   = Number(inv.tax_amount || 0);
+  var _bboRate  = Number(inv.tax_rate || 0);
+  var _bboLabel = String(inv.tax_label || 'BBO');
+  //   Print "7%" not "7.000%" — trailing zeros on a tax rate read as false precision.
+  var _bboRateTxt = _bboRate > 0 ? (String(Number(_bboRate.toFixed(3))) + '%') : '';
+  //   Show the percentage the appraiser actually typed, so a 10% discount still reads
+  //   as 10% on the sheet rather than as a bare amount.
+  var _bboDiscNote = (inv.discount_type === 'percent' && Number(inv.discount_value) > 0)
+    ? (String(Number(Number(inv.discount_value).toFixed(2))) + '%')
+    : '';
   var billTo = [inv.bill_to_name, inv.bill_to_address, [inv.bill_to_city, inv.bill_to_country].filter(Boolean).join(', ')]
                  .filter(Boolean).map(esc).join('<br>');
 
@@ -24342,8 +24670,19 @@ function _finInvoiceHtml(inv, lines, co){
     + '<div class="fin-keep" style="display:flex;justify-content:flex-end;margin-top:14px;">'
     +   '<table style="min-width:270px;font-size:12.5px;">'
     +     '<tr><td style="padding:4px 12px;color:#6a5a48;">Subtotal</td><td style="padding:4px 12px;text-align:right;">' + money(inv.subtotal) + '</td></tr>'
-    +     '<tr><td style="padding:4px 12px;color:#6a5a48;">Tax (included)</td><td style="padding:4px 12px;text-align:right;">' + money(0) + '</td></tr>'
+    // §BBO-INVOICE (v2.328) — the discount and the real tax breakout.
+    //   Reads what the DATABASE stored on this invoice, never a live rate: an
+    //   invoice issued under a 6% era must keep printing 6% after the rate moves.
+    //   Subtotal - Discount = Total is additive and adds up on the page. The tax
+    //   line is deliberately NOT additive: BBO is already inside the total, so it
+    //   is phrased "of which", not listed as something added on top.
+    +     (_bboDisc > 0
+            ? '<tr><td style="padding:4px 12px;color:#6a5a48;">Discount' + (_bboDiscNote ? ' (' + esc(_bboDiscNote) + ')' : '') + '</td><td style="padding:4px 12px;text-align:right;color:#166534;">−' + money(_bboDisc) + '</td></tr>'
+            : '')
     +     '<tr style="border-top:2px solid #c49740;"><td style="padding:7px 12px;font-weight:700;font-size:13px;color:#6a5a48;">Total</td><td style="padding:7px 12px;text-align:right;font-weight:800;font-size:14px;">' + money(inv.total) + '</td></tr>'
+    +     (_bboTax > 0
+            ? '<tr><td style="padding:2px 12px 4px;color:#8a7a6a;font-size:11px;font-style:italic;">of which ' + esc(_bboLabel) + ' ' + _bboRateTxt + ' (included)</td><td style="padding:2px 12px 4px;text-align:right;color:#8a7a6a;font-size:11px;font-style:italic;">' + money(_bboTax) + '</td></tr>'
+            : '')
     +     (paid > 0 ? '<tr><td style="padding:4px 12px;color:#6a5a48;">Paid</td><td style="padding:4px 12px;text-align:right;color:#166534;">−' + money(paid) + '</td></tr>' : '')
     +   '</table>'
     + '</div>'
@@ -24360,7 +24699,8 @@ function _finInvoiceHtml(inv, lines, co){
     +   '</div>'
     + '</div>'
 
-    + '<div style="margin-top:8px;text-align:right;font-size:10px;color:#8a7a6a;font-style:italic;">Amounts are in ' + esc(inv.currency || 'AWG') + ' and are tax-inclusive.</div>'
+    + '<div style="margin-top:8px;text-align:right;font-size:10px;color:#8a7a6a;font-style:italic;">Amounts are in ' + esc(inv.currency || 'AWG') + ' and are tax-inclusive.'
+        + (_bboTax > 0 ? ' ' + esc(_bboLabel) + ' ' + _bboRateTxt + ' (' + money(_bboTax) + ') is included in the total shown.' : '') + '</div>'
 
     // notes + payment instructions
     + (inv.public_notes ? '<div style="margin-top:22px;font-size:11.5px;"><b>Notes:</b> ' + esc(inv.public_notes) + '</div>' : '')
@@ -24554,10 +24894,68 @@ async function finPreviewProposed(){
     property_address: (order.address || '') + (order.city ? (', ' + order.city) : ''),
     appraiser: order.appraiser || '',
     invoice_date: new Date().toISOString().slice(0,10), due_date: due,
-    currency: 'AWG', subtotal: total, tax_amount: 0, total: total, amount_paid: 0, balance: total,
+    currency: 'AWG', subtotal: total, tax_amount: _finTaxIncluded(total), total: total, amount_paid: 0, balance: total,
+    tax_rate: _FIN_TAX.rate, tax_label: _FIN_TAX.label,
+    discount_type: 'none', discount_value: 0, discount_amount: 0,
     payment_terms: (_finCompany().paymentTerms || 'Due at Receipt'), public_notes: ''   // §PAYMENT-TERMS (v2.283)
   };
   await _finOpenPreview(inv, lines);   // §INVOICE-LOGO-SRC (v2.291)
+}
+
+// §BBO-RATE (v2.328) — the CURRENT rate, for figures that are not yet an invoice
+//   row (a proposed invoice, a sample preview). Anything that already IS an invoice
+//   must read its own stamped tax_amount instead — see §BBO-INVOICE.
+//   Cached because it is read while drawing; refreshed by _finTaxLoad().
+var _FIN_TAX = { rate: 7, label: 'BBO', jurisdiction: 'AW', code: 'BBO', loaded: false };
+
+async function _finTaxLoad(){
+  try {
+    if (!_sb) return _FIN_TAX;
+    var r = await _sb.schema('public').from('tax_rates')
+              .select('rate,label,jurisdiction,tax_code,valid_from,valid_to')
+              .order('valid_from', { ascending:false });
+    if (r.error || !r.data || !r.data.length) return _FIN_TAX;
+    var today = new Date().toISOString().slice(0,10);
+    // The row in force TODAY, by the same rule the database uses.
+    var live = r.data.filter(function(t){
+      return String(t.valid_from) <= today && (!t.valid_to || String(t.valid_to) >= today);
+    })[0];
+    if (live) {
+      _FIN_TAX.rate = Number(live.rate) || 0;
+      _FIN_TAX.label = live.label || 'BBO';
+      _FIN_TAX.jurisdiction = live.jurisdiction || 'AW';
+      _FIN_TAX.code = live.tax_code || 'BBO';
+    }
+    _FIN_TAX.loaded = true;
+  } catch(e) {}
+  return _FIN_TAX;
+}
+
+// Tax INCLUDED in a gross figure: T * rate/(100+rate). Never T * rate/100 -- that is
+// the mistake that overstates the liability by the rate itself on every invoice.
+function _finTaxIncluded(gross, rate){
+  var g = Number(gross) || 0, r = (rate == null ? _FIN_TAX.rate : Number(rate)) || 0;
+  if (g <= 0 || r <= 0) return 0;
+  return Math.round((g * r / (100 + r)) * 100) / 100;
+}
+function _finRateTxt(rate){
+  var r = (rate == null ? _FIN_TAX.rate : Number(rate)) || 0;
+  return r > 0 ? (String(Number(r.toFixed(3))) + '%') : '';
+}
+
+// The one sentence that keeps a message honest. An email or a WhatsApp that quotes a
+// total with no mention of tax, while the attached PDF itemises it, is two documents
+// disagreeing about the same invoice. Reads the invoice's OWN stamped figures.
+function _finTaxNote(inv, plain){
+  try {
+    var t = Number(inv && inv.tax_amount || 0);
+    if (t <= 0) return '';
+    var lbl = String((inv && inv.tax_label) || 'BBO');
+    var rt  = _finRateTxt(inv && inv.tax_rate);
+    var amt = _finMoney(t, inv && inv.currency);
+    var txt = ' (incl. ' + lbl + (rt ? ' ' + rt : '') + ' ' + amt + ')';
+    return plain ? txt : _erEsc(txt);
+  } catch(e) { return ''; }
 }
 
 // Default email copy per kind.
@@ -24569,7 +24967,7 @@ function _finEmailTemplate(kind, inv, co){
     return {
       subject: (kind === 'overdue' ? 'Overdue invoice ' : 'Payment reminder — invoice ') + inv.invoice_number,
       html: '<p>' + greeting + '</p><p>This is a friendly reminder that invoice <b>' + _erEsc(inv.invoice_number)
-          + '</b> for ' + _finMoney(inv.total, inv.currency) + ' has an outstanding balance of <b>'
+          + '</b> for ' + _finMoney(inv.total, inv.currency) + _finTaxNote(inv) + ' has an outstanding balance of <b>'
           + _finMoney(inv.balance, inv.currency) + '</b>' + (inv.due_date ? ' (due ' + _erEsc(_finDate(inv.due_date)) + ')' : '')
           + '. The invoice is attached for your reference.</p>' + sign
     };
@@ -24577,7 +24975,7 @@ function _finEmailTemplate(kind, inv, co){
   return {
     subject: 'Invoice ' + inv.invoice_number + ' from ' + co.name,
     html: '<p>' + greeting + '</p><p>Please find attached invoice <b>' + _erEsc(inv.invoice_number)
-        + '</b> for ' + _finMoney(inv.total, inv.currency) + ', relating to appraisal order ' + _erEsc(inv.order_number)
+        + '</b> for ' + _finMoney(inv.total, inv.currency) + _finTaxNote(inv) + ', relating to appraisal order ' + _erEsc(inv.order_number)
         + (inv.property_address ? ' (' + _erEsc(inv.property_address) + ')' : '') + '.'
         + (inv.due_date ? ' Payment is due by ' + _erEsc(_finDate(inv.due_date)) + '.' : '')
         + '</p><p>Thank you for your business.</p>' + sign
@@ -25001,7 +25399,7 @@ function _finWhatsAppText(inv, co, url){
   L.push('Dear ' + (inv.client_name || 'client') + ',');
   L.push('');
   L.push('Invoice ' + inv.invoice_number + ' from ' + co.name + '.');
-  L.push('Amount: ' + _finMoney(inv.total, inv.currency));
+  L.push('Amount: ' + _finMoney(inv.total, inv.currency) + _finTaxNote(inv, true));
   if(Number(inv.amount_paid || 0) > 0 && Number(inv.balance || 0) > 0){
     L.push('Outstanding: ' + _finMoney(inv.balance, inv.currency));
   }
