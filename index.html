@@ -7986,7 +7986,7 @@ body.glass .app-card:hover, body.glass #view-dashboard .app-card:hover{
       and `.qv-overlay.open{animation …!important}` @3482. */
 body.glass .qv-overlay,
 body.glass .qv-overlay.open{
-  background: rgba(6,5,4,.80) !important;
+  background: rgba(6,5,4,.75) !important;   /* §QV-CLEARER (v2.335) — was .80 */
   -webkit-backdrop-filter: none !important;
           backdrop-filter: none !important;
   animation: none !important;
@@ -8003,7 +8003,12 @@ body.glass .qv-overlay.open .qv-card{
 body.glass #qvCard,
 body.glass .qv-card{
   background: var(--g-fallback) !important;
-  background: var(--g-fill) !important;
+  /* §QV-CLEARER (v2.335) — explicit, NOT var(--g-fill): that token is shared with
+     every other glass panel, and thinning it there would lighten the whole app.
+     .055 -> .041. Together with the scrim at .75 this passes 24.0% of the page
+     instead of 18.9% — 27% more — and drops the worst text role from 5.53:1 to
+     a computed 5.04:1, still clear of the 4.5:1 floor. */
+  background: rgba(255,255,255,.041) !important;
   -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
           backdrop-filter: blur(24px) saturate(140%) !important;
   border: var(--g-border) !important;
@@ -15880,7 +15885,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.334';
+var APP_VERSION = 'v2.335';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15918,6 +15923,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.335',type:'tweak',date:'08-19-2026',ts:'08-19-2026 02:00',_static:true,title:'Quickview lets more of the page through',desc:'Quickview now shows about a quarter more of the page behind it. Most of that comes from lightening the dimming layer between the card and the page rather than the card itself, because the card was already only five percent solid - thinning it further on its own would have changed almost nothing. Text inside the card was re-checked against the brightest thing the dashboard can put behind it and still sits comfortably above the readability standard, though with less headroom than before. If you want it clearer still, say so - there is a little room left, but not a lot before small text starts to suffer.'},
   {v:'v2.334',type:'fix',date:'08-19-2026',ts:'08-19-2026 01:30',_static:true,title:'Quickview is now actually see-through',desc:'Quickview still looked like a solid dark panel. Two reasons, both now fixed. The fade-in animation on the window behind the card made the browser flatten everything underneath it, so only about five percent of the page ever reached the card face - no setting on the card itself could have changed that. And the card was lined with solid tiles on the inside, which covered nearly all of it regardless. The card now genuinely refracts the page behind it and picks up the colour of whatever it is over. Six pieces of small text inside the card were brightened so they stay easily readable against the lighter backdrop, two of which were already too faint before this and are now fixed as well. Every piece of text in the card was measured against the brightest thing the dashboard can put behind it and all of it is comfortably above the readability standard. One visible difference: the page behind Quickview is no longer blurred, because blurring it is exactly what stopped the card being see-through in the first place.'},
   {v:'v2.333',type:'fix',date:'08-19-2026',ts:'08-19-2026 01:00',_static:true,title:'The glass look now actually looks like glass',desc:'The version released yesterday applied the glass styling correctly but you could not see it: five separate things in the existing stylesheet were painting over it. The tinted background it needed was never drawn at all, three screens painted their own solid sheet on top of it, several panels forced a solid colour that overrode the translucency, the Quickview card was pinned solid by a rule that could not be overridden normally, and the panel that holds the orders list was never included. All five are fixed and the result was checked in a real browser this time, screen by screen, rather than assumed from the code. Quickview now genuinely shows the page through it. Five pieces of small text that would have become hard to read against the new background were brightened; six others were already too faint before any of this and are left for a separate fix. Glass currently applies to the dark themes only - on the light themes several cards force white text, which on a pale glass panel is unreadable. That is an older fault of the light theme rather than of the glass, and the light version is written and waiting for it to be put right.'},
   {v:'v2.332',type:'feature',date:'08-18-2026',ts:'08-18-2026 07:00',_static:true,title:'A new glass look',desc:'The sidebar, the orders table, the Quickview card, the figure tiles and the secondary buttons are now frosted translucent panels that sit above a softly tinted background and lift slightly as you point at them. There are two versions and the app picks the right one automatically: a light Paper Glass and a dark Bureau Glass. They are not the same recipe with the colours swapped - a pale panel needs far more fill and more colour saturation than a dark one or it simply disappears, so each was tuned on its own. Text contrast was measured rather than judged by eye, including the worst case of a hovered panel over the brightest part of the background, and every piece of text clears the accessibility standard. If you prefer the old flat look, there is a Glass Look switch in Settings under Appearance - turning it off restores the previous appearance exactly, with nothing left behind.'},
