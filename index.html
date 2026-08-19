@@ -2995,24 +2995,73 @@ body.compact .main{padding:1rem;}body.compact td,body.compact .ni{padding-top:6p
   padding: 3px 9px; border-radius: 4px;
   letter-spacing: .04em;
 }
-/* §DRAFT (v2.327) — per-order DRAFT toggle, sits next to the status badge in the
-   QuickView hero. OFF = dim outline; ON = solid red. Purely additive — no existing
-   rule is modified, so nothing else in the QuickView changes. */
+/* §DRAFT (v2.327, restyled v2.328) — per-order DRAFT toggle, sits next to the status
+   badge in the QuickView hero. It is a TOGGLE, so BOTH states must read as a pressable
+   button: OFF = raised outlined button, hollow indicator dot, word "OFF";
+   ON  = warning red, pressed/inset, filled glowing dot, word "ON".
+   State is carried by shape + depth + indicator + word, never by colour alone.
+   The hero is always a photo under a dark overlay in every theme, so the OFF palette is
+   white-alpha — the same convention the id chip and the dark action-bar rules already
+   use — while the ON red is a fixed warning semantic (it mirrors the red DRAFT
+   watermark the report prints), not a theme accent, so it must not follow var(--red),
+   which is light salmon in some themes and would fail contrast against white text.
+   Purely additive — no existing rule is modified, so nothing else changes. */
 .qv-draft-btn {
+  display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--font-mono, monospace);
   font-size: 10px; font-weight: 800;
-  padding: 3px 9px; border-radius: 4px;
+  padding: 4px 10px; border-radius: 5px;
   letter-spacing: .1em; text-transform: uppercase;
   cursor: pointer; user-select: none; line-height: 1.35;
-  background: rgba(10,8,6,.55);
-  color: rgba(255,255,255,.55);
-  border: 1px solid rgba(255,255,255,.28);
-  transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
+  background: rgba(255,255,255,.13);
+  color: rgba(255,255,255,.88);
+  border: 1px solid rgba(255,255,255,.34);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.20), 0 1px 3px rgba(0,0,0,.45);
+  transition: background .13s ease, color .13s ease, border-color .13s ease,
+              box-shadow .13s ease, transform .13s ease;
 }
-.qv-draft-btn:hover { color: #fff; border-color: rgba(224,32,32,.75); }
+/* Indicator dot — drawn in CSS so it never depends on emoji/glyph font coverage */
+.qv-draft-btn::before {
+  content: ''; flex: none;
+  width: 7px; height: 7px; border-radius: 50%;
+  border: 1.5px solid currentColor; background: transparent;
+  transition: background .13s ease, box-shadow .13s ease;
+}
+/* State word, so ON/OFF is legible without relying on the red */
+.qv-draft-btn::after {
+  content: 'OFF'; flex: none;
+  min-width: 2.4em; text-align: left;
+  font-weight: 700; letter-spacing: .08em; opacity: .6;
+}
 .qv-draft-btn.on {
-  background: #e02020; color: #fff; border-color: #e02020;
-  box-shadow: 0 0 0 2px rgba(224,32,32,.22);
+  background: #c62828; color: #fff;
+  border-color: #ef5350;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.42), 0 0 0 2px rgba(198,40,40,.30);
+}
+.qv-draft-btn.on::before { background: currentColor; box-shadow: 0 0 6px rgba(255,255,255,.55); }
+.qv-draft-btn.on::after  { content: 'ON'; opacity: .95; }
+/* Hover — explicit per state so neither rule has to out-order the other */
+.qv-draft-btn:not(.on):hover {
+  background: rgba(255,255,255,.24);
+  color: #fff; border-color: rgba(255,255,255,.58);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 2px 6px rgba(0,0,0,.5);
+  transform: translateY(-1px);
+}
+.qv-draft-btn.on:hover {
+  background: #d43535;
+  border-color: #ff8a80;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.42), 0 0 0 3px rgba(198,40,40,.42);
+  transform: translateY(-1px);
+}
+/* Press */
+.qv-draft-btn:not(.on):active, .qv-draft-btn.on:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.5);
+}
+/* Keyboard focus */
+.qv-draft-btn:focus-visible {
+  outline: 2px solid var(--gold-lt, #e0a93c);
+  outline-offset: 2px;
 }
 .qv-hero-bottom {
   position: absolute; bottom: 14px; left: 16px; right: 50px; z-index: 5;
@@ -15309,7 +15358,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.328';
+var APP_VERSION = 'v2.329';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15347,6 +15396,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.329',type:'tweak',date:'08-18-2026',ts:'08-18-2026 04:00',_static:true,title:'The DRAFT switch now looks like a switch',desc:'The DRAFT control in Quickview looked like a label rather than something you could press, because it sat between two badges that are not clickable and shared their exact shape. It is now a raised button that lifts slightly when you point at it and presses in when you click. Off and on are told apart by four things rather than by colour alone - the button reads DRAFT OFF with a hollow dot, or DRAFT ON in warning red with a filled dot and a pushed-in look - so it is readable at a glance and for anyone who does not distinguish red easily. Nothing about what the switch does has changed.'},
   {v:'v2.328',type:'feature',date:'08-18-2026',ts:'08-18-2026 03:00',_static:true,title:'Discounts, BBO shown on the invoice, and a monthly BBO figure',desc:'Three things. First, you can give a discount on an invoice, either as an amount in florins or as a percentage, and the total works itself out. The button is on the invoice row in Finance. Discounting an invoice you have already issued is allowed but asks you first, and it is written to the audit trail. Second, the invoice now shows the BBO that is included in it, instead of the 0.00 it has always printed. Because BBO is inside the price and not added on top, it is worked out as the total times 7 divided by 107 - on a 1,000 florin invoice that is 65.42, not 70.00. The same figure now appears in the invoice email and the WhatsApp message, so the message and the attached PDF can no longer disagree. Third, a new BBO tab in Finance shows, month by month, how much turnover tax you owe, with a CSV to hand to the accountant. It counts what you invoiced in the month and leaves out drafts, voided and credited invoices - and it tells you separately how much is sitting in drafts, because those become taxable the day you finalise them. The rate lives in Finance under Branding and is dated: to change it you add the new rate with the day it starts, and every invoice already issued keeps the rate it was charged at. You can add a different rate for another island the same way.'},
   {v:'v2.327',type:'feature',date:'08-18-2026',ts:'08-18-2026 01:00',_static:true,title:'Mark a report as DRAFT',desc:'Quickview has a new DRAFT button, next to the order status. Switch it on and the report prints with DRAFT across every page in red at an angle, and both your signature and your stamp are left off - so a report sent out for comment cannot be mistaken for a finished one, or be signed and stamped before you meant it to be. Switch it off and the signature and stamp come back and the DRAFT wording disappears. The setting belongs to the order, not to the computer you are sitting at, so a colleague opening the same order sees the same thing. An order that has never used DRAFT is completely unaffected. Note that an already published PDF does not change on its own - print the report again after switching.'},
   {v:'v2.326',type:'fix',date:'08-17-2026',ts:'08-17-2026 23:30',_static:true,title:'Your valuation figures can no longer be wiped by closing the window',desc:'A saved valuation could be silently replaced with blanks. The safeguard that was meant to prevent this only covered the automatic background save — so simply CLOSING the Valuation window, or switching to another browser tab, went round it and wrote an empty table over figures that were already saved. No warning, and nothing to recover afterwards. Closing a window is no longer treated as a request to erase anything. Clearing a valuation on purpose is still possible, but only from the Save button, and it now asks you to confirm first. Save also refuses to write an amount it cannot read as a number: typing 275,000 or AWG 275,000 into an amount box leaves the text on screen while the box reports nothing at all, which is how a figure you could plainly see could be saved as empty. Those boxes are now outlined in red and nothing is saved until they are corrected — enter 275000. The status message no longer says Saved when a blank table was in fact refused.'},
