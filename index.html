@@ -2673,6 +2673,13 @@ body.compact .main{padding:1rem;}body.compact td,body.compact .ni{padding-top:6p
 .ai-sum-btn:disabled{opacity:.55;cursor:not-allowed;}
 .ai-sum-btn .ai-spin{display:inline-block;animation:aiSpin .8s linear infinite;}
 @keyframes aiSpin{to{transform:rotate(360deg);}}
+/* §AI-LEN (v2.331) — "More Text +" / "Less Text −" controls beside each AI Generate button. */
+.ai-len-grp{display:inline-flex;align-items:center;gap:4px;}
+.ai-len-btn{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;padding:3px 8px;border:1px solid var(--line);background:none;border-radius:4px;cursor:pointer;color:var(--muted);line-height:1.5;white-space:nowrap;}
+.ai-len-btn:hover:not(:disabled){background:#c8922a;border-color:#c8922a;color:#fff;}
+.ai-len-btn:disabled{opacity:.45;cursor:not-allowed;}
+.ai-len-btn .ai-spin{display:inline-block;animation:aiSpin .8s linear infinite;}
+.ai-len-tgt{font-size:11px;font-weight:600;color:var(--muted);min-width:40px;text-align:center;user-select:none;}
 .ai-sum-preview{display:none;margin-top:.75rem;}
 .ai-sum-preview label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--slate-lt);display:flex;align-items:center;gap:6px;margin-bottom:5px;}
 .ai-sum-preview label span{font-size:9.5px;font-weight:400;color:var(--slate-lt);text-transform:none;letter-spacing:0;}
@@ -10533,9 +10540,10 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
         <div class="fg" style="grid-column:1/-1;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">A</span>Opinions of the Building, Equipment &amp; Finishes</label>
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkBuilding" onchange="_secInputToggle('buildingOpinion',this)" style="cursor:pointer;margin:0;"> Show on report</label>
               <span id="opBuildingStatus" style="font-size:11px;color:var(--muted);"></span>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="opBuildingLessBtn" class="ai-len-btn" onclick="_aiTextResize('opBuilding',-10)">Less Text −</button><span class="ai-len-tgt" id="opBuildingLenTgt" title="Target length in words">—</span><button type="button" id="opBuildingMoreBtn" class="ai-len-btn" onclick="_aiTextResize('opBuilding',10)">More Text +</button></span>
               <button id="opBuildingBtn" onclick="genAiBuildingOpinion()" class="ai-sum-btn"><span>✨</span> Generate Summary</button>
             </div>
           </div>
@@ -10559,9 +10567,10 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
         <div class="fg" style="grid-column:1/-1;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">C</span>Opinion of the Location</label>
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkLocation" onchange="_secInputToggle('locationOpinion',this)" style="cursor:pointer;margin:0;"> Show on report</label>
               <span id="opLocationStatus" style="font-size:11px;color:var(--muted);"></span>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="opLocationLessBtn" class="ai-len-btn" onclick="_aiTextResize('opLocation',-10)">Less Text −</button><span class="ai-len-tgt" id="opLocationLenTgt" title="Target length in words">—</span><button type="button" id="opLocationMoreBtn" class="ai-len-btn" onclick="_aiTextResize('opLocation',10)">More Text +</button></span>
               <button id="opLocationBtn" onclick="genAiLocationOpinion()" class="ai-sum-btn"><span>✨</span> Generate Summary</button>
             </div>
           </div>
@@ -10576,6 +10585,7 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkRenov" onchange="_secInputToggle('renovNotes',this)" style="cursor:pointer;margin:0;"> Show on report</label>
               <span id="renovNotesStatus" style="font-size:11px;color:var(--muted);"></span>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="renovNotesLessBtn" class="ai-len-btn" onclick="_aiTextResize('renovNotes',-10)">Less Text −</button><span class="ai-len-tgt" id="renovNotesLenTgt" title="Target length in words">—</span><button type="button" id="renovNotesMoreBtn" class="ai-len-btn" onclick="_aiTextResize('renovNotes',10)">More Text +</button></span>
               <button id="renovNotesBtn" onclick="genAiRenovationNotes()" class="ai-sum-btn" title="AI generate Renovation Note / Remark"><span>✨</span> AI Generate</button>
             </div>
           </div>
@@ -10650,6 +10660,7 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkConcl" onchange="_secInputToggle('conclusion',this)" style="cursor:pointer;margin:0;"> Show on report</label>
               <span id="conclusionStatus" style="font-size:11px;color:var(--muted);"></span>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="conclusionLessBtn" class="ai-len-btn" onclick="_aiTextResize('conclusion',-10)">Less Text −</button><span class="ai-len-tgt" id="conclusionLenTgt" title="Target length in words">—</span><button type="button" id="conclusionMoreBtn" class="ai-len-btn" onclick="_aiTextResize('conclusion',10)">More Text +</button></span>
               <button id="conclusionBtn" onclick="genAiConclusion()" class="ai-sum-btn" title="AI generate the Conclusion / Opinion summary"><span>✨</span> AI Generate Summary</button>
             </div>
           </div>
@@ -15371,7 +15382,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.330';
+var APP_VERSION = 'v2.331';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15409,6 +15420,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.331',type:'feature',date:'08-18-2026',ts:'08-18-2026 06:00',_static:true,title:'Make an AI paragraph longer or shorter, ten words at a time',desc:'Every AI-written section now has Less Text and More Text buttons beside Generate, with the current target length shown between them. Each press asks for ten words more or ten words fewer. It rewrites the paragraph you already have rather than writing a new one: the instruction is to keep every fact, figure, measurement and conclusion exactly as they stand, to add nothing new, and to keep the same order and tone - so making it longer elaborates on what is there instead of inventing more findings, and making it shorter must not drop anything material. The starting point is the real length of the text in front of you, rounded to the nearest ten, so the first press moves it by the amount you expect. It will not go below 30 or above 400 words, and the button greys out at the limit rather than making a pointless request. Available on Building Opinion, Location Opinion, Renovation Notes and Conclusion. Shortening a paragraph towards the 30-word floor is where it is worth reading the result before you accept it.'},
   {v:'v2.330',type:'feature',date:'08-18-2026',ts:'08-18-2026 05:00',_static:true,title:'Quickview shows DRAFT in place of the status while DRAFT is on',desc:'With the DRAFT switch on, the status badge in Quickview now reads DRAFT in red instead of In Review, Pending or whatever the order happens to be, so an unfinished report is obvious the moment you open the panel. The order keeps its real status underneath - nothing about where the job sits has changed, and the badge goes straight back to showing it when you switch DRAFT off. If the status changed while DRAFT was on, the badge shows the new one.'},
   {v:'v2.329',type:'tweak',date:'08-18-2026',ts:'08-18-2026 04:00',_static:true,title:'The DRAFT switch now looks like a switch',desc:'The DRAFT control in Quickview looked like a label rather than something you could press, because it sat between two badges that are not clickable and shared their exact shape. It is now a raised button that lifts slightly when you point at it and presses in when you click. Off and on are told apart by four things rather than by colour alone - the button reads DRAFT OFF with a hollow dot, or DRAFT ON in warning red with a filled dot and a pushed-in look - so it is readable at a glance and for anyone who does not distinguish red easily. Nothing about what the switch does has changed.'},
   {v:'v2.328',type:'feature',date:'08-18-2026',ts:'08-18-2026 03:00',_static:true,title:'Discounts, BBO shown on the invoice, and a monthly BBO figure',desc:'Three things. First, you can give a discount on an invoice, either as an amount in florins or as a percentage, and the total works itself out. The button is on the invoice row in Finance. Discounting an invoice you have already issued is allowed but asks you first, and it is written to the audit trail. Second, the invoice now shows the BBO that is included in it, instead of the 0.00 it has always printed. Because BBO is inside the price and not added on top, it is worked out as the total times 7 divided by 107 - on a 1,000 florin invoice that is 65.42, not 70.00. The same figure now appears in the invoice email and the WhatsApp message, so the message and the attached PDF can no longer disagree. Third, a new BBO tab in Finance shows, month by month, how much turnover tax you owe, with a CSV to hand to the accountant. It counts what you invoiced in the month and leaves out drafts, voided and credited invoices - and it tells you separately how much is sitting in drafts, because those become taxable the day you finalise them. The rate lives in Finance under Branding and is dated: to change it you add the new rate with the day it starts, and every invoice already issued keeps the rate it was charged at. You can add a different rate for another island the same way.'},
@@ -17065,10 +17077,12 @@ function openInsp(order){
   _inspRestore(order.id);
   // §LAZY-INSP (v1.944) — insp_data is no longer pulled for every order on login.
   //   Fetch this order's inspection blob on demand, then repaint when it lands.
-  try{ if(typeof _ensureInspData==='function') _ensureInspData(order.id).then(function(loaded){ if(loaded && _inspOrderId===order.id){ try{ _inspRestore(order.id); }catch(e){} } }); }catch(e){}
+  try{ if(typeof _ensureInspData==='function') _ensureInspData(order.id).then(function(loaded){ if(loaded && _inspOrderId===order.id){ try{ _inspRestore(order.id); }catch(e){} try{ _aiLenSyncAll(); }catch(e){} } }); }catch(e){}
   _inspAssignKeys();     // stamp stable data-key on every field
   _inspWireAutoSave();   // attach field-change listener
   setTimeout(dpInitAll, 50); // attach datepicker on inspDate
+  // §AI-LEN (v2.331) — paint the "More/Less Text" word-count targets for this order.
+  try{ _aiLenSyncAll(); }catch(e){}
   document.getElementById('imo').classList.add('open');
   document.body.style.overflow='hidden';
 }
@@ -50130,6 +50144,196 @@ async function genAiLocationOpinion() {
   }
   btn.disabled=false;
 }
+
+
+// ── §AI-LEN (v2.331) — "More Text +" / "Less Text −" length controls ──────────
+//   Adds a LENGTH-EDIT path beside each AI "Generate" button. It never regenerates:
+//   it hands the text that is CURRENTLY on screen back to the model and asks for the
+//   same text at a new word count, so the appraiser's own edits, every fact and the
+//   order of argument survive. The existing generators are untouched — this is an
+//   ADDITIONAL path that writes through exactly the same persistence block they use.
+var _AI_LEN_STEP = 10;    // words added / removed per press
+var _AI_LEN_MIN  = 30;    // floor   — buttons disable / no-op here
+var _AI_LEN_MAX  = 400;   // ceiling — buttons disable / no-op here
+var _aiLenBusy   = {};    // fieldKey -> true while a rewrite is in flight
+
+// Config table. Each entry mirrors, field for field, what THAT field's own generator
+// writes — compare genAiBuildingOpinion / genAiLocationOpinion / genAiRenovationNotes
+// / genAiConclusion above:
+//   ta / btn / sta — the SAME element ids the generator already uses
+//   sect           — inspection section index → inspData.s<sect> + insp_<id>_<sect>
+//   keys           — key(s) written INSIDE inspData.s<sect> and the localStorage blob
+//   orderKeys      — top-level ORDERS[idx] properties the generator also sets
+//   mirror         — extra element ids the generator copies the text into
+//   seed           — fallback target when the field is empty: the midpoint of that
+//                    generator's own word range (e.g. 80-110 → 95)
+//   subject        — names the section in the rewrite prompt so the register holds
+// Button / label element ids are derived: <key>LessBtn, <key>MoreBtn, <key>LenTgt.
+var _AI_LEN_FIELDS = {
+  opBuilding : { ta:'opBuildingText', btn:'opBuildingBtn', sta:'opBuildingStatus',
+                 sect:12, keys:['opBuildingText'], orderKeys:['opBuildingText'], mirror:[],
+                 seed:95,
+                 subject:'"Opinions of the Building, Equipment & Finishes" of an Aruba appraisal report' },
+  opLocation : { ta:'opLocationText', btn:'opLocationBtn', sta:'opLocationStatus',
+                 sect:12, keys:['opLocationText','opLo'], orderKeys:['opLocationText','locationOpinion'],
+                 mirror:['inspOpinion'], seed:105,
+                 subject:'"Opinion of the Location" of an Aruba appraisal report' },
+  renovNotes : { ta:'renovNotesText', btn:'renovNotesBtn', sta:'renovNotesStatus',
+                 sect:12, keys:['renovNotes'], orderKeys:[], mirror:[],
+                 seed:115,
+                 subject:'"Renovation Notes & Remarks" of a Type 3 Aruba appraisal report' },
+  conclusion : { ta:'conclusionText', btn:'conclusionBtn', sta:'conclusionStatus',
+                 sect:12, keys:['conclusionOpinion'], orderKeys:[], mirror:[],
+                 seed:115,
+                 subject:'the final "Conclusion / Opinion" of an Aruba appraisal report' }
+};
+
+function _aiLenWords(s){ var m=String(s||'').match(/\S+/g); return m?m.length:0; }
+function _aiLenClamp(n){ return Math.max(_AI_LEN_MIN, Math.min(_AI_LEN_MAX, Math.round(n))); }
+// Target is remembered per ORDER per FIELD. It is deliberately kept in its OWN
+// localStorage key and NOT in inspData: inspData is synced to the database, and a
+// UI preference has no business riding in the inspection blob.
+function _aiLenKey(k){ return 'aiLenTarget_'+_inspOrderId+'_'+k; }
+// Seed: the ACTUAL word count of the text on screen (rounded to the nearest 10),
+// not the generator's nominal range — the appraiser may have edited the paragraph,
+// so "+10 words" must mean 10 more than what they are looking at. Only when the
+// field is empty do we fall back to the generator's own midpoint (cfg.seed).
+function _aiLenGet(k){
+  var cfg=_AI_LEN_FIELDS[k]; if(!cfg) return _AI_LEN_MIN;
+  var stored=null; try{ stored=localStorage.getItem(_aiLenKey(k)); }catch(e){}
+  var n=parseInt(stored,10);
+  if(n>0) return _aiLenClamp(n);
+  var ta=document.getElementById(cfg.ta), w=_aiLenWords(ta&&ta.value);
+  return _aiLenClamp(w ? Math.round(w/10)*10 : cfg.seed);
+}
+function _aiLenSet(k,n){ try{ localStorage.setItem(_aiLenKey(k), String(n)); }catch(e){} }
+// Paint the "≈NNw" target label and disable the button that is already at a limit.
+function _aiLenSync(k){
+  var cfg=_AI_LEN_FIELDS[k]; if(!cfg) return;
+  var t=_aiLenGet(k);
+  var lab=document.getElementById(k+'LenTgt'); if(lab) lab.textContent='≈'+t+'w';
+  var mb=document.getElementById(k+'MoreBtn'); if(mb) mb.disabled=!!_aiLenBusy[k]||(t>=_AI_LEN_MAX);
+  var lb=document.getElementById(k+'LessBtn'); if(lb) lb.disabled=!!_aiLenBusy[k]||(t<=_AI_LEN_MIN);
+}
+// Repaint every label; also wires each textarea ONCE so the target follows the
+// appraiser's own typing while no explicit target has been chosen yet.
+function _aiLenSyncAll(){
+  for(var k in _AI_LEN_FIELDS){
+    if(!Object.prototype.hasOwnProperty.call(_AI_LEN_FIELDS,k)) continue;
+    try{
+      _aiLenSync(k);
+      var ta=document.getElementById(_AI_LEN_FIELDS[k].ta);
+      if(ta && !ta._aiLenWired){
+        ta._aiLenWired=true;
+        (function(kk,el){ el.addEventListener('input',function(){ try{ _aiLenSync(kk); }catch(e){} }); })(k,ta);
+      }
+    }catch(e){}
+  }
+}
+
+// Write-back. This is a deliberate copy of the generators' own write block —
+// textarea value, bubbling 'input' event, any mirror field, ORDERS[idx] top-level
+// keys, ORDERS[idx].inspData.s<sect>, the insp_<orderId>_<sect> localStorage blob,
+// then persistOrders. Writing only the textarea would lose the text on reload.
+function _aiLenPersist(cfg, text, ta){
+  ta.value=text;
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+  (cfg.mirror||[]).forEach(function(mid){
+    var m=document.getElementById(mid);
+    if(m){ m.value=text; m.dispatchEvent(new Event('input',{bubbles:true})); }
+  });
+  var idx=ORDERS.findIndex(function(o){ return o.id===_inspOrderId; });
+  if(idx===-1) return;
+  (cfg.orderKeys||[]).forEach(function(ok){ ORDERS[idx][ok]=text; });
+  if(!ORDERS[idx].inspData) ORDERS[idx].inspData={};
+  var sk='s'+cfg.sect;
+  if(!ORDERS[idx].inspData[sk]) ORDERS[idx].inspData[sk]={};
+  (cfg.keys||[]).forEach(function(kk){ ORDERS[idx].inspData[sk][kk]=text; });
+  try{
+    var _cur={};
+    try{ var _raw=localStorage.getItem('insp_'+_inspOrderId+'_'+cfg.sect); if(_raw)_cur=JSON.parse(_raw); }catch(e){}
+    (cfg.keys||[]).forEach(function(kk){ _cur[kk]=text; });
+    localStorage.setItem('insp_'+_inspOrderId+'_'+cfg.sect, JSON.stringify(_cur));
+  }catch(e){}
+  try{ persistOrders(_inspOrderId); }catch(e){}
+}
+
+// The one shared handler behind every "More Text +" / "Less Text −" button.
+async function _aiTextResize(k, delta){
+  var cfg=_AI_LEN_FIELDS[k]; if(!cfg) return;
+  var ta=document.getElementById(cfg.ta);
+  var sta=document.getElementById(cfg.sta);
+  var gbtn=document.getElementById(cfg.btn);
+  var pressed=document.getElementById(k+(delta>0?'MoreBtn':'LessBtn'));
+  if(!ta || _aiLenBusy[k]) return;
+
+  var cur=(ta.value||'').trim();
+  if(!cur){
+    if(sta){ sta.style.color='var(--red)'; sta.textContent='⚠ Nothing to resize — generate or type the text first.'; }
+    return;
+  }
+  var oldT=_aiLenGet(k), newT=_aiLenClamp(oldT+delta);
+  if(newT===oldT){
+    if(sta){ sta.style.color='var(--muted)'; sta.textContent=(delta>0?'Already at the maximum ':'Already at the minimum ')+newT+' words.'; }
+    _aiLenSync(k);
+    return;
+  }
+  var _key=localStorage.getItem('appraisalSuite_anthKey_v1')||'';
+  if(!_key){ _key=prompt('Enter Anthropic API Key:'); if(!_key) return; localStorage.setItem('appraisalSuite_anthKey_v1',_key.trim()); }
+
+  _aiLenBusy[k]=true;
+  var _pressedHtml=pressed?pressed.innerHTML:'';
+  var _gWasDisabled=gbtn?gbtn.disabled:false;
+  if(gbtn) gbtn.disabled=true;                    // no concurrent generate over the same textarea
+  _aiLenSync(k);                                  // disables both +/- while in flight
+  if(pressed) pressed.innerHTML='<span class="ai-spin">⧗</span> '+(delta>0?'Expanding…':'Condensing…');
+  if(sta){ sta.style.color='var(--muted)'; sta.textContent=(delta>0?'Expanding to ':'Condensing to ')+newT+' words…'; }
+
+  try{
+    var curW=_aiLenWords(cur);
+    var prompt2=[
+      'You are a certified real estate appraiser in Aruba editing text that is ALREADY part of a live appraisal report.',
+      '',
+      'Rewrite the text below so that it is approximately '+newT+' words long (it is currently about '+curW+' words). This is a LENGTH EDIT ONLY, not a new draft.',
+      '',
+      'Rules — every one of them applies:',
+      '1. Keep EVERY fact, figure, measurement, distance, date, name, condition rating, qualification and conclusion that appears in the original. Dropping a material fact is not acceptable, not even when shortening.',
+      '2. Add NO new facts, findings, observations, figures or opinions. If you need more words, elaborate, explain and qualify what is ALREADY stated — never invent, never speculate, never introduce an example that is not in the original.',
+      '3. Keep the same order of argument, the same emphasis and the same conclusion.',
+      '4. Keep the same formal appraisal register and tone, and the same language as the original.',
+      '5. Keep the same paragraph structure — the same number of paragraphs, in the same order.',
+      '6. Output the rewritten text ONLY. No preamble, no heading, no bullets, no word count, no commentary about what you changed.',
+      '',
+      'Section: '+cfg.subject,
+      '',
+      'Text to rewrite:',
+      cur
+    ].join('\n');
+
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':_key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:Math.min(1500,Math.max(400,newT*3+150)),messages:[{role:'user',content:prompt2}]})
+    });
+    var data=await resp.json();
+    if(data.error) throw new Error(data.error.message||'API error');
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    var text=(data.content||[]).filter(function(b){ return b.type==='text'; }).map(function(b){ return b.text; }).join('').trim();
+    if(!text) throw new Error('Empty response');
+
+    _aiLenPersist(cfg, text, ta);
+    _aiLenSet(k, newT);
+    if(sta){ sta.style.color='#39ff6e'; sta.textContent='✓ '+(delta>0?'Expanded':'Condensed')+' — target '+newT+'w, now '+_aiLenWords(text)+'w'; }
+  }catch(err){
+    if(sta){ sta.style.color='var(--red)'; sta.textContent='⚠ '+((err&&err.message)||'Failed'); }
+  }
+  _aiLenBusy[k]=false;
+  if(pressed) pressed.innerHTML=_pressedHtml;
+  if(gbtn) gbtn.disabled=_gWasDisabled;
+  _aiLenSync(k);
+}
+window._aiTextResize=_aiTextResize;
+window._aiLenSyncAll=_aiLenSyncAll;
 
 // ── ROPV Aruba 2019 — zone geography + CMS rules ──────────────────────────────
 // Source: NL.IMRO.0000.20190517-0001 | rho.maps.arcgis.com/apps/webappviewer/?id=38891684b5404974a15860c00a0defd6
