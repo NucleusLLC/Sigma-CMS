@@ -2995,6 +2995,25 @@ body.compact .main{padding:1rem;}body.compact td,body.compact .ni{padding-top:6p
   padding: 3px 9px; border-radius: 4px;
   letter-spacing: .04em;
 }
+/* §DRAFT (v2.327) — per-order DRAFT toggle, sits next to the status badge in the
+   QuickView hero. OFF = dim outline; ON = solid red. Purely additive — no existing
+   rule is modified, so nothing else in the QuickView changes. */
+.qv-draft-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px; font-weight: 800;
+  padding: 3px 9px; border-radius: 4px;
+  letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer; user-select: none; line-height: 1.35;
+  background: rgba(10,8,6,.55);
+  color: rgba(255,255,255,.55);
+  border: 1px solid rgba(255,255,255,.28);
+  transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
+}
+.qv-draft-btn:hover { color: #fff; border-color: rgba(224,32,32,.75); }
+.qv-draft-btn.on {
+  background: #e02020; color: #fff; border-color: #e02020;
+  box-shadow: 0 0 0 2px rgba(224,32,32,.22);
+}
 .qv-hero-bottom {
   position: absolute; bottom: 14px; left: 16px; right: 50px; z-index: 5;
 }
@@ -12207,6 +12226,9 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
     <div class="qv-hero-top">
       <span class="qv-id-chip" id="qvId" onclick="qvEditId()" title="Click to rename Order ID" style="cursor:pointer;">2026-001</span>
       <span class="qv-status-badge sb s-app" id="qvStatusBadge">Approved</span>
+      <!-- §DRAFT (v2.327) — per-order DRAFT toggle. ON = the generated report carries a red
+           45-degree DRAFT watermark on every page and omits the appraiser signature + stamp. -->
+      <button type="button" class="qv-draft-btn" id="qvDraftBtn" onclick="qvToggleDraft()" aria-pressed="false" title="Mark this order&#39;s report as DRAFT — red DRAFT watermark on every page, appraiser signature &amp; stamp removed.">Draft</button>
     </div>
     <div id="qvRenamePopover" style="display:none;position:absolute;top:52px;left:12px;z-index:99999;background:var(--surface);border:1.5px solid var(--gold);border-radius:10px;padding:14px 16px;min-width:290px;box-shadow:0 8px 32px rgba(0,0,0,.5);">
       <div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#c8922a;margin-bottom:10px;">✏ Rename Order ID</div>
@@ -15281,7 +15303,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.326';
+var APP_VERSION = 'v2.327';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15319,6 +15341,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.327',type:'feature',date:'08-18-2026',ts:'08-18-2026 01:00',_static:true,title:'Mark a report as DRAFT',desc:'Quickview has a new DRAFT button, next to the order status. Switch it on and the report prints with DRAFT across every page in red at an angle, and both your signature and your stamp are left off - so a report sent out for comment cannot be mistaken for a finished one, or be signed and stamped before you meant it to be. Switch it off and the signature and stamp come back and the DRAFT wording disappears. The setting belongs to the order, not to the computer you are sitting at, so a colleague opening the same order sees the same thing. An order that has never used DRAFT is completely unaffected. Note that an already published PDF does not change on its own - print the report again after switching.'},
   {v:'v2.326',type:'fix',date:'08-17-2026',ts:'08-17-2026 23:30',_static:true,title:'Your valuation figures can no longer be wiped by closing the window',desc:'A saved valuation could be silently replaced with blanks. The safeguard that was meant to prevent this only covered the automatic background save — so simply CLOSING the Valuation window, or switching to another browser tab, went round it and wrote an empty table over figures that were already saved. No warning, and nothing to recover afterwards. Closing a window is no longer treated as a request to erase anything. Clearing a valuation on purpose is still possible, but only from the Save button, and it now asks you to confirm first. Save also refuses to write an amount it cannot read as a number: typing 275,000 or AWG 275,000 into an amount box leaves the text on screen while the box reports nothing at all, which is how a figure you could plainly see could be saved as empty. Those boxes are now outlined in red and nothing is saved until they are corrected — enter 275000. The status message no longer says Saved when a blank table was in fact refused.'},
   {v:'v2.313',type:'fix',date:'08-07-2026',ts:'08-07-2026 10:00',_static:true,title:'Staff can sign in on the first try, and Team Login Management is readable in dark mode',desc:'Two fixes. The important one is the login. Seanna and Tristan both reported having to type the same password over and over before it was accepted, and there was nothing wrong with either their passwords or their accounts. The connection to the server was being set up in the wrong order: the library that talks to the server is loaded in a way that finishes only after the whole page has been read, but the code that builds the connection ran while the page was still being read — so it found nothing to build with, and the connection stayed empty. Nothing repaired it until a background check ran a full minute later. In the meantime the sign-in screen was already on screen and accepting clicks, so anyone who typed their password in that first minute had it checked against nothing at all, and was told it was incorrect. It never even reached the server. Trying again a minute later worked, which is exactly what they described. This affected people whose password is only held on the server — anyone whose account was set up on another computer, which is both of them. It never affected this office computer, because passwords entered here are also checked against a copy held on the machine itself. The connection is now built as soon as the page is ready, and if sign-in is somehow still not ready the screen says so plainly instead of claiming the password is wrong. A password is never reported as incorrect unless it was actually checked. Neither account needed repairing — both were in good order the whole time. Second, Settings. The Team Login Management list was printing every person on a bright white card in dark mode, with pale text on it that was almost impossible to read. One dark-mode rule had a broken line in it which quietly excluded those cards, so they kept a plain white background. Fixed, along with the remove button beside each person, which was invisible when you hovered over it in any of the dark themes. The light themes are completely unchanged.'},
   {v:'v2.312',type:'fix',date:'08-04-2026',ts:'08-04-2026 23:45',_static:true,title:'Presumable Free Market Value on the report now agrees with the two figures beneath it',desc:'On a report with a Presumable Valuation, the large Presumable Free Market Value at the top of that section was printing the sub-total of the valuation rows while the Presumable Execution Value below it was worked out from the sub-total plus your value adjustments. On any appraisal carrying an adjustment the page therefore disagreed with itself — a PFMV of 450,000 sitting above a PEV of 400,000 at an execution rate of 80 percent, when 80 percent of 450,000 is 360,000. The adjustments table printed immediately underneath, showing the sub-total being carried up or down to the presumable figure, so the page contained both the right working and a headline that ignored it. The headline now shows the value after adjustments, which is what the section says it is, and the execution and re-construction values below it follow from that same number. The component table above still lists the raw sub-total, so the page reads in the order it should: the rows, their sub-total, the adjustments, and then the value they lead to. Nothing else about the report changes. An appraisal with no value adjustments prints exactly as it always has, byte for byte, and so does one that uses the separate Presumable calculator, which was never affected. In practice this reached only older appraisals where the Presumable calculator had never been opened — every current job uses that calculator and took the correct path already.'},
@@ -28917,6 +28940,8 @@ function openQV(order) {
   const sb = e('qvStatusBadge');
   sb.textContent = order.status;
   sb.className = 'qv-status-badge sb ' + (STATUS_CLASSES[order.status] || '');
+  // §DRAFT (v2.327) — reflect this order's saved DRAFT state on the toggle next to the badge.
+  try{ qvUpdateDraftBtn(order); }catch(_e){}
 
   // Specs
   e('qvBeds').textContent   = order.type === 'Commercial' ? 'N/A' : (order.beds ?? '—');
@@ -29119,6 +29144,58 @@ function qvTplChange(tplId) {
   console.log('[qvTpl] order', _qvLastOrder.id, label, '→', tplId || '(none)');
 }
 window.qvTplChange = qvTplChange;
+
+// §DRAFT (v2.327) ─────────────────────────────────────────────────────────────
+//   Per-order DRAFT mode, toggled from QuickView (button next to the status badge).
+//   ON  => generateReport() prints a red 45-degree DRAFT watermark on EVERY page and
+//          omits the appraiser signature + the appraiser stamp.
+//   OFF => every DRAFT branch is a no-op, so the report is byte-identical to before.
+//   Persistence: extra_data.draftMode, written ONLY when true (same shape as
+//   §OP-FORMAT's textFormat), so an order that never touched DRAFT produces exactly
+//   the same extra_data JSON as before. No schema migration; shared across devices.
+function qvIsDraft(order){
+  // The QuickView usually holds a JSON snapshot of the order (see §QV-TPL-SYNC), so the
+  //   LIVE ORDERS entry is the source of truth when it exists.
+  try{
+    if(order && order.id && typeof ORDERS!=='undefined' && ORDERS){
+      var _lv=ORDERS.find(function(x){ return x && x.id===order.id; });
+      if(_lv) return _lv.draftMode===true;
+    }
+  }catch(e){}
+  return !!(order && order.draftMode===true);
+}
+function qvUpdateDraftBtn(order){
+  var b=document.getElementById('qvDraftBtn'); if(!b) return;
+  var on=qvIsDraft(order);
+  try{ if(order){ if(on) order.draftMode=true; else delete order.draftMode; } }catch(e){}
+  b.classList.toggle('on', on);
+  b.setAttribute('aria-pressed', on?'true':'false');
+  b.title = on
+    ? 'DRAFT is ON — the report prints a red DRAFT watermark and omits the appraiser signature & stamp. Click to turn it off.'
+    : "Mark this order's report as DRAFT — red DRAFT watermark on every page, appraiser signature & stamp removed.";
+}
+function qvToggleDraft(){
+  if(!_qvLastOrder) return;
+  var on = !qvIsDraft(_qvLastOrder);
+  if(on) _qvLastOrder.draftMode=true; else { try{ delete _qvLastOrder.draftMode; }catch(e){} }
+  // Mirror onto the real ORDERS/fil entries by id so persistOrders() saves it and the next
+  //   render/reopen carries it — same approach as §QV-TPL-SYNC (v2.041).
+  try{
+    var _oid=_qvLastOrder.id;
+    [ (typeof ORDERS!=='undefined'?ORDERS:null), (typeof fil!=='undefined'?fil:null) ].forEach(function(list){
+      if(!list||!list.length) return;
+      for(var i=0;i<list.length;i++){ if(list[i] && list[i].id===_oid){ if(on) list[i].draftMode=true; else { try{ delete list[i].draftMode; }catch(e){} } } }
+    });
+  }catch(_se){}
+  qvUpdateDraftBtn(_qvLastOrder);
+  // Persist — local cache + Supabase (extra_data.draftMode)
+  try{ if(typeof persistOrders==='function') persistOrders(_qvLastOrder.id); }catch(_pe){ try{ console.warn('[qvDraft] persist failed:', _pe); }catch(e){} }
+  try{ if(typeof appLog==='function') appLog('ACTION','REPORT','DRAFT '+(on?'ON':'OFF')+': '+_qvLastOrder.id); }catch(e){}
+  try{ console.log('[qvDraft] order', _qvLastOrder.id, '->', on?'DRAFT':'FINAL'); }catch(e){}
+}
+window.qvIsDraft = qvIsDraft;
+window.qvUpdateDraftBtn = qvUpdateDraftBtn;
+window.qvToggleDraft = qvToggleDraft;
 
 function closeQV(clearLast) {
   if (clearLast) _qvLastOrder = null;
@@ -31142,6 +31219,13 @@ async function generateReport(orderId) {
   }
   if (!order) { alert('Order "' + orderId + '" not found.'); return; }
 
+  // §DRAFT (v2.327) — per-order DRAFT mode (QuickView toggle -> extra_data.draftMode).
+  //   ON  => a red 45-degree DRAFT watermark on every page + appraiser signature and
+  //          appraiser stamp omitted.
+  //   OFF => _draftOn is false and EVERY DRAFT branch below collapses to a no-op / empty
+  //          string, so the generated HTML is byte-identical to the pre-v2.322 output.
+  var _draftOn = !!(order && order.draftMode === true);
+
   var type = order.apprType || 2;
   var apprType = type;  // alias — guards against any report helper/template fragment that reads `apprType` directly (prevents "apprType is not defined")
   // §VAL-REPORT-FRESH (v2.206) — render from the freshest valuation (overlays a
@@ -32087,7 +32171,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     var _stImg = '';
     try { _stImg = localStorage.getItem('appraisalSuite_stampImg') || ''; } catch(e){}
     var _stOn = (RC.rcStampEnabled !== false);
-    if (_stImg && _stOn) {
+    if (_stImg && _stOn && !_draftOn) {   // §DRAFT (v2.327) — DRAFT => no appraiser stamp
       var _stP = {}; try { _stP = JSON.parse(localStorage.getItem('appraisalSuite_stampPlace_v1')||'{}') || {}; } catch(e){ _stP = {}; }
       var _stLoc = _stP.loc || RC.rcStampImgLocation || 'Mid-Center';
       var _stX  = parseFloat(_stP.x     != null ? _stP.x     : RC.rcStampX) || 0;
@@ -32108,6 +32192,26 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
         + '</div>';
     }
   } catch(e){ _stampHtml = ''; }
+
+  // §DRAFT (v2.327) — the DRAFT watermark, built once here and injected into EVERY page by a
+  //   post-pass on the finished HTML (mirrors the §APPRAISER-STAMP pass). Design constraints:
+  //   - It is an absolutely-positioned overlay placed INSIDE an existing .page element, so it
+  //     never adds / removes / splits a page and _pgList + page numbering are untouched.
+  //   - Inline CSS and plain text only — reports open from a blob: URL where relative paths,
+  //     external fonts and image files do not resolve. Arial/Helvetica/sans-serif is a system
+  //     stack, so nothing has to load.
+  //   - pointer-events:none, low opacity and z-index 55 (below the stamp's 60) keep the report
+  //     fully readable; print-color-adjust:exact makes it survive Print-to-PDF.
+  //   Empty string when DRAFT is OFF => the post-pass below is skipped entirely.
+  var _draftWmHtml = '';
+  if (_draftOn) {
+    _draftWmHtml = '<div class="sigma-draft-wm" aria-hidden="true" style="position:absolute;top:50%;left:50%;'
+      + 'z-index:55;pointer-events:none;user-select:none;white-space:nowrap;'
+      + 'transform:translate(-50%,-50%) rotate(-45deg);transform-origin:center center;'
+      + 'font-family:Arial,Helvetica,sans-serif;font-size:110px;font-weight:900;letter-spacing:.16em;'
+      + 'line-height:1;color:#e02020;opacity:.14;'
+      + 'print-color-adjust:exact;-webkit-print-color-adjust:exact;">DRAFT</div>';
+  }
 
   // ── Shared cover customization layer ────────────────────────────────────────
   // Builds the cover TITLE, APPRAISAL NUMBER, and INFO GRID (Client/Address/Type/Date)
@@ -33343,7 +33447,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     var _soNameB=(_s12dSO.inspName||order.appraiser||'').trim();
     var _soN1=(_s12dSO.s12f2||'').trim(), _soN2=(_s12dSO.s12f3||'').trim(), _soN3=(_s12dSO.s12f4||'').trim();
     var _sigImgB=''; try{ _sigImgB=localStorage.getItem('appraisalSuite_apprSig')||''; }catch(e){}
-    var _sigInline=_sigImgB ? ('<div style="text-align:right;margin-top:10px;"><img src="'+esc(_sigImgB)+'" style="max-height:70px;max-width:220px;object-fit:contain;display:inline-block;"></div>') : '';
+    var _sigInline=(_sigImgB && !_draftOn) ? (   /* §DRAFT (v2.327) — DRAFT => no signature */ '<div style="text-align:right;margin-top:10px;"><img src="'+esc(_sigImgB)+'" style="max-height:70px;max-width:220px;object-fit:contain;display:inline-block;"></div>') : '';
     return '<div class="sec-h">Appraiser Sign-Off</div>'
       +'<div class="sec-sub">Certification of appraisal · appraiser declaration · signature</div>'
       +'<div class="disc"><div class="disc-title">Certification &amp; Limiting Conditions</div>'
@@ -34649,7 +34753,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   var _apprSigImg = '';
   try { _apprSigImg = localStorage.getItem('appraisalSuite_apprSig') || ''; } catch(e){}
   var _apprSigUnit = '';
-  if (_apprSigImg) {
+  if (_apprSigImg && !_draftOn) {   // §DRAFT (v2.327) — DRAFT => no appraiser signature
     // §SIG-PLACE (v1.981) — read the ENTIRE placement (location + X/Y/scale) from a
     //   DEDICATED override-proof key first. A per-order template load clobbers
     //   RC_KEY right before the build, which was resetting BOTH the location (→
@@ -35400,6 +35504,20 @@ try {
     });
   }
 } catch(e){ try{ console.warn('[stamp] post-pass failed', e); }catch(_){} }
+// §DRAFT (v2.327) — inject the DRAFT watermark into EVERY page (cover included) as a
+//   post-pass on the finished HTML, mirroring the stamp pass above. It runs AFTER
+//   §TOC-ANCHORS, so page ids already exist and are preserved; it only inserts markup
+//   INSIDE an existing <div class="page"> element and never creates, splits or removes a
+//   page, so _pgList and every _pg(id) page number are untouched. This also catches the
+//   custom-built pages (Photo Contact Sheet, attached-document / Floor / Site / Cadaster
+//   pages) that build their own footers and never call pgFtr(). No-op when DRAFT is OFF.
+try {
+  if (_draftWmHtml) {
+    var _dwN = 0;
+    html = html.replace(/<div class="page"[^>]*>/g, function(m){ _dwN++; return m + _draftWmHtml; });
+    try{ console.log('[DRAFT] watermark applied to', _dwN, 'page(s)'); }catch(_){}
+  }
+} catch(e){ try{ console.warn('[DRAFT] watermark post-pass failed', e); }catch(_){} }
 // §SEC-DEDUP-INLINE (v2.230) — embed a self-running dedup INSIDE the report document so it
 //   works no matter how the window loads it (Blob URL — the normal path — OR document.write).
 //   If any movable-section header prints more than once, keep the LAST and strip the earlier
@@ -39516,6 +39634,7 @@ function _toRow(o) {
       // §EDIT-PERSIST2 (v2.131) — these Project-Data fields were edited + applied to the
       //   order but NEVER written to the DB, so they silently reverted on the next sync.
       textFormat:(o.textFormat===true)?true:undefined,   // §OP-FORMAT (v2.321) — written only when ON, so an untouched order's extra_data JSON is unchanged
+      draftMode:(o.draftMode===true)?true:undefined,   // §DRAFT (v2.327) — written only when ON, so an untouched order's extra_data JSON is unchanged
       compDate:o.compDate||'', builder:o.builder||'', dueRaw:o.dueRaw||'',
       clientFirst:o.clientFirst||'', clientLast:o.clientLast||'',
       clientWork:o.clientWork||'', clientCell:o.clientCell||'',
@@ -39707,6 +39826,7 @@ function _fromRow(row, order) {
       if (x.clientCell)     order.clientCell     = x.clientCell;
       if (x.clientEmail)    order.clientEmail    = x.clientEmail;
       if (x.textFormat === true) order.textFormat = true;   // §OP-FORMAT (v2.321)
+      if (x.draftMode === true) order.draftMode = true;     // §DRAFT (v2.327)
       if (x.clientAddr)     order.clientAddr     = x.clientAddr;
       if (x.stateZip)       order.stateZip       = x.stateZip;
       if (x.country)        order.country        = x.country;
