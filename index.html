@@ -7885,6 +7885,65 @@ body.glass .tbl-wrap{
               box-shadow .18s ease, transform .18s ease;
 }
 
+/* ── §GLASS-COLLISION (v2.337) ────────────────────────────────────────────
+   Two things the block above swallowed that it was never meant to touch.
+   Both found by measuring computed style with the class on vs off, not by
+   reading selectors — the v2.336 track-bar bug is what that lesson cost.
+
+   (i) `border:` above is a SHORTHAND, so it does not merely recolour the
+       hairline — it RESETS every border longhand underneath it. `.ovl-wrap`
+       (the orders overview panel) carries its own brand accent rule at
+       `.ovl-wrap{ … border-top:2px solid var(--gold) }`, and the glass
+       shorthand flattened it to the 1px white hairline in all six dark
+       themes. Measured, border-top with glass off -> on:
+         theme-dark        2px #e8b84b  ->  1px rgba(255,255,255,.10)
+         midnight          2px #4d9ef5  ->  1px rgba(255,255,255,.10)
+         forest            2px #3dbf7a  ->  1px rgba(255,255,255,.10)
+         crimson           2px #e05a6a  ->  1px rgba(255,255,255,.10)
+         cyber             2px #00e5ff  ->  1px rgba(255,255,255,.10)
+         obsidian          2px #a78bfa  ->  1px rgba(255,255,255,.10)
+       That colour is the theme's identity, not surface decoration, so it is
+       restored as a LONGHAND — the glass hairline still governs the other
+       three sides, and the recipe itself is untouched. Same specificity as
+       the rule above and later in source, so this wins; !important is only
+       there to match the shorthand's.
+
+   (ii) In the orders CARDS view the table wrapper is deliberately stripped:
+       `#view-orders.ord-cards .tbl-wrap{ background:transparent; border:none;
+       overflow:visible }`. Its table/thead/tbody are display:none and the
+       real grid (#ordCardsGrid) is a SIBLING, so the wrapper is an empty
+       zero-height box that paints nothing. That rule carries no !important,
+       so the glass block outranked it and gave the empty box a 1px hairline
+       and a 20px drop shadow — a stray 2px bar with a shadow under the card
+       grid. Measured with .ord-cards on, glass off -> on:
+         border-top   0px none  ->  1px solid rgba(255,255,255,.10)
+         box-shadow   none      ->  …inset rim, 0 6px 20px rgba(0,0,0,.42)
+       Only those two are put back; the fill is left to the glass rule
+       because `.tbl-wrap{background:#1c1c1e!important}` already outranked
+       the cards rule BEFORE any of this, so the box was never transparent
+       and nothing about that is glass's doing. */
+body.glass .ovl-wrap{ border-top: 2px solid var(--gold) !important; }
+
+/* §GLASS-CYBER-GLOW (v2.338) — the Cyber theme is the only one that gives its
+   panels a neon rim, `box-shadow: 0 0 8px rgba(0,229,255,.3)` @2313. That rule
+   ties the glass surfaces rule at (0,2,1); both carry !important, so the later
+   one — glass — took it, and Cyber quietly lost the thing that makes it Cyber.
+   Restored ADDITIVELY: the glass rim and drop shadow are kept exactly as
+   approved and the glow is appended, so neither treatment is traded for the
+   other and the recipe itself is untouched. */
+body.glass.theme-dark-cyber .sc,
+body.glass.theme-dark-cyber .chart-box,
+body.glass.theme-dark-cyber .act-feed,
+body.glass.theme-dark-cyber .qcard,
+body.glass.theme-dark-cyber .app-card,
+body.glass.theme-dark-cyber .rpt-card{
+  box-shadow: var(--g-rim), var(--g-shadow), 0 0 8px rgba(0,229,255,.3) !important;
+}
+body.glass #view-orders.ord-cards .tbl-wrap{
+  border: none !important;
+  box-shadow: none !important;
+}
+
 /* The hovering feel. Fill lifts, the hairline warms to gold, the shadow
    deepens and the panel rises 1px. Restrained on purpose — this is Concept A,
    whose whole thesis is glass as a subtle lift rather than a spectacle. */
@@ -15891,7 +15950,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.337';
+var APP_VERSION = 'v2.338';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15929,6 +15988,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.338',type:'fix',date:'08-19-2026',ts:'08-19-2026 04:00',_static:true,title:'Glass no longer paints over things that carried meaning',desc:'A sweep of the whole glass styling for places where it was covering something it should not have. Three found and fixed. The gold accent bar along the top of the orders panel had been replaced by a plain hairline in every dark theme - each theme uses its own colour there and all six had lost it. A stray two-pixel bar with a shadow under the Orders card grid, drawn on an empty container that previously showed nothing, is gone. And the Cyber theme has its neon edge back on the dashboard cards; it had been swallowed, and it is what makes that theme look like itself. Everything else was checked in a real browser against every dark theme: status colours, the green and red movement figures, the value cards, the workflow bars and the appraisal-type buttons all keep their own colours.'},
   {v:'v2.337',type:'fix',date:'08-19-2026',ts:'08-19-2026 03:00',_static:true,title:'The report prints the address you typed',desc:'On orders where a location had been pinned on the Map, the report header was printing the address the map lookup returned instead of the Street Address you entered under Project Data - and it cut that address off at the first comma. So a two-number parcel entered as Midden Weg 21, 23 printed as Midden Weg 21, losing half of it, while the Introductory Note on the same page printed it correctly. Your typed Street Address is now what the report uses. The map lookup is only used when the address field was left empty. Nothing you have entered was changed or lost - this only affected what was displayed, so re-opening an affected report now shows the full address.'},
   {v:'v2.336',type:'fix',date:'08-19-2026',ts:'08-19-2026 02:30',_static:true,title:'Workflow bars are bright green again',desc:'The green workflow bars in Quickview - Edit, Inspection, Valuation, Report - had gone pale. The glass styling was repainting every bar with the faint colour intended only for the empty ones, covering the green on the completed ones too. Completed and current bars now keep their own colour and their glow; only the empty bars are lightened for the glass card.'},
   {v:'v2.335',type:'tweak',date:'08-19-2026',ts:'08-19-2026 02:00',_static:true,title:'Quickview lets more of the page through',desc:'Quickview now shows about a quarter more of the page behind it. Most of that comes from lightening the dimming layer between the card and the page rather than the card itself, because the card was already only five percent solid - thinning it further on its own would have changed almost nothing. Text inside the card was re-checked against the brightest thing the dashboard can put behind it and still sits comfortably above the readability standard, though with less headroom than before. If you want it clearer still, say so - there is a little room left, but not a lot before small text starts to suffer.'},
