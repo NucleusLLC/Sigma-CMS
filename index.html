@@ -15891,7 +15891,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.336';
+var APP_VERSION = 'v2.337';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15929,6 +15929,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.337',type:'fix',date:'08-19-2026',ts:'08-19-2026 03:00',_static:true,title:'The report prints the address you typed',desc:'On orders where a location had been pinned on the Map, the report header was printing the address the map lookup returned instead of the Street Address you entered under Project Data - and it cut that address off at the first comma. So a two-number parcel entered as Midden Weg 21, 23 printed as Midden Weg 21, losing half of it, while the Introductory Note on the same page printed it correctly. Your typed Street Address is now what the report uses. The map lookup is only used when the address field was left empty. Nothing you have entered was changed or lost - this only affected what was displayed, so re-opening an affected report now shows the full address.'},
   {v:'v2.336',type:'fix',date:'08-19-2026',ts:'08-19-2026 02:30',_static:true,title:'Workflow bars are bright green again',desc:'The green workflow bars in Quickview - Edit, Inspection, Valuation, Report - had gone pale. The glass styling was repainting every bar with the faint colour intended only for the empty ones, covering the green on the completed ones too. Completed and current bars now keep their own colour and their glow; only the empty bars are lightened for the glass card.'},
   {v:'v2.335',type:'tweak',date:'08-19-2026',ts:'08-19-2026 02:00',_static:true,title:'Quickview lets more of the page through',desc:'Quickview now shows about a quarter more of the page behind it. Most of that comes from lightening the dimming layer between the card and the page rather than the card itself, because the card was already only five percent solid - thinning it further on its own would have changed almost nothing. Text inside the card was re-checked against the brightest thing the dashboard can put behind it and still sits comfortably above the readability standard, though with less headroom than before. If you want it clearer still, say so - there is a little room left, but not a lot before small text starts to suffer.'},
   {v:'v2.334',type:'fix',date:'08-19-2026',ts:'08-19-2026 01:30',_static:true,title:'Quickview is now actually see-through',desc:'Quickview still looked like a solid dark panel. Two reasons, both now fixed. The fade-in animation on the window behind the card made the browser flatten everything underneath it, so only about five percent of the page ever reached the card face - no setting on the card itself could have changed that. And the card was lined with solid tiles on the inside, which covered nearly all of it regardless. The card now genuinely refracts the page behind it and picks up the colour of whatever it is over. Six pieces of small text inside the card were brightened so they stay easily readable against the lighter backdrop, two of which were already too faint before this and are now fixed as well. Every piece of text in the card was measured against the brightest thing the dashboard can put behind it and all of it is comfortably above the readability standard. One visible difference: the page behind Quickview is no longer blurred, because blurring it is exactly what stopped the card being see-through in the first place.'},
@@ -50363,16 +50364,29 @@ function apiAnthropicRestore() {
 }
 
 
-// ── Address helper: use mapAddr street if more complete than order.address ────
+// ── Address helper: the TYPED Street Address wins; mapAddr is a fallback only ──
 function _bestStreet(order) {
-  // §MAP-ADDR (v1.953) — the report shows the address LOCKED in on the Map when
-  //   one is set (order.mapAddr is saved when you lock the map marker); otherwise
-  //   it falls back to the typed parcel address.
-  if (order && order.mapAddr) {
-    var mapStreet = String(order.mapAddr).split(',')[0].trim();
-    if (mapStreet) return mapStreet;
-  }
-  return ((order && order.address) || '').trim();
+  // §MAP-ADDR (v1.953) — originally: the report showed the street LOCKED in on the
+  //   Map whenever one was set, on the theory that it was "more complete". It never
+  //   compared anything.
+  // §ADDR-TYPED-WINS (v2.337) — that printed the WRONG address on a finished report.
+  //   order.address is the appraiser TYPED Street Address: a required field, filled
+  //   in deliberately, and already the field the report Introductory Note quotes.
+  //   order.mapAddr is a GEOCODER guess captured when the map pin is locked (e.g.
+  //   "Midden Weg 21, Oranjestad, na" — the trailing "na" is a Nominatim artefact),
+  //   so taking split(',')[0] of it silently TRUNCATED any typed address that
+  //   legitimately carries a comma: the two-number parcel "Midden Weg 21, 23"
+  //   printed as "Midden Weg 21" on order 2026-098, while the Introductory Note on
+  //   the same page printed it in full. The geocoded street is now used ONLY to fill
+  //   a genuine gap — when nothing was typed at all. That settles the near-duplicate
+  //   case for free: when the mapAddr street is merely a PREFIX of the typed value,
+  //   the typed value is strictly more complete and wins.
+  //   DISPLAY/SELECTION ONLY — nothing here writes to order.address, order.mapAddr
+  //   or the database.
+  var typed = String((order && order.address) || '').trim();
+  if (typed) return typed;
+  var mapStreet = String((order && order.mapAddr) || '').split(',')[0].trim();
+  return mapStreet;
 }
 
 
