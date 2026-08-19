@@ -15950,7 +15950,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.338';
+var APP_VERSION = 'v2.339';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15988,6 +15988,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.339',type:'fix',date:'08-19-2026',ts:'08-19-2026 05:00',_static:true,title:'The invoice preview now shows the real page breaks',desc:'The invoice preview was showing everything on one long sheet no matter how long the invoice was, so the bank details looked like they were on page 1 when the printer was always going to put them on page 2. The preview now draws the page breaks exactly where the printer makes them, checked against real printed files across ninety-six invoices on both paper sizes - the preview and the printout now agree to within half a millimetre. Nothing about the printed invoice has changed; only the preview was wrong. If the bank details are landing on the second page, that is now visible before you print rather than after.'},
   {v:'v2.338',type:'fix',date:'08-19-2026',ts:'08-19-2026 04:00',_static:true,title:'Glass no longer paints over things that carried meaning',desc:'A sweep of the whole glass styling for places where it was covering something it should not have. Three found and fixed. The gold accent bar along the top of the orders panel had been replaced by a plain hairline in every dark theme - each theme uses its own colour there and all six had lost it. A stray two-pixel bar with a shadow under the Orders card grid, drawn on an empty container that previously showed nothing, is gone. And the Cyber theme has its neon edge back on the dashboard cards; it had been swallowed, and it is what makes that theme look like itself. Everything else was checked in a real browser against every dark theme: status colours, the green and red movement figures, the value cards, the workflow bars and the appraisal-type buttons all keep their own colours.'},
   {v:'v2.337',type:'fix',date:'08-19-2026',ts:'08-19-2026 03:00',_static:true,title:'The report prints the address you typed',desc:'On orders where a location had been pinned on the Map, the report header was printing the address the map lookup returned instead of the Street Address you entered under Project Data - and it cut that address off at the first comma. So a two-number parcel entered as Midden Weg 21, 23 printed as Midden Weg 21, losing half of it, while the Introductory Note on the same page printed it correctly. Your typed Street Address is now what the report uses. The map lookup is only used when the address field was left empty. Nothing you have entered was changed or lost - this only affected what was displayed, so re-opening an affected report now shows the full address.'},
   {v:'v2.336',type:'fix',date:'08-19-2026',ts:'08-19-2026 02:30',_static:true,title:'Workflow bars are bright green again',desc:'The green workflow bars in Quickview - Edit, Inspection, Valuation, Report - had gone pale. The glass styling was repainting every bar with the faint colour intended only for the empty ones, covering the green on the completed ones too. Completed and current bars now keep their own colour and their glow; only the empty bars are lightened for the glass card.'},
@@ -24913,6 +24914,11 @@ function _finPrintCss(P, pg2){
     +   'tr,img{break-inside:avoid;page-break-inside:avoid;}'
     +   '.fin-keep{break-inside:avoid;page-break-inside:avoid;}'
     +   '.fin-keep-next{break-after:avoid;page-break-after:avoid;}'
+    // §INVOICE-PREVIEW-PAGED (v2.329) — the preview's simulated sheet breaks. They exist
+    //   ONLY to show the reader where the printer will cut; the printer does its own
+    //   cutting, so they must not be in the printed flow or they would shift it. Removed
+    //   from print here, and carried past the emailed PDF by data-html2canvas-ignore.
+    +   '.fin-brk{display:none!important;}'
     + '}'
     + (pg2 ? '@page{margin:0;}'                                  // §INVOICE-TERMS-P2 (v2.307)
         + '@media print{'
@@ -25139,8 +25145,8 @@ function _finRptFooter(inv, co, P){
 //   The FIT pass deliberately stays a one-shot: the T&C sheet carries no images, so its
 //   geometry is already final at parse time, and re-running a shrink loop is the one
 //   thing here that would not be idempotent.
-function _finPgNumJs(P){
-  return '<scr' + 'ipt>(function(){try{'
+function _finPgNumJs(P, pg2){
+  return '<scr' + 'ipt>(function(){var PG2=' + (pg2 ? 1 : 0) + ';try{'
     // ── fit the T&C to its sheet ───────────────────────────────────────────────
     + 'var tn=document.querySelector(".fin-tnc"),bd=document.querySelector(".fin-tnc-body"),ft=null;'
     + 'if(tn&&bd){var pg=tn.parentNode;ft=pg.querySelector(".fin-ftr");'
@@ -25151,30 +25157,133 @@ function _finPgNumJs(P){
     + 'while(tn.scrollHeight>tn.clientHeight+1&&S*f>7&&k<120){k++;f-=0.02;'
     + 'bd.style.fontSize=(S*f).toFixed(2)+"px";bd.style.lineHeight=(1.2+0.4*f).toFixed(3);}}}'
     + '}catch(e){}'
-    // ── count the sheets and stamp the numbers ────────────────────────────────
+    // ── count the sheets, DRAW them, and stamp the numbers ────────────────────
     // How many sheets one .page spans. Walks the unbreakable boxes in document order and
     //   pushes one to a fresh sheet the moment it will not fit on the current one — the
     //   same thing the print engine does — instead of dividing a height by a height.
     //   `hh` is the repeated table header: thead{display:table-header-group} reprints it on
     //   every continuation sheet, so each of those sheets carries that much less content.
-    //   Never returns less than the plain division, so if a document ever contains no
-    //   atoms at all the old arithmetic is still the floor.
-    + 'function pgSheets(pg,sh){'
+    //
+    //   §INVOICE-PREVIEW-PAGED (v2.329) — WHAT THE PASS MEASURES AGAINST.
+    //   It used to compare every box against `sh`, the PAPER height, and to lean on a
+    //   Math.ceil(scrollHeight/sh) floor to stay honest. The printer never gives a sheet
+    //   the whole paper: the invoice's own margins come off it. Measured, by sweeping a
+    //   40.5mm unbreakable block down a real printed PDF one millimetre at a time: the
+    //   block is kept on sheet 1 while its bottom (measured from the .page's top) is
+    //   ≤ 281.5mm on A4 and ≤ 264.5mm on Letter, and is pushed whole at 282.5 / 265.5mm.
+    //   That is P.h − P.mv, to a tenth of a millimetre, on BOTH papers and under BOTH
+    //   page-box conventions. The old test allowed 297 / 279.4 — one whole vertical
+    //   margin too many on sheet 1 and two on every sheet after it — so the pass believed
+    //   a block fitted that the printer had already moved. THE limits now come off the
+    //   same P that feeds @page and the on-screen sheet, which is the whole point of
+    //   _finPaper: `sh - mv` for sheet 1, and `sh - 2*mv` for each sheet after it.
+    //   ⚠ …except under the report convention (PG2), where @page{margin:0} means a
+    //   continuation sheet has NO margins at all — measured, the bank block landed 6.1mm
+    //   from the paper edge on A4 — so there the later limit really is the full `sh`.
+    //   The preview draws that honestly rather than pretending otherwise.
+    //
+    //   And the cuts are no longer thrown away: `cuts` carries where each sheet ended and
+    //   which box starts the next one, so draw() can put a real page break on screen. The
+    //   preview was a single min-height sheet that simply GREW — a floor with no ceiling
+    //   and no break furniture — so it could never show the reader that the printer was
+    //   about to move the bank block to another sheet. That is the disagreement.
+    + 'function mmpx(v){var d=document.createElement("div");'
+    +   'd.style.cssText="position:absolute;left:-9999px;top:0;width:1mm;height:"+v+"mm;";'
+    +   'document.body.appendChild(d);var h=d.getBoundingClientRect().height||1;'
+    +   'if(d.parentNode)d.parentNode.removeChild(d);return h;}'
+    // scan(): the FIRST box the printer will refuse to leave on the sheet it currently
+    //   sits on, or null when the whole .page fits. It reads the sheet boundaries back off
+    //   the gutters already inserted (data-pb), so it can be called again after each break
+    //   and always works on LIVE coordinates — mixing pre- and post-insertion offsets is
+    //   how the second and third break of a long invoice ended up in the wrong place.
+    + 'function scan(pg,sh,mv){'
     + 'var th=pg.querySelector("thead"),hh=th?th.getBoundingClientRect().height:0;'
-    + 'var top=pg.getBoundingClientRect().top,as=[],q=pg.querySelectorAll("tr,.fin-keep"),j,r;'
-    + 'for(j=0;j<q.length;j++){if(q[j].closest&&q[j].closest(".fin-ftr"))continue;'
-    + 'r=q[j].getBoundingClientRect();as.push([r.top-top,r.bottom-top,q[j].tagName==="TR"?hh:0]);}'
+    + 'var top=pg.getBoundingClientRect().top,as=[],j,r,e;'
+    + 'var q=pg.querySelectorAll("tr,.fin-keep,.fin-brk[data-pb]");'
+    + 'for(j=0;j<q.length;j++){e=q[j];'
+    + 'if(e.closest&&e.closest(".fin-ftr"))continue;'
+    + 'if(e.hasAttribute("data-pb")){r=e.getBoundingClientRect();as.push([r.top-top,0,e,0,1]);continue;}'
+    + 'if(String(e.className||"").indexOf("fin-brk")>=0)continue;'
+    + 'if(e.closest&&e.closest(".fin-brk"))continue;'
+    + 'r=e.getBoundingClientRect();as.push([r.top-top,r.bottom-top,e,e.tagName==="TR",0]);}'
     + 'as.sort(function(a,c){return a[0]-c[0];});'
-    + 'var n=1,st=0;'
-    + 'for(j=0;j<as.length;j++){if(as[j][1]-st>(st===0?sh:sh-as[j][2])){n++;st=as[j][0]-as[j][2];}}'
-    + 'return Math.max(n,Math.ceil((pg.scrollHeight-2)/sh),1);}'
+    + 'var pb=sh,L,lastIdx=-1;'
+    + 'for(j=0;j<as.length;j++)if(!as[j][4])lastIdx=j;'
+    + 'for(j=0;j<as.length;j++){'
+    + 'if(as[j][4]){pb=parseFloat(as[j][2].getAttribute("data-pb"))||pb;continue;}'
+    // Under the invoice's own convention @page owns the margins, so every box is limited
+    //   by the sheet's content box — one rule, and it held on all 48 measured documents.
+    //   Under the REPORT convention (@page{margin:0}) the page box is the whole paper and
+    //   the .page carries its own padding, so a box is limited by the paper — EXCEPT the
+    //   last one, which must also leave room for the .page's own bottom padding. Measured
+    //   on A4: a payment-terms box ending at 289.9mm was printed on sheet 1, while the
+    //   bank block ending at 286.2mm — the last box, so + 15mm of padding = 301.2mm — was
+    //   pushed off. Both numbers come off real printed PDFs, not from emulation.
+    + 'L=(PG2&&j!==lastIdx)?pb-1:pb-mv;'
+    + 'if(as[j][1]>L+0.5)return {el:as[j][2],pb:pb,tr:as[j][3],hh:hh};}'
+    + 'return null;}'
+    // §INVOICE-PREVIEW-PAGED (v2.329) — put ONE break on screen, where the printer puts it.
+    //   The spacer is sized by measuring, not by arithmetic: it is inserted, then grown
+    //   until the box below it actually lands at the next sheet's content top. Margins
+    //   collapse, a margin is dropped at a fragment boundary, and a repeated table header
+    //   is reprinted — all three change the answer, and none of them has to be modelled
+    //   if the result is simply measured and corrected.
+    + 'function cut(pg,s,mv,mh,GAP,sh){'
+    // The walk-back limit is the sheet's ORDINARY-content bottom, which is not the same as
+    //   the limit scan() applies to an unbreakable box: under the report convention the
+    //   page box is the whole paper, and measured on a real PDF a one-line rule was left
+    //   at 284.5mm on A4 while a .fin-keep ending at 286.2mm was pushed off. Under the
+    //   invoice's own convention @page owns the margins and the two limits coincide.
+    + 'var pgTop=pg.getBoundingClientRect().top,el=s.el,pv,pr,lim=s.pb-(PG2?0:mv),sp,box,ref,hc,ht;'
+    // §INVOICE-PREVIEW-PAGED (v2.329) — BREAK AT THE BOUNDARY, NOT AT THE ATOM.
+    //   scan() returns the unbreakable box that no longer fits, but the print engine also
+    //   carries over anything BETWEEN the paper's edge and that box — the one-line
+    //   "Amounts are in AWG…" rule is exactly such a thing. Drawing the break at the atom
+    //   leaves that line above the gutter while the printer puts it on the next sheet, and
+    //   the preview is then wrong by the height of whatever was stranded. So walk back over
+    //   the short boxes that also do not fit. SHORT only: a tall block genuinely splits
+    //   across the break and must not be moved whole. Rows never walk back — their siblings
+    //   are rows, which the row limit in scan() has already settled.
+    + 'if(!s.tr){while((pv=el.previousElementSibling)&&String(pv.className||"").indexOf("fin-brk")<0){'
+    + 'pr=pv.getBoundingClientRect();'
+    + 'if(pr.bottom-pgTop<=lim+0.5)break;if(pr.height>sh*0.1)break;el=pv;}}'
+    + 'ref=el;'
+    + 'if(s.tr&&s.hh>0){ht=pg.querySelector("thead tr");'
+    + 'if(ht){hc=ht.cloneNode(true);hc.className="fin-brk";'
+    + 'hc.setAttribute("data-html2canvas-ignore","true");'
+    + 'el.parentNode.insertBefore(hc,el);ref=hc;}}'
+    // The gutter has to reach the PAPER's edges to read as the end of a sheet, and the
+    //   sheet's own horizontal margin is what stands between it and them — hence the
+    //   negative margins. Inside a table that means a div in the cell, because a cell
+    //   cannot escape the table box on its own.
+    + 'if(el.tagName==="TR"){sp=document.createElement("tr");sp.className="fin-brk";'
+    + 'sp.innerHTML="<td colspan=\\"99\\" style=\\"padding:0;border:0;\\"><div></div></td>";'
+    + 'box=sp.firstChild.firstChild;}'
+    + 'else{sp=document.createElement("div");sp.className="fin-brk";box=sp;}'
+    + 'box.style.margin="0 -"+mh+"px";'
+    + 'sp.setAttribute("data-html2canvas-ignore","true");'
+    + 'ref.parentNode.insertBefore(sp,ref);'
+    + 'var want=s.pb+GAP+(PG2?0:mv),h=1,i,d;'
+    + 'for(i=0;i<4;i++){box.style.height=h+"px";'
+    + 'd=want-(ref.getBoundingClientRect().top-pgTop);if(Math.abs(d)<0.5)break;h+=d;if(h<1)h=1;}'
+    + 'box.style.height=h+"px";'
+    // The white tail runs from the top of the gutter box down to the paper's edge, then
+    //   the visible gap between two sheets, then the next sheet's paper again.
+    + 'var a=Math.max(0,s.pb-(sp.getBoundingClientRect().top-pgTop));'
+    + 'box.style.background="linear-gradient(to bottom,#fff 0,#fff "+a+"px,#e7e7ea "+a+"px,#e7e7ea "'
+    + '+(a+GAP)+"px,#fff "+(a+GAP)+"px,#fff 100%)";'
+    + 'sp.setAttribute("data-pb",s.pb+GAP+sh);'
+    + 'return true;}'
+    + 'function clr(){var b=document.querySelectorAll(".fin-brk"),i;'
+    +   'for(i=b.length-1;i>=0;i--)if(b[i].parentNode)b[i].parentNode.removeChild(b[i]);}'
     + 'function cnt(){try{'
-    + 'var pr=document.createElement("div");pr.style.cssText="position:absolute;left:-9999px;top:0;width:1mm;height:' + P.h + 'mm;";'
-    + 'document.body.appendChild(pr);var sh=pr.offsetHeight||1;if(pr.parentNode)pr.parentNode.removeChild(pr);'
-    + 'var ps=document.querySelectorAll(".page"),tot=0,end=[],i;'
-    + 'for(i=0;i<ps.length;i++){var n;'
+    + 'clr();'
+    + 'var sh=mmpx(' + P.h + '),mv=mmpx(' + P.mv + '),mh=mmpx(' + P.mh + '),GAP=26;'
+    + 'var ps=document.querySelectorAll(".page"),tot=0,end=[],i,s,n,g;'
+    + 'for(i=0;i<ps.length;i++){'
     + 'if(ps[i].className.indexOf("fin-pg2")>=0){n=1;}'
-    + 'else{n=pgSheets(ps[i],sh);}tot+=n;end.push(tot);}'
+    + 'else{n=1;g=0;while((s=scan(ps[i],sh,mv))&&g++<80){cut(ps[i],s,mv,mh,GAP,sh);n++;}}'
+    + 'tot+=n;end.push(tot);}'
     + 'var ns=document.querySelectorAll(".fin-pgnum");'
     + 'for(i=0;i<ns.length;i++)ns[i].textContent="Page "+(end[i]||(i+1))+" of "+tot;'
     + '}catch(e){}}'
@@ -25407,8 +25516,15 @@ function _finInvoiceHtml(inv, lines, co){
           + '</div>'
           + _finRptFooter(inv, co, P)
           + '</div>'
-          + _finPgNumJs(P)
         : '')
+
+    // §INVOICE-PREVIEW-PAGED (v2.329) — the measuring pass now runs for EVERY invoice,
+    //   not only when the T&C are on their own sheet. It has to: the preview/print
+    //   disagreement it exists to remove is worst with the option OFF, where the T&C sit
+    //   at the foot of page 1 and push the bank block over. With the option off there is
+    //   no .fin-tnc and no .fin-pgnum, so the fit pass and the stamp are both no-ops and
+    //   nothing but the sheet breaks is added — the printed document is unchanged.
+    + _finPgNumJs(P, _t2)
 
     + '</body></html>';
 }
@@ -25429,6 +25545,16 @@ async function _finRenderPdfBlob(html, paper){
     idoc.open(); idoc.write(html); idoc.close();
     await new Promise(function(res){ var d=false,f=function(){if(!d){d=true;res();}}; if(idoc.readyState==='complete')f(); else iframe.onload=f; setTimeout(f,4000); });
     try { if (idoc.fonts && idoc.fonts.ready) await Promise.race([idoc.fonts.ready, new Promise(function(r){setTimeout(r,3000);})]); } catch(e){}
+    // §INVOICE-PREVIEW-PAGED (v2.329) — the preview's simulated sheet breaks must not reach
+    //   the emailed PDF. This renderer photographs the SCREEN layout and cuts the picture
+    //   into paper-height strips, so a gutter left in would push every strip out by the
+    //   height of the gap and the attachment would drift. They are removed here rather
+    //   than suppressed in the document, because the same document is what the preview
+    //   window shows. Safe at this point: the inline pass has already run (it runs at
+    //   parse time and again on load, and load is what we just awaited), and it only ever
+    //   writes textContent into the page-number stamp, which the removal does not touch.
+    try { var _brk = idoc.querySelectorAll('.fin-brk');
+          for (var _b = _brk.length - 1; _b >= 0; _b--) if (_brk[_b].parentNode) _brk[_b].parentNode.removeChild(_brk[_b]); } catch(e){}
     // §INVOICE-TERMS-P2 (v2.307) — shoot EVERY .page, not just the first. A document with
     //   the T&C on its own sheet has two of them, and querySelector() would have silently
     //   dropped the second from the emailed PDF. One .page (every other document, and any
