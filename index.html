@@ -12316,6 +12316,47 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
       <input type="text" id="eOwner" placeholder="e.g. John A. Smith &amp; Maria B. Smith, or ABC Holdings N.V.">
       <div id="eOwnerHint" style="font-size:10px;color:var(--muted);margin-top:3px;">Full legal name(s). Use &amp; for multiple persons or enter corporation name.</div>
     </div>
+    <!-- §OWNERS-LIST (v2.342) — Registered Owners with ownership percentages. A
+         structured list for a real estate registered to many co-owners, each with its
+         share. Belongs to the WHOLE REAL ESTATE (an ownership share is an undivided
+         interest in the property, not in one parcel) — see the §OWNERS-LIST block in
+         the script for why, and why it stands down while §MULTI-OWNER is on. Empty by
+         default: an order that never uses it keeps the free-text field above as its
+         Registered Owner(s) of record and prints exactly as it always has. -->
+    <div class="efg" style="grid-column:1/-1" id="eOwnersPanel">
+      <div style="margin-top:4px;border-top:1px solid var(--border);padding-top:14px;">
+        <div id="eOwnersBlocked" style="display:none;font-size:11px;color:var(--muted);line-height:1.55;">
+          <strong style="color:var(--ink);">Registered Owners with shares</strong> — not used on this order.
+          The parcels of this real estate are registered to <strong>different owners</strong> (SAME OWNER is
+          unticked below), so each parcel carries its own Registered Owner(s). Ownership shares describe one
+          property held by several co-owners together; the two cannot both apply. Re-tick SAME OWNER to use
+          the shares list.
+        </div>
+        <div id="eOwnersBody">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div style="min-width:200px;">
+              <div style="font-size:12.5px;font-weight:700;color:var(--ink);">Registered Owners &amp; Shares <span id="eOwnersSaveStatus" style="font-size:10.5px;font-weight:600;color:var(--muted);margin-left:6px;"></span></div>
+              <div style="font-size:10.5px;color:var(--muted);margin-top:2px;line-height:1.5;">Optional. For a real estate registered to several co-owners, list each owner and their percentage of ownership. Leave empty to keep using the single free-text field above.</div>
+            </div>
+            <button type="button" onclick="_eAddOwner()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border:1px solid var(--gold,#c8922a);border-radius:7px;background:rgba(200,146,42,.10);color:var(--gold,#c8922a);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">＋ Add Owner</button>
+          </div>
+          <div id="eOwnersList" style="display:flex;flex-direction:column;gap:7px;margin-top:12px;"></div>
+          <div id="eOwnersTotal" style="font-size:11px;margin-top:10px;line-height:1.6;"></div>
+          <!-- §OWNERS-COLS — how the list PRINTS. Two columns fill down-then-across:
+               with 12 owners, 1-6 run down the left column and 7-12 down the right. -->
+          <div style="display:flex;align-items:center;gap:16px;margin-top:11px;padding-top:10px;border-top:1px dashed var(--border);flex-wrap:wrap;">
+            <span style="font-size:11px;font-weight:700;color:var(--ink);">Print the list in</span>
+            <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;text-transform:none;letter-spacing:normal;font-size:11px;font-weight:600;color:var(--ink);">
+              <input type="radio" name="eOwnersCols" id="eOwnersCols1" value="1" checked onchange="_eOwnersColsSet(1)" style="width:14px;height:14px;margin:0;accent-color:var(--gold,#c8922a);cursor:pointer;"> 1 column
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;text-transform:none;letter-spacing:normal;font-size:11px;font-weight:600;color:var(--ink);">
+              <input type="radio" name="eOwnersCols" id="eOwnersCols2" value="2" onchange="_eOwnersColsSet(2)" style="width:14px;height:14px;margin:0;accent-color:var(--gold,#c8922a);cursor:pointer;"> 2 columns
+            </label>
+            <span style="font-size:10.5px;color:var(--muted);line-height:1.5;">Two columns fill top-to-bottom in the left column first, then the right — and fit twice as many names in the same space.</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <!-- §MULTI-PARCEL (v2.140) — a real estate made up of 2+ adjoining parcels under one address -->
   <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:14px;">
@@ -15951,7 +15992,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.341';
+var APP_VERSION = 'v2.343';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -15989,6 +16030,8 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.343',type:'feature',date:'08-20-2026',ts:'08-20-2026 02:00',_static:true,title:'A proper owners list with ownership shares',desc:'Registered owners can now be entered as a list, each with their share as a percentage, instead of being crammed into one line. The running total is shown as you type and turns amber if the shares do not add up to about 100 - a warning only, nothing is ever blocked, and thirds that come to 99.99 are treated as correct. You can print the list in one column or, when there are many owners, in two columns to use the page properly; names run down the left column and continue down the right. Percentages accept a comma, so 33,33 works. Orders that do not use the list are completely unchanged and keep the single owner line exactly as before. With very many owners the list is capped at twelve per column and says how many are not shown - if you need all of them on the page, move the Inspection Details to their own page under Report Section Order.'},
+  {v:'v2.342',type:'fix',date:'08-20-2026',ts:'08-20-2026 01:30',_static:true,title:'The red location marker was missing on some reports',desc:'The red marker on the location map was not drawn at all for about one property in five, on every template - it was being positioned too high and pushed off the top edge of the map. It was never a template problem: whether it showed depended purely on where the property happened to sit within the map tile, which is why some reports looked fine and others did not. The map is built from square tiles, and the code assumed each one filled half the height of the box when it actually fills nearly sixty percent. Checked across a thousand positions at every zoom level: previously two hundred and five of them lost the marker, now none do. The map itself is unchanged - same size, same position, same page.'},
   {v:'v2.341',type:'feature',date:'08-19-2026',ts:'08-19-2026 07:00',_static:true,title:'More Text and Less Text on the Floor Plan opinion',desc:'The Opinion of Floor Plan now has the same Less Text and More Text buttons as the other AI-written sections, with the current target length between them. Each press asks for ten words more or fewer and rewrites the paragraph you already have rather than writing a new one, keeping every fact and measurement as it stands.'},
   {v:'v2.340',type:'fix',date:'08-19-2026',ts:'08-19-2026 06:30',_static:true,title:'Invoice pages that run onto a second sheet now keep their margins',desc:'When the terms and conditions are set to print on a second sheet, any page after the first was printing with no margins at all - text came within three millimetres of the paper edge, inside the border most desktop printers cannot print, so it could be cut off. Margins now repeat properly on every sheet: the closest ink to an edge went from 2.8 mm to 16.2 mm. The footer and page number sit three millimetres further from the edge as a result, which is the safe direction. A second problem turned up while checking it: the footer band was printing over the last block of text on forty of forty-eight test invoices. That is fixed too. Invoices that do not use the second sheet for terms are completely unchanged.'},
   {v:'v2.339',type:'fix',date:'08-19-2026',ts:'08-19-2026 05:00',_static:true,title:'The invoice preview now shows the real page breaks',desc:'The invoice preview was showing everything on one long sheet no matter how long the invoice was, so the bank details looked like they were on page 1 when the printer was always going to put them on page 2. The preview now draws the page breaks exactly where the printer makes them, checked against real printed files across ninety-six invoices on both paper sizes - the preview and the printout now agree to within half a millimetre. Nothing about the printed invoice has changed; only the preview was wrong. If the bank details are landing on the second page, that is now visible before you print rather than after.'},
@@ -27911,6 +27954,7 @@ function openEdit(order) {
   sv('eAPN',      order.apn      || '');
   sv('eOwner',    order.owner    || '');
   try{ _renderParcels(order); }catch(e){}   // §MULTI-PARCEL (v2.140)
+  try{ _renderOwners(order); }catch(e){}     // §OWNERS-LIST (v2.342)
   try{ _renderBuildings(order); }catch(e){}   // §MULTI-BUILDING (v2.188)
 
   // ── Financial Info ────────────────────────────────────────────────────────
@@ -31687,8 +31731,24 @@ function _rcBuildChecks(order, type) {
     { label:"Parcel Size",   detail:order.parcel ? order.parcel+" m2" : "", ok:!!(order.parcel), errText:"Not set" },
     { label:"Status",        detail:order.status||"",    ok:!!order.status },
     { label:"Start-up Date", detail:order.due||"",       ok:!!order.due, errText:"Not set" },
-    { label:"Registered Owner(s)", detail:order.owner||"", ok:!!order.owner, errText:"Not filled" },
+    // §OWNERS-LIST (v2.342) — a filled structured Registered Owners list satisfies
+    //   "Registered Owner(s)" on its own: for those orders that list IS where the names
+    //   live, and the free-text field above is deliberately left untouched. An order with
+    //   neither is flagged exactly as before, and an order that never uses the feature
+    //   evaluates the identical expression it always did.
+    { label:"Registered Owner(s)", detail:((typeof _ownersOn==='function'&&_ownersOn(order))?_ownersRows(order).map(function(r){return String((r&&r.name)||"").trim()||"—";}).join(", "):(order.owner||"")), ok:!!(order.owner||(typeof _ownersOn==='function'&&_ownersOn(order))), errText:"Not filled" },
   ];
+  // §OWNERS-LIST (v2.342) — the ownership shares total. OPTIONAL (a warning, never a
+  //   block): a draft is legitimately incomplete, and thirds never total exactly, so the
+  //   check passes anywhere within ±0.05 of 100 — 99.99 and 100.01 both read as correct.
+  try {
+    if (typeof _ownersOn==='function' && _ownersOn(order)) {
+      var _ownT = _ownersTotal(order);
+      proj.push({ label:"Ownership shares total",
+                  detail:(_ownT.counted ? _ownersPctFmt(String(_ownT.sum)) : "No shares entered"),
+                  ok:_ownersTotalOk(_ownT), errText:"Does not add up to 100%", optional:true });
+    }
+  } catch(e) {}
   // §MULTI-OWNER (v2.305) — when SAME OWNER is unticked, each additional parcel needs its
   //   own Registered Owner(s) too; flag the blanks so they can't reach the report unnoticed.
   try {
@@ -34429,6 +34489,60 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       return '<span>Parcel '+(i+1)+': <strong style="font-weight:600;">'+esc(n||'—')+'</strong></span>';
     }).join('<span style="color:#b9ab93;">,&nbsp;&nbsp;</span>');
   }
+  // §OWNERS-LIST (v2.342) — the structured Registered Owners list with shares. It is a
+  //   WHOLE-REAL-ESTATE list, so it is mutually exclusive with §MULTI-OWNER (which puts a
+  //   separate owner on each parcel): _ownersRepOn uses the report's OWN _multiOwnerOn, so
+  //   whenever the parcels have different owners this feature stands down completely and
+  //   every §MULTI-PARCEL / §MULTI-OWNER path below runs untouched.
+  function _ownersRepOn(o){ return !_multiOwnerOn(o) && _ownersRows(o).length>0; }
+  //   The page-3 "Real Estate Ownership" grid cell. When the structured list is NOT in use
+  //   this returns the EXACT markup v2.341 emitted (proved by test, see §OWNERS-CELL-ID);
+  //   when it IS in use the cell is dropped and the Registered Owners block below the grid
+  //   carries the names, so no name is ever printed twice and the grid gets SHORTER, never
+  //   taller. `oneCol` mirrors the §MULTI-BUILDING branch that shrinks Ownership to one
+  //   column so Buildings can span the other two.
+  function _ownCell(o, oneCol){
+    if(_ownersRepOn(o)) return '';
+    return '<div class="info-item'+(oneCol?'':' span2')+'"><div class="info-lbl">Real Estate Ownership</div><div class="info-val">'+_ownershipHtml(o)+'</div></div>';
+  }
+  //   The block itself, rendered directly under the info grid / Parcels strip. Returns ''
+  //   for every order that does not use the feature, so it concatenates to nothing and the
+  //   report is byte-identical. It is ordinary flow content inside an EXISTING .page — it
+  //   never adds, splits or removes a page, so _pgList and every page number are untouched.
+  //   Inline CSS only: the report opens from a blob: URL where nothing external resolves.
+  function _ownersBlockHtml(o){
+    if(!_ownersRepOn(o)) return '';
+    var ACC=RC.rcAccentColor||'#c8922a';
+    var cap=_ownersCapped(o), rows=cap.shown, cols=cap.cols;
+    var t=_ownersTotal(o);
+    var n=0;
+    var colsHtml=_ownersSplit(rows, cols).map(function(g){
+      return '<div style="flex:1 1 0;min-width:0;">'+g.map(function(r){
+        n++;
+        var pct=_ownersPctFmt(r&&r.pct);
+        return '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:1px dashed #d4c9b0;padding:1.5px 0;">'
+          +'<span style="font-family:Sora,sans-serif;font-size:9px;color:#0f0d0a;line-height:1.35;min-width:0;overflow-wrap:break-word;">'
+            +'<span style="color:#a89880;font-weight:700;">'+n+'.</span> '+esc(String((r&&r.name)||'').trim()||'—')+'</span>'
+          +'<span style="font-family:DM Mono,monospace;font-size:9px;font-weight:700;color:#0f0d0a;white-space:nowrap;">'+esc(pct||'—')+'</span>'
+        +'</div>';
+      }).join('')+'</div>';
+    }).join('<div style="flex:0 0 16px;"></div>');
+    // The printed total states the figure and nothing else — a client-facing appraisal is
+    //   the wrong place to scold. A share list that does not reach 100% is surfaced to the
+    //   APPRAISER, loudly, in the editor and in the Report Check panel.
+    var totTxt = t.counted ? _ownersPctFmt(String(t.sum)) : '—';
+    return '<div class="sec-h" style="margin-top:7px;margin-bottom:2px;">Registered Owners'
+        +'<span style="font-size:9.5px;font-weight:600;color:#8a7a6a;letter-spacing:0;text-transform:none;margin-left:8px;">'+t.rows+' owner'+(t.rows===1?'':'s')+'</span></div>'
+      +'<div class="sec-sub" style="margin-bottom:6px;">Registered ownership of the real estate · share per owner</div>'
+      +'<div style="display:flex;gap:0;align-items:flex-start;">'+colsHtml+'</div>'
+      +'<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:3px;padding-top:3px;border-top:1.5px solid '+ACC+';">'
+        +'<span style="font-size:7.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6a5a48;">Total ownership</span>'
+        +'<span style="font-family:DM Mono,monospace;font-size:10px;font-weight:700;color:#0f0d0a;">'+esc(totTxt)+'</span>'
+      +'</div>'
+      // §OWNERS-CAP — never lose a name silently. If the list is longer than the block is
+      //   allowed to be, say so in print rather than let .inner{overflow:hidden} eat it.
+      +(cap.hidden ? '<div style="font-size:8px;font-style:italic;color:#8a7a6a;margin-top:3px;">… and '+cap.hidden+' further registered owner'+(cap.hidden===1?'':'s')+' not shown here.</div>' : '');
+  }
   function _parcelStripHtml(o, parcelType1, cadaster1){
     var extra=_extraParcels(o); if(!extra.length) return '';
     var ACC=RC.rcAccentColor||'#c8922a';
@@ -34546,11 +34660,12 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       +(_extraParcels(order).length ? '<div class="info-item"><div class="info-lbl">Combined Parcels Area</div><div class="info-val">'+esc(_combinedParcelM2(order)||'—')+'</div></div>' : '')   // §COMBINED-AREA
       +'<div class="info-item"><div class="info-lbl">Road In Front of Real Estate</div><div class="info-val">'+esc(_roadFront)+'</div></div>'
       +(_extraBuildings(order).length   // §MULTI-BUILDING — Ownership shrinks to 1 col; Buildings spans the other 2
-        ? '<div class="info-item"><div class="info-lbl">Real Estate Ownership</div><div class="info-val">'+_ownershipHtml(order)+'</div></div>'   /* §MULTI-OWNER (v2.305) */
+        ? _ownCell(order,true)   /* §MULTI-OWNER (v2.305) · §OWNERS-LIST (v2.342) */
           +'<div class="info-item" style="grid-column:span 2;"><div class="info-lbl">Buildings</div><div class="info-val">'+_buildingsListHtml(order)+'</div></div>'
-        : '<div class="info-item span2"><div class="info-lbl">Real Estate Ownership</div><div class="info-val">'+_ownershipHtml(order)+'</div></div>')   /* §MULTI-OWNER (v2.305) */
+        : _ownCell(order,false))   /* §MULTI-OWNER (v2.305) · §OWNERS-LIST (v2.342) */
       +'</div>'
       +_parcelStripHtml(order,_parcelTypeVal,_cadaster)   // §MULTI-PARCEL-REPORT
+      +_ownersBlockHtml(order)   // §OWNERS-LIST (v2.342) — '' unless the structured list is in use
       +plansBox
 
       // ── Introductory Note ────────────────────────────────────────────────────
@@ -35085,11 +35200,12 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       +(_extraParcels(order).length ? '<div class="info-item"><div class="info-lbl">Combined Parcels Area</div><div class="info-val">'+esc(_combinedParcelM2(order)||'—')+'</div></div>' : '')   // §COMBINED-AREA
       +'<div class="info-item"><div class="info-lbl">Road In Front of Real Estate</div><div class="info-val">'+esc(_roadFront3)+'</div></div>'
       +(_extraBuildings(order).length   // §MULTI-BUILDING — Ownership shrinks to 1 col; Buildings spans the other 2
-        ? '<div class="info-item"><div class="info-lbl">Real Estate Ownership</div><div class="info-val">'+_ownershipHtml(order)+'</div></div>'   /* §MULTI-OWNER (v2.305) */
+        ? _ownCell(order,true)   /* §MULTI-OWNER (v2.305) · §OWNERS-LIST (v2.342) */
           +'<div class="info-item" style="grid-column:span 2;"><div class="info-lbl">Buildings</div><div class="info-val">'+_buildingsListHtml(order)+'</div></div>'
-        : '<div class="info-item span2"><div class="info-lbl">Real Estate Ownership</div><div class="info-val">'+_ownershipHtml(order)+'</div></div>')   /* §MULTI-OWNER (v2.305) */
+        : _ownCell(order,false))   /* §MULTI-OWNER (v2.305) · §OWNERS-LIST (v2.342) */
       +'</div>'
       +_parcelStripHtml(order,_parcelTypeVal3,_cadaster3)   // §MULTI-PARCEL-REPORT
+      +_ownersBlockHtml(order)   // §OWNERS-LIST (v2.342) — '' unless the structured list is in use
       +plansBox
       +(_secCustom ? '' : (order.internalNotes||order.notes    /* §SEC-INTRONOTE — suppressed for custom layouts; the driver renders it via _SEC_RENDER.introNote */
         ? '<div style="margin-top:'+(RC._isGrndFLR?'5px':'7px')+';">'
@@ -35295,21 +35411,50 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   var _ty = Math.floor((1 - Math.log(Math.tan(_latRad) + 1/Math.cos(_latRad)) / Math.PI) / 2 * _n);
   // Build a 3x2 tile grid centered on our location (for 16:9)
   var _tileBase = 'https://tile.openstreetmap.org/' + _mz + '/';
+  // Pin position within its own tile (as % of that tile, 0..100)
+  var _pinPctX = ((lng + 180) / 360 * _n - _tx) * 100;
+  var _pinPctY = ((1 - Math.log(Math.tan(_latRad) + 1/Math.cos(_latRad)) / Math.PI) / 2 * _n - _ty) * 100;
+
+  // §MAP-PIN-GEOM (v2.338) — the tile ROWS and the pin's offset are derived from ONE
+  //   description of the map box, because they have to agree exactly or the marker lies.
+  //   THE BUG THIS REPLACES: the old code read
+  //        _pinYInGrid = _pinPctY / 2          // "2 rows, so a row is half the box"
+  //   and paired it with `top:calc(Y% - 38px)` inside an overflow:hidden wrapper. A row is
+  //   NOT half the box. `grid-template-rows:1fr 1fr` is minmax(auto,1fr), and a square tile
+  //   laid out at width:100% of a W/3 column has a min-content height of W/3, which floors
+  //   each row at W/3 = 59.259% of the box height (measured in Chrome: 218.547px rows in a
+  //   369.91px box). So EVERY pin was placed too high — by up to 33px — and any property
+  //   whose latitude fell in the top ~35% of its OSM tile had `top` go NEGATIVE and lost the
+  //   whole 38px marker to the clip. Latitude decided it, NOT the report template: all 18
+  //   report_templates rows carry rcMarginLeft/Right = 18 on A4, so this box is 174mm wide
+  //   in every one of them and they share this single code path.
+  var _mapAspect = 0.5625;                  // box height / box width (16:9). Also feeds padding-top below.
+  var _mapCols   = 3;                       // tile columns across the box
+  var _tileW     = 100 / _mapCols;          // one tile, % of box WIDTH  = 33.333
+  var _tileH     = _tileW / _mapAspect;     // one tile, % of box HEIGHT = 59.259 (tiles are SQUARE)
+  //   Only 1.6875 tile-heights are visible, so with two rows the point's own tile can be the
+  //   top row or the bottom row. Pick whichever lands the point closer to the middle of the
+  //   box. That holds the marker between 20.4% and 79.6% of the box height for EVERY
+  //   latitude on earth — head clear of the top edge, tip clear of the address bar — so no
+  //   coordinate can clip it again. (Centre of the box, in tiles from the grid top, is
+  //   50/_tileH; the two choices are equidistant at 50/_tileH - 0.5.)
+  var _rowShift = (_pinPctY / 100 < (50 / _tileH) - 0.5) ? 1 : 0;   // 1 = start one tile row HIGHER
+  if (_ty - _rowShift < 0) _rowShift = 0;   // never request a negative tile row from OSM
+  var _tyTop = _ty - _rowShift;             // tile row rendered in grid row 0
+
   // Single center tile URL for the img (fallback)
   var mapUrl = hasLoc ? (_tileBase + _tx + '/' + _ty + '.png') : '';
   // For the report, build a 3-tile wide composite for better context
-  var _t1 = _tileBase + (_tx-1) + '/' + _ty + '.png';
-  var _t2 = _tileBase + _tx     + '/' + _ty + '.png';
-  var _t3 = _tileBase + (_tx+1) + '/' + _ty + '.png';
-  var _t4 = _tileBase + (_tx-1) + '/' + (_ty+1) + '.png';
-  var _t5 = _tileBase + _tx     + '/' + (_ty+1) + '.png';
-  var _t6 = _tileBase + (_tx+1) + '/' + (_ty+1) + '.png';
-  // Pin position within the center tile (as % of tile)
-  var _pinPctX = ((lng + 180) / 360 * _n - _tx) * 100;
-  var _pinPctY = ((1 - Math.log(Math.tan(_latRad) + 1/Math.cos(_latRad)) / Math.PI) / 2 * _n - _ty) * 100;
-  // Offset for 3-wide grid: center tile is tile #2 (starts at 33.33%)
-  var _pinXInGrid = (33.333 + _pinPctX / 3).toFixed(3);
-  var _pinYInGrid = (_pinPctY / 2).toFixed(3);
+  var _t1 = _tileBase + (_tx-1) + '/' + _tyTop + '.png';
+  var _t2 = _tileBase + _tx     + '/' + _tyTop + '.png';
+  var _t3 = _tileBase + (_tx+1) + '/' + _tyTop + '.png';
+  var _t4 = _tileBase + (_tx-1) + '/' + (_tyTop+1) + '.png';
+  var _t5 = _tileBase + _tx     + '/' + (_tyTop+1) + '.png';
+  var _t6 = _tileBase + (_tx+1) + '/' + (_tyTop+1) + '.png';
+  // Centre tile is column #2, so one whole tile width in, plus the fraction across that tile.
+  //   (X was already right — 3 columns exactly fill the width, so there is no crop sideways.)
+  var _pinXInGrid = (_tileW * (1 + _pinPctX / 100)).toFixed(3);
+  var _pinYInGrid = (_tileH * (_rowShift + _pinPctY / 100)).toFixed(3);
 
   var noCoordMsg = esc(_bestStreet(order)) + ', ' + esc(order.city);
   // tile grid built above
@@ -35322,13 +35467,18 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     + '</svg>';
   var mapBox = hasLoc
     ? '<div style="position:relative;width:100%;height:100%;overflow:hidden;">'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%;gap:0;">'
-      + '<img src="'+_t1+'" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous">'
-      + '<img src="'+_t2+'" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous">'
-      + '<img src="'+_t3+'" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous">'
-      + '<img src="'+_t4+'" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous">'
-      + '<img src="'+_t5+'" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous">'
-      + '<img src="'+_t6+'" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous">'
+      /* §MAP-PIN-GEOM — rows are SQUARE and said so out loud. They were already square, but
+         only by accident: `1fr 1fr` is minmax(auto,1fr) and it was the images' own min-content
+         height doing the work, so a tile that 404'd (no intrinsic size) collapsed its row and
+         silently moved the pin. aspect-ratio pins the row to the column width whether the tile
+         loads or not, which is the invariant _tileH above is calculated from. */
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto;align-content:start;width:100%;height:100%;gap:0;">'
+      + '<img src="'+_t1+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;" crossorigin="anonymous">'
+      + '<img src="'+_t2+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;" crossorigin="anonymous">'
+      + '<img src="'+_t3+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;" crossorigin="anonymous">'
+      + '<img src="'+_t4+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;" crossorigin="anonymous">'
+      + '<img src="'+_t5+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;" crossorigin="anonymous">'
+      + '<img src="'+_t6+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;" crossorigin="anonymous">'
       + '</div>'
       + '<div style="position:absolute;left:calc('+_pinXInGrid+'% - 14px);top:calc('+_pinYInGrid+'% - 38px);pointer-events:none;z-index:10;">'+_svgPin+'</div>'
       + '</div>'
@@ -35342,7 +35492,9 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   section-order driver can place it on page 4 or 5 (mapBox/mapAddr/lat/lng ready above).
   _locBlockCache = '<div class="sec-h">Location &amp; Property</div>'
     +'<div class="sec-sub" style="margin-bottom:3px;">Property location · GPS coordinates · site context</div>'
-    +'<div style="border:1.5px solid #d4c9b0;overflow:hidden;position:relative;width:100%;padding-top:56.25%;border-radius:3px;margin-bottom:5px;">'
+    /* §MAP-PIN-GEOM — padding-top is the SAME _mapAspect the pin maths above is derived from,
+       so the two can never drift apart again. (0.5625*100 === 56.25 — identical output.) */
+    +'<div style="border:1.5px solid #d4c9b0;overflow:hidden;position:relative;width:100%;padding-top:'+(_mapAspect*100)+'%;border-radius:3px;margin-bottom:5px;">'
     +'<div style="position:absolute;inset:0;">'+mapBox
     +'<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(15,13,10,.75);padding:4px 8px;">'
     +'<div style="font-size:9px;color:rgba(255,255,255,.95);font-family:DM Mono,monospace;font-weight:600;">'+mapAddr+'</div>'
@@ -40911,6 +41063,13 @@ function _toRow(o) {
       //   Written ONLY when true, so an order that never touched this feature produces the
       //   exact same extra_data JSON as v2.304 (JSON.stringify drops undefined keys).
       multiOwner:(o.multiOwner===true)?true:undefined,
+      // §OWNERS-LIST (v2.342) — the structured Registered Owners list and its 1/2-column
+      //   print choice. BOTH are written ONLY when actually set (the §DRAFT / §OP-FORMAT
+      //   precedent): JSON.stringify drops an undefined value entirely, so an order that
+      //   never touched this feature produces byte-for-byte the extra_data it did in
+      //   v2.341. No schema migration — this rides in extra_data, exactly like `owner`.
+      ownersList:(Array.isArray(o.ownersList)&&o.ownersList.length)?o.ownersList:undefined,
+      ownersCols:(o.ownersCols===2)?2:undefined,
       // §MULTI-BUILDING (v2.188) — extra buildings making up one real estate.
       buildings:(Array.isArray(o.buildings)?o.buildings:[]),
       bldgNote:(o.bldgNote||''),   // §BLDG-NOTE (v2.189) — Building 1 note/remark
@@ -41146,6 +41305,12 @@ function _fromRow(row, order) {
       //   SAME OWNER, which stops writing the key, really clears the flag on the way back
       //   in and can never be resurrected from a stale in-memory value.
       order.multiOwner = (x.multiOwner===true);
+      // §OWNERS-LIST (v2.342) — the list restores only when present (absent ⇢ untouched).
+      //   The column choice is set UNCONDITIONALLY, like multiOwner above, so switching
+      //   back to 1 column — which stops writing the key — really clears it on the way
+      //   back in and can never be resurrected from a stale in-memory value.
+      if (Array.isArray(x.ownersList)) order.ownersList = x.ownersList;
+      order.ownersCols = (x.ownersCols===2) ? 2 : 1;
       if (Array.isArray(x.buildings)) order.buildings = x.buildings; // §MULTI-BUILDING (v2.188)
       if (x.bldgNote!=null) order.bldgNote = x.bldgNote;             // §BLDG-NOTE (v2.189)
       // §ARCHIVE-SAFE (v2.148) — restore archived state so archived orders stay out of the
@@ -48235,6 +48400,9 @@ function _renderParcels(order){
     var _cb=document.getElementById('eSameOwner');
     if(_cb) _cb.checked = !_multi;
     _eOwnerLabelSync(order);
+    // §OWNERS-LIST (v2.342) — adding/removing a parcel and the SAME OWNER tick all land
+    //   here, and all three decide whether the whole-real-estate shares list applies.
+    try{ if(typeof _renderOwners==='function') _renderOwners(order); }catch(e){}
   }catch(e){}
   if(!list.length){ wrap.innerHTML=''; return; }
   wrap.innerHTML=list.map(function(p,i){
@@ -48262,6 +48430,251 @@ function _renderParcels(order){
     +'</div>';
   }).join('');
 }
+// ── §OWNERS-LIST (v2.342) — Registered Owners with ownership percentages ──────
+//   WHAT IT IS
+//   A structured list of the persons a real estate is registered to, each with its
+//   share, replacing the single free-text "Registered Owner(s)" line for properties
+//   with many co-owners — e.g. order 2026-094, where "Mr. Armando Correa, Mr. Hilario
+//   Correa, Mr. Maximo Correa, Mrs. Remigia Maria Correa & Mrs.Clara Escolastica
+//   Medardo" is five owners crammed into one line with no shares at all.
+//
+//   LEVEL — THE WHOLE REAL ESTATE, NOT A PARCEL.
+//   An ownership share is an undivided fractional interest in the registered property
+//   as a whole; a co-owner holding a third does not own "a third of Parcel 2".
+//   §MULTI-OWNER (v2.305) already models the other, genuinely different situation —
+//   adjoining parcels each held under their OWN title by a different owner — and the
+//   two must never be mixed, because "33% of Parcel 2" is not something either model
+//   can express. So this list is SUPPRESSED whenever §MULTI-OWNER is really on (the
+//   flag AND a real second parcel): _ownersOn() returns false, the editor panel hides
+//   itself with an explanation, and every §MULTI-PARCEL / §MULTI-OWNER code path — the
+//   Parcels card strip, the per-parcel Registered Owner fields, the page-3 Ownership
+//   cell, the validation rows — runs byte-for-byte as it does in v2.341.
+//
+//   DATA SHAPE
+//     order.ownersList = [{name:'Mr. Armando Correa', pct:'33,33'}, …]
+//     order.ownersCols = 2                      // 1 (default) or 2 printed columns
+//   `pct` holds the RAW string the appraiser typed — comma or dot, with or without a
+//   "%" — and is parsed on read (_ownersPctNum). Nothing typed is ever discarded.
+//   Both keys are written to extra_data ONLY when actually set (the §DRAFT /
+//   §OP-FORMAT precedent), so an order that never touches this feature serialises
+//   exactly as it did before. No schema migration: this rides in extra_data, the same
+//   JSON `order.owner` itself round-trips through.
+//
+//   order.owner (free text) REMAINS THE FIELD OF RECORD when no structured list
+//   exists. The list never writes to it and never clears it.
+var OWNERS_MAX_ROWS_PER_COL = 12;   // §OWNERS-CAP — see _ownersCapped
+var OWNERS_TOTAL_TOL = 0.05;        // §OWNERS-TOTAL — see _ownersTotalOk
+
+// §OWNERS-PCT-PARSE — the percentage field is type="text" inputmode="decimal", NOT
+//   type="number", and it is parsed here. type="number" carries the badInput trap that
+//   cost this app real data: type "33,33" into it and the browser SHOWS "33,33" while
+//   .value reports '' — the figure is on screen, the save writes nothing, and the loss
+//   is invisible until the report prints. Aruban keyboards and Dutch/Papiamento habits
+//   produce the comma constantly, so that trap would fire here weekly. A text field
+//   cannot lose characters, inputmode="decimal" still raises the numeric keypad on a
+//   tablet in the field, and this parser accepts "33,33", "33.33", "33.33 %" and " 50 "
+//   alike. Anything it cannot read comes back NaN and is preserved verbatim rather than
+//   silently zeroed.
+function _ownersPctNum(v){
+  if(v==null) return NaN;
+  var s=String(v).replace(/\s+/g,'').replace(/%/g,'').replace(/,/g,'.');
+  if(!s) return NaN;
+  if(!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
+  var n=parseFloat(s);
+  return isFinite(n)?n:NaN;
+}
+// "33,33" ⇢ "33.33%" · "50" ⇢ "50%" · "1/3" ⇢ "1/3" (unreadable, echoed as typed).
+function _ownersPctFmt(v){
+  var n=_ownersPctNum(v);
+  if(isNaN(n)) return String(v==null?'':v).trim();
+  var s=n.toFixed(2);
+  if(s.indexOf('.')>=0){ s=s.replace(/0+$/,''); s=s.replace(/\.$/,''); }
+  return s+'%';
+}
+// The live rows: a row counts once it has a name OR a share (a half-typed row is real).
+function _ownersRows(o){
+  return (o && Array.isArray(o.ownersList)) ? o.ownersList.filter(function(r){
+    return r && (String(r.name==null?'':r.name).trim() || String(r.pct==null?'':r.pct).trim());
+  }) : [];
+}
+// Mirror of generateReport's _multiOwnerOn (which is local to that function) so the
+//   editor and the validation panel apply the identical test the report applies.
+function _ownersMultiOn(o){
+  if(!(o && o.multiOwner===true && Array.isArray(o.parcels))) return false;
+  return o.parcels.some(function(p){
+    return p && (String(p.size||'').trim()||String(p.type||'').trim()||String(p.legal||'').trim()||String(p.apn||'').trim());
+  });
+}
+function _ownersOn(o){ return !_ownersMultiOn(o) && _ownersRows(o).length>0; }
+function _ownersColsOf(o){ return (o && o.ownersCols===2) ? 2 : 1; }
+// {sum, rows, counted, blank, bad} — `counted` is how many shares actually parsed.
+function _ownersTotal(o){
+  var rows=_ownersRows(o), sum=0, counted=0, blank=0, bad=0;
+  rows.forEach(function(r){
+    var raw=String(r&&r.pct!=null?r.pct:'').trim();
+    if(!raw){ blank++; return; }
+    var n=_ownersPctNum(raw);
+    if(isNaN(n)){ bad++; return; }
+    sum+=n; counted++;
+  });
+  return { sum:sum, rows:rows.length, counted:counted, blank:blank, bad:bad };
+}
+// §OWNERS-TOTAL — a share list reads as complete when it totals 100 within ±0.05.
+//   Thirds NEVER total exactly: 33.33 × 3 = 99.99 and 33.34 × 3 = 100.02, so an exact
+//   ===100 test would cry wolf on the single commonest real case. The band admits
+//   99.99 and 100.01 (and 100.02) as CORRECT and still catches every genuine typo —
+//   nobody registers a share smaller than a twentieth of one percent. This is a
+//   WARNING only, never a block: a draft is legitimately incomplete, and an appraiser
+//   must be able to save, print and send a report while the shares are still being
+//   confirmed by the notary.
+function _ownersTotalOk(t){ return !!(t && t.counted>0 && Math.abs(t.sum-100)<=OWNERS_TOTAL_TOL); }
+// §OWNERS-COLS — TWO COLUMNS FILL DOWN-THEN-ACROSS (column-major). With 12 owners,
+//   1-6 run down the left column and 7-12 down the right, the way a name list reads in
+//   a directory or a phone book. Across-then-down (1,2 / 3,4 / …) makes the eye zig-zag
+//   and destroys the family/alphabetical grouping appraisers type the names in.
+//   The split is computed HERE, in JS, and each column is emitted as its own element:
+//   CSS column-count is deliberately NOT used, because it re-balances at layout time
+//   and unpredictable text reflow inside a fixed-height page is precisely what broke
+//   Report Section Order in v2.319.
+function _ownersSplit(rows, cols){
+  if(cols!==2 || rows.length<2) return [rows];
+  var left=Math.ceil(rows.length/2);
+  return [rows.slice(0,left), rows.slice(left)];
+}
+// §OWNERS-CAP — the printed block is allowed to be at most OWNERS_MAX_ROWS_PER_COL rows
+//   TALL: 12 owners in one column, 24 in two. It renders as ordinary flow content inside
+//   an existing .page, so it can never add, split or remove a page and _pgList is
+//   untouched by construction — but .inner is overflow:hidden on a fixed-height page, so
+//   anything past the bottom edge would be silently CLIPPED. The cap bounds the block's
+//   height, and the "… and N more" line it prints turns silent loss into a visible,
+//   printed statement. The editor warns before it ever gets that far.
+function _ownersCapped(o){
+  var rows=_ownersRows(o), cols=_ownersColsOf(o), max=OWNERS_MAX_ROWS_PER_COL*cols;
+  return { shown:rows.slice(0,max), hidden:Math.max(0, rows.length-max), cols:cols };
+}
+
+// ── §OWNERS-LIST editor ──────────────────────────────────────────────────────
+//   Persistence mirrors §MULTI-PARCEL exactly: editingOrder IS the canonical ORDERS
+//   object, the id is captured up front and the array mirrored onto ORDERS so a save
+//   survives the modal closing before a debounced write fires.
+var _eOwnersSaveTimer=null;
+function _eOwnersPersist(immediate){
+  if(!editingOrder) return;
+  var oid=editingOrder.id, lst=editingOrder.ownersList, cls=editingOrder.ownersCols;
+  try{ var c=ORDERS.find(function(o){return o.id===oid;}); if(c){ c.ownersList=lst; c.ownersCols=cls; } }catch(e){}
+  try{ if(typeof _editLocalSave==='function') _editLocalSave(); }catch(e){}
+  clearTimeout(_eOwnersSaveTimer);
+  var _stat=function(t,c){ var el=document.getElementById('eOwnersSaveStatus'); if(el){ el.textContent=t; el.style.color=c||'var(--muted)'; } };
+  var _save=function(){
+    _stat('· saving…','var(--muted)');
+    try{
+      var p=persistOrders(oid);
+      if(p&&typeof p.then==='function'){
+        p.then(function(){ _stat('· ✓ saved to database','#16a34a'); })
+         .catch(function(){ _stat('· saved on this device (will sync)','#b45309'); });
+      } else { _stat('· ✓ saved','#16a34a'); }
+    }catch(e){ _stat('· save error — try again','#b91c1c'); }
+  };
+  if(immediate) _save(); else _eOwnersSaveTimer=setTimeout(_save,900);
+}
+function _eAddOwner(){
+  if(!editingOrder) return;
+  if(!Array.isArray(editingOrder.ownersList)) editingOrder.ownersList=[];
+  editingOrder.ownersList.push({name:'',pct:''});
+  _renderOwners(editingOrder);
+  _eOwnersPersist(true);
+  try{ var f=document.querySelectorAll('#eOwnersList input.eown-name'); if(f.length) f[f.length-1].focus(); }catch(e){}
+}
+function _eRemoveOwner(i){
+  if(!editingOrder||!Array.isArray(editingOrder.ownersList)||!editingOrder.ownersList[i]) return;
+  var nm=String(editingOrder.ownersList[i].name||'').trim();
+  if(!confirm('Remove '+(nm?('"'+nm+'"'):('owner '+(i+1)))+' from the Registered Owners list?')) return;
+  editingOrder.ownersList.splice(i,1);
+  // Back to "never used": with no rows left the key stops being written at all, so the
+  //   order's extra_data returns to exactly the JSON it had before the feature was used.
+  if(!editingOrder.ownersList.length) delete editingOrder.ownersList;
+  _renderOwners(editingOrder);
+  _eOwnersPersist(true);
+}
+function _eOwnerSet(i,field,val){
+  if(!editingOrder||!Array.isArray(editingOrder.ownersList)||!editingOrder.ownersList[i]) return;
+  editingOrder.ownersList[i][field]=val;
+  _ownersTotalSync(editingOrder);   // live total WITHOUT a re-render, so focus is kept
+  _eOwnersPersist(false);           // debounced
+}
+function _eOwnersMove(i,dir){
+  if(!editingOrder||!Array.isArray(editingOrder.ownersList)) return;
+  var l=editingOrder.ownersList, j=i+dir;
+  if(j<0||j>=l.length) return;
+  var t=l[i]; l[i]=l[j]; l[j]=t;
+  _renderOwners(editingOrder);
+  _eOwnersPersist(true);
+}
+function _eOwnersColsSet(n){
+  if(!editingOrder) return;
+  editingOrder.ownersCols = (Number(n)===2) ? 2 : 1;
+  _renderOwners(editingOrder);
+  _eOwnersPersist(true);
+}
+// The live total line + the cap warning. Called on every keystroke (no re-render).
+function _ownersTotalSync(order){
+  var el=document.getElementById('eOwnersTotal'); if(!el) return;
+  var t=_ownersTotal(order), cols=_ownersColsOf(order), cap=OWNERS_MAX_ROWS_PER_COL*cols;
+  var bits=[];
+  if(!t.rows){
+    el.innerHTML='<span style="color:var(--muted);">No owners entered — the free-text Registered Owner(s) field above is used.</span>';
+    return;
+  }
+  var sumTxt=t.counted?_ownersPctFmt(String(t.sum)):'—';
+  var ok=_ownersTotalOk(t);
+  bits.push('<span style="font-weight:800;color:'+(ok?'#16a34a':'#b45309')+';">Total '+_eAttr(sumTxt)+'</span>');
+  bits.push('<span style="color:var(--muted);">'+t.rows+' owner'+(t.rows===1?'':'s')+'</span>');
+  if(t.blank) bits.push('<span style="color:var(--muted);">'+t.blank+' without a share</span>');
+  if(t.bad)   bits.push('<span style="color:#b45309;">'+t.bad+' share'+(t.bad===1?'':'s')+' not a number</span>');
+  if(t.counted && !ok) bits.push('<span style="color:#b45309;">does not add up to 100% — check the shares (warning only, nothing is blocked)</span>');
+  if(t.rows>cap) bits.push('<span style="color:#b91c1c;font-weight:700;">the report prints the first '+cap+' — '
+    +(cols===1?('switch to 2 columns to fit '+(OWNERS_MAX_ROWS_PER_COL*2)):'more owners than this block can hold')+'</span>');
+  // §OWNERS-CAP — a long list makes page 3 taller, and page 3 is fixed height with
+  //   overflow:hidden, so a very busy page 3 can push its last section off the bottom.
+  //   Report Section Order is the existing, sanctioned way to make room (move Inspection
+  //   Details to its own page, or '＋ Add Page') — say so instead of inventing a mechanism.
+  if(t.rows>16 || (t.rows>10 && cols===1)) bits.push('<span style="color:var(--muted);">a list this long makes page 3 tall — '
+    +(cols===1?'2 columns halves its height; ':'')+'Report Section Order can move Inspection Details to its own page</span>');
+  el.innerHTML=bits.join('<span style="color:#b9ab93;"> · </span>');
+}
+function _renderOwners(order){
+  var wrap=document.getElementById('eOwnersList'); if(!wrap) return;
+  var body=document.getElementById('eOwnersBody');
+  var blocked=document.getElementById('eOwnersBlocked');
+  // §MULTI-OWNER (v2.305) is on ⇢ each PARCEL has its own registered owner, and a
+  //   whole-real-estate share list would contradict it. Hide the editor and say why.
+  var off=_ownersMultiOn(order);
+  if(body)    body.style.display    = off?'none':'block';
+  if(blocked) blocked.style.display = off?'block':'none';
+  if(off) return;
+  var list=(order&&Array.isArray(order.ownersList))?order.ownersList:[];
+  try{
+    var cols=_ownersColsOf(order);
+    var r1=document.getElementById('eOwnersCols1'), r2=document.getElementById('eOwnersCols2');
+    if(r1) r1.checked=(cols===1);
+    if(r2) r2.checked=(cols===2);
+  }catch(e){}
+  if(!list.length){ wrap.innerHTML=''; _ownersTotalSync(order); return; }
+  wrap.innerHTML=list.map(function(r,i){
+    r=r||{};
+    return '<div style="display:flex;align-items:center;gap:7px;">'
+      +'<span style="flex:0 0 20px;text-align:right;font-size:11px;font-weight:700;color:var(--muted);">'+(i+1)+'.</span>'
+      +'<input type="text" class="eown-name" value="'+_eAttr(r.name)+'" oninput="_eOwnerSet('+i+',\'name\',this.value)" placeholder="e.g. Mr. Armando Correa" style="flex:1 1 auto;min-width:0;">'
+      +'<input type="text" inputmode="decimal" class="eown-pct" value="'+_eAttr(r.pct)+'" oninput="_eOwnerSet('+i+',\'pct\',this.value)" placeholder="33,33" title="Share of ownership in percent. A comma or a dot both work." style="flex:0 0 92px;text-align:right;">'
+      +'<span style="flex:0 0 10px;font-size:11px;color:var(--muted);">%</span>'
+      +'<button type="button" onclick="_eOwnersMove('+i+',-1)" title="Move up" style="flex:0 0 auto;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;line-height:1;">↑</button>'
+      +'<button type="button" onclick="_eOwnersMove('+i+',1)" title="Move down" style="flex:0 0 auto;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;line-height:1;">↓</button>'
+      +'<button type="button" onclick="_eRemoveOwner('+i+')" title="Remove this owner" style="flex:0 0 auto;padding:4px 10px;border:1px solid #fecaca;border-radius:6px;background:var(--red-bg,#fff1f2);color:var(--red,#991b1b);cursor:pointer;line-height:1;">✕</button>'
+    +'</div>';
+  }).join('');
+  _ownersTotalSync(order);
+}
+
 // ── §MULTI-BUILDING (v2.188) — extra buildings making up one real estate ──
 //   Lives on editingOrder.buildings (an array of {size}); Building 1 is the primary
 //   "Building Size / GLA" field above. Max 4 buildings total (3 additional). Mirrors
