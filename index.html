@@ -15994,7 +15994,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.345';
+var APP_VERSION = 'v2.346';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -16032,6 +16032,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.346',type:'fix',date:'08-20-2026',ts:'08-20-2026 05:00',_static:true,title:'The AI Conclusion now knows about the presumable value',desc:'When the AI wrote the Conclusion / Opinion it was only ever told the current value of the property. The presumable value - what the property is worth as proposed or completed - was never passed to it at all, so on a Type 3 report it was writing the closing paragraph without knowing the outcome of the very construction the report is about. It now receives both sets of figures, clearly labelled so they cannot be mixed up, along with the development cost and any adjustments that explain the difference, and it is asked to quantify that difference as the value the proposed work adds. On orders that only have a current value nothing changes. One further correction: a figure that has not been worked out yet is now described as not stated rather than being sent as a dash, and the AI is told never to guess at one - previously it could be handed a dash where a value should be.'},
   {v:'v2.345',type:'feature',date:'08-20-2026',ts:'08-20-2026 04:00',_static:true,title:'Copy All Customs over, and the copy buttons now ask before overwriting',desc:'The Valuation screen could copy Parcels and Buildings across to the Presumable side but not the Custom Areas. It can now - the button sits next to Add Custom Row and works the same way. Separately, all three of those copy buttons used to replace whatever was already on the Presumable side without asking, so one stray click could wipe figures you had typed with nothing to get them back. They now ask first, but only when there is something real to lose: if the Presumable side is empty, or only has the starting row names with no figures in them, the copy just happens as before with no interruption.'},
   {v:'v2.344',type:'fix',date:'08-20-2026',ts:'08-20-2026 03:00',_static:true,title:'Floor Plan print controls are readable again',desc:'The Print / Preview panel in the Floor Plan module, and the rest of that module, was showing pale text on its white panels under every dark theme - close enough to invisible that the paper size and scale dropdowns could not be read. The module has always carried its own dark colour for text but never actually applied it, so it kept using the light text colour from whichever theme you were on. It now uses its own, and the dropdown lists are given their colours explicitly so the open list is legible too. Nothing moved and nothing else changed - only the text colour inside that module.'},
   {v:'v2.343',type:'feature',date:'08-20-2026',ts:'08-20-2026 02:00',_static:true,title:'A proper owners list with ownership shares',desc:'Registered owners can now be entered as a list, each with their share as a percentage, instead of being crammed into one line. The running total is shown as you type and turns amber if the shares do not add up to about 100 - a warning only, nothing is ever blocked, and thirds that come to 99.99 are treated as correct. You can print the list in one column or, when there are many owners, in two columns to use the page properly; names run down the left column and continue down the right. Percentages accept a comma, so 33,33 works. Orders that do not use the list are completely unchanged and keep the single owner line exactly as before. With very many owners the list is capped at twelve per column and says how many are not shown - if you need all of them on the page, move the Inspection Details to their own page under Report Section Order.'},
@@ -51247,6 +51248,91 @@ function _renovNarrate(btn){
 // §RENOV (v2.214) — AI-generate the Renovation Notes & Remarks (Type-3 renovation projects).
 //   Mirrors the other AI opinion generators; seeds the prompt with the order's building facts
 //   and any text already typed, then writes back + persists to inspData.s12.renovNotes.
+// ── §CONCL-PRESUM (v2.346) — the Conclusion generator was blind to half the valuation ──
+//   genAiConclusion sent ONE line of value: valData.v1/v2/v3, which is the CURRENT (as-is)
+//   trio and nothing else. The PRESUMABLE valuation is produced by its own independent
+//   calculator and stored under valData.presumData — its own v1/v2/v3, its own
+//   parcel/build/custom rows, its own devCost and its own adj[] — and none of it ever
+//   reached the model. On a Type-3 parcel + new-build order, where the entire purpose of
+//   the report is the value BEFORE and AFTER construction, the closing paragraph was
+//   therefore written without the outcome it exists to state.
+//   PROMPT CONSTRUCTION ONLY. Nothing below reads or writes val_data, the valuation modal
+//   or the report; figures are passed through verbatim, exactly as the modal stored them.
+//   No figure is derived, re-computed or netted here — the report's own valuation engine
+//   stays the single source of truth for arithmetic (its Type-3 Current section prints
+//   LAND ONLY, not vd.v1, so a delta computed here could contradict the printed sheet).
+//
+//   PLACEHOLDER RULE — fmtAwg (index.html:28335) returns 'AWG —' for 0/NaN, so an
+//   uncomputed value is stored as 'AWG —' or '—', and a live record (order 2026-102) can
+//   hold an em dash in every slot. Passing that through invites the model to write around
+//   a figure that does not exist. A stored figure counts as SET only when it contains a
+//   digit 1-9 — so '', '-', '—', 'AWG —', '0' and 'AWG 0' are all NOT set, and the model
+//   is handed the literal words "not stated" plus an instruction never to invent one.
+//
+//   valMode RULE — mirrors _ovlValMode (index.html:16868) exactly: 'current' |
+//   'presumable' | 'both', defaulting to 'both' on apprType 3 and 'current' on everything
+//   else. On 'current' — AND on any order whose presumable side is entirely unfilled,
+//   whatever its valMode — the facts block and the prompt are byte-identical to the
+//   pre-fix output: there is no second valuation to discuss, so nothing may change and
+//   the model is given no opening to imagine an uplift.
+function _cnclSet(v){ return /[1-9]/.test(String(v==null?'':v)); }
+function _cnclFig(v){ return _cnclSet(v) ? String(v).trim() : 'not stated'; }
+function _cnclNum(v){ var n=parseFloat(String(v==null?'':v).replace(/,/g,'')); return (isFinite(n)&&n!==0)?n:null; }
+function _cnclAwg(n){ return 'AWG '+Math.round(n).toLocaleString('en-US'); }
+function _cnclValMode(order,vd){
+  var m=(vd&&vd.valMode)?String(vd.valMode):'';
+  if(m==='current'||m==='presumable'||m==='both') return m;
+  return (Number(order&&order.apprType)===3)?'both':'current';
+}
+// Presumable adjustments, rendered ONLY for entries that carry a real value. A seeded but
+//   empty row ({label:'Remodeling / renovation', value:''}) is not an adjustment.
+function _cnclPresumAdj(pd){
+  var out=[], A=(pd&&Array.isArray(pd.adj))?pd.adj:[];
+  for(var i=0;i<A.length;i++){
+    var a=A[i]; if(!a) continue;
+    var n=_cnclNum(a.value); if(n==null) continue;
+    var amt=(a.basis==='pct')?(n+'%'):_cnclAwg(n);
+    out.push((((a.label||'Adjustment')+'').trim()||'Adjustment')+': '+((a.sign==='minus')?'-':'+')+amt);
+  }
+  return out;
+}
+// Does the presumable side hold anything worth telling the model? A figure, a development
+//   cost, or an adjustment with a value. Empty seed rows alone are not enough.
+function _cnclHasPresum(pd){
+  if(!pd) return false;
+  if(_cnclSet(pd.v1)||_cnclSet(pd.v2)||_cnclSet(pd.v3)) return true;
+  if(_cnclNum(pd.devCost)!=null) return true;
+  return _cnclPresumAdj(pd).length>0;
+}
+// The valuation lines of the facts block. Returns the ORIGINAL single line unchanged
+//   whenever there is no presumable valuation in play.
+function _cnclValueLines(order,vd){
+  var pd=(vd&&vd.presumData)||null, mode=_cnclValMode(order,vd);
+  if(mode==='current'||!_cnclHasPresum(pd))
+    return ['Values — Free Market: '+_cnclFig(vd.v1)+', Execution: '+_cnclFig(vd.v2)+', Re-Construction: '+_cnclFig(vd.v3)];
+  var L=[];
+  L.push('Valuation basis: '+((mode==='both')
+    ? 'this report states BOTH the current (as-is) value and the presumable (as proposed / completed) value.'
+    : 'this report states the presumable (as proposed / completed) value only.'));
+  if(mode==='both')
+    L.push('Current (as-is) values — Free Market: '+_cnclFig(vd.v1)+'; Execution: '+_cnclFig(vd.v2)+'; Re-Construction: '+_cnclFig(vd.v3));
+  L.push('Presumable (as proposed / completed) values — Free Market: '+_cnclFig(pd.v1)+'; Execution: '+_cnclFig(pd.v2)+'; Re-Construction: '+_cnclFig(pd.v3));
+  var dc=_cnclNum(pd.devCost);
+  if(dc!=null) L.push('Construction / development cost behind the presumable value: '+_cnclAwg(dc));
+  var adj=_cnclPresumAdj(pd);
+  if(adj.length) L.push('Adjustments applied to the presumable value: '+adj.join('; '));
+  return L;
+}
+// The instruction that makes the model USE the second set. Empty string — i.e. the prompt
+//   is unchanged — whenever there is no presumable valuation in play.
+function _cnclValueGuide(order,vd){
+  var mode=_cnclValMode(order,vd);
+  if(mode==='current'||!_cnclHasPresum((vd&&vd.presumData)||null)) return '';
+  var noInvent=' Any figure given as "not stated" has not been computed: never state, estimate, round or imply it.';
+  if(mode==='both')
+    return ' The facts below carry TWO distinct sets of figures. Address BOTH: the current (as-is) value of the property as it stands today, and the presumable value as proposed / completed. Where both are stated, quantify the difference between them and explain it as the added value created by the proposed construction or renovation, using the development cost and any listed adjustments as the reason for it. Never merge, average, swap or re-label the two sets.'+noInvent;
+  return ' The figures below are the PRESUMABLE valuation — the value of the property as proposed / completed, NOT as it stands today. Say so explicitly, and use the development cost and any listed adjustments to explain how that value was arrived at.'+noInvent;
+}
 // §CONCL (v2.221) — AI-generate the final Conclusion / Opinion. Synthesises the property,
 //   condition, location, marketability and value into a closing paragraph; writes back +
 //   persists to inspData.s12.conclusionOpinion.
@@ -51267,11 +51353,12 @@ async function genAiConclusion() {
       'Type: '+((typeof _orderPropTypeLabel==='function')?_orderPropTypeLabel(order):(order.type||'—')),
       'Building: '+(order.buildType||'—')+'; Year built: '+(order.yearBuilt||'—')+'; GLA: '+(order.gla||order.GLA||'—'),
       'Building opinion: '+(_mrg('opBuildingText')||'—'),
-      'Location opinion: '+(_mrg('opLocationText')||'—'),
-      'Values — Free Market: '+(vd.v1||'—')+', Execution: '+(vd.v2||'—')+', Re-Construction: '+(vd.v3||'—')
-    ].join('\n');
+      'Location opinion: '+(_mrg('opLocationText')||'—')
+    // §CONCL-PRESUM (v2.346) — the value lines now cover the CURRENT and the PRESUMABLE
+    //   valuation. Byte-identical to the single old line on a current-only order.
+    ].concat(_cnclValueLines(order,vd)).join('\n');
     var seed=(ta.value||'').trim();
-    var prompt='You are a certified real estate appraiser in Aruba writing the final "Conclusion / Opinion" of an appraisal report. Write a concise, professional closing paragraph (90-140 words) that synthesises the property, its condition, the location and marketability, and states the appraiser’s overall opinion of value with any key caveats or assumptions. Formal appraisal language. Paragraph only, no headings.'+(seed?('\n\nIncorporate and refine the appraiser’s draft: '+seed):'')+'\n\nAppraisal facts:\n'+facts;
+    var prompt='You are a certified real estate appraiser in Aruba writing the final "Conclusion / Opinion" of an appraisal report. Write a concise, professional closing paragraph (90-140 words) that synthesises the property, its condition, the location and marketability, and states the appraiser’s overall opinion of value with any key caveats or assumptions. Formal appraisal language. Paragraph only, no headings.'+_cnclValueGuide(order,vd)+(seed?('\n\nIncorporate and refine the appraiser’s draft: '+seed):'')+'\n\nAppraisal facts:\n'+facts;
     var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt}]})});
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
