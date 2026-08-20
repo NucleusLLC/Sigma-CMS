@@ -15992,7 +15992,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.343';
+var APP_VERSION = 'v2.344';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -16030,6 +16030,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.344',type:'fix',date:'08-20-2026',ts:'08-20-2026 03:00',_static:true,title:'Floor Plan print controls are readable again',desc:'The Print / Preview panel in the Floor Plan module, and the rest of that module, was showing pale text on its white panels under every dark theme - close enough to invisible that the paper size and scale dropdowns could not be read. The module has always carried its own dark colour for text but never actually applied it, so it kept using the light text colour from whichever theme you were on. It now uses its own, and the dropdown lists are given their colours explicitly so the open list is legible too. Nothing moved and nothing else changed - only the text colour inside that module.'},
   {v:'v2.343',type:'feature',date:'08-20-2026',ts:'08-20-2026 02:00',_static:true,title:'A proper owners list with ownership shares',desc:'Registered owners can now be entered as a list, each with their share as a percentage, instead of being crammed into one line. The running total is shown as you type and turns amber if the shares do not add up to about 100 - a warning only, nothing is ever blocked, and thirds that come to 99.99 are treated as correct. You can print the list in one column or, when there are many owners, in two columns to use the page properly; names run down the left column and continue down the right. Percentages accept a comma, so 33,33 works. Orders that do not use the list are completely unchanged and keep the single owner line exactly as before. With very many owners the list is capped at twelve per column and says how many are not shown - if you need all of them on the page, move the Inspection Details to their own page under Report Section Order.'},
   {v:'v2.342',type:'fix',date:'08-20-2026',ts:'08-20-2026 01:30',_static:true,title:'The red location marker was missing on some reports',desc:'The red marker on the location map was not drawn at all for about one property in five, on every template - it was being positioned too high and pushed off the top edge of the map. It was never a template problem: whether it showed depended purely on where the property happened to sit within the map tile, which is why some reports looked fine and others did not. The map is built from square tiles, and the code assumed each one filled half the height of the box when it actually fills nearly sixty percent. Checked across a thousand positions at every zoom level: previously two hundred and five of them lost the marker, now none do. The map itself is unchanged - same size, same position, same page.'},
   {v:'v2.341',type:'feature',date:'08-19-2026',ts:'08-19-2026 07:00',_static:true,title:'More Text and Less Text on the Floor Plan opinion',desc:'The Opinion of Floor Plan now has the same Less Text and More Text buttons as the other AI-written sections, with the current target length between them. Each press asks for ten words more or fewer and rewrites the paragraph you already have rather than writing a new one, keeping every fact and measurement as it stands.'},
@@ -55180,7 +55181,7 @@ window.SigmaProFloorplanUI = (function () {
     var s = document.createElement('style'); s.id = 'pfp-css';
     s.textContent = [
       "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');",
-      '.pfp-root{--ink:#16130f;--paper:#fcfaf5;--cream:#f1ebdd;--gold:#c8922a;--gold2:#e0a83a;--border:#e2dccd;--slate:#8b8270;--surface:#ffffff;--radius:10px;--shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(20,16,10,.08);display:flex;flex-direction:column;height:100%;min-height:520px;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;}',
+      '.pfp-root{color:#16130f;--ink:#16130f;--paper:#fcfaf5;--cream:#f1ebdd;--gold:#c8922a;--gold2:#e0a83a;--border:#e2dccd;--slate:#8b8270;--surface:#ffffff;--radius:10px;--shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(20,16,10,.08);display:flex;flex-direction:column;height:100%;min-height:520px;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;}',
       '.pfp-toolbar{display:flex;gap:0;align-items:stretch;flex-wrap:wrap;padding:3px 4px;border-bottom:1px solid var(--border);background:linear-gradient(#fffdf8,#f1e9d8);}',
       '.pfp-grpbox{display:flex;flex-direction:column;align-items:center;padding:3px 9px 1px;border-right:1px solid rgba(180,168,144,.5);}',
       '.pfp-grpbtns{display:flex;gap:4px;align-items:center;}',
@@ -55247,7 +55248,10 @@ window.SigmaProFloorplanUI = (function () {
       '.pfp-empty{color:var(--slate);font-size:12.5px;line-height:1.5;}',
       '.pfp-kv{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;} .pfp-kv span{color:var(--slate);}',
       '.pfp-field{margin:9px 0;} .pfp-field label{display:block;font-size:11px;color:var(--slate);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em;}',
-      '.pfp-field select,.pfp-field input{font:13px Inter;padding:5px 7px;border:1px solid var(--border);border-radius:4px;background:#fff;width:100%;max-width:200px;}',
+      '.pfp-field select,.pfp-field input{font:13px Inter;padding:5px 7px;border:1px solid var(--border);border-radius:4px;background:#fff;color:#16130f;width:100%;max-width:200px;}',
+      /* §PFP-INK (v2.344) — the option popup is painted by the browser from the
+         control's own computed colours, so state them here too. */
+      '.pfp-field select option{background:#fff;color:#16130f;}',
       '.pfp-field input[type=number]{width:90px;}',
       '.pfp-grp{font:600 10.5px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);margin:14px 0 4px;border-bottom:1px solid var(--border);padding-bottom:3px;}',
       '.pfp-xy{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;}',
