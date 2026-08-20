@@ -12695,6 +12695,8 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
       <tbody id="vmCustomBody"><tr><td colspan="2"><input class="val-label-input" value="Pool / Outdoor" placeholder="Description" oninput="_valOnChange()"></td><td><input class="val-input" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcValModal();_valDirty=true;"></td><td><input class="val-input" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcValModal();_valDirty=true;"></td><td><input class="val-input" type="number" min="0" max="100" step="0.01" placeholder="100" value="100" oninput="_valClampPct(this);calcValModal();_valDirty=true;"></td><td><div class="val-computed">—</div></td><td><button class="val-del-btn" onclick="delVMRow(this)" title="Remove">✕</button></td></tr></tbody>
     </table>
     <button class="val-add-btn" onclick="addVMRow(&#39;vmCustomBody&#39;,&#39;Custom Area&#39;)">+ Custom Row</button>
+    <!-- §VAL-COPY (v2.345) — copy all Current custom rows into the Presumable Custom Areas section -->
+    <button class="val-add-btn" onclick="_valCopyCustomsToP2()" title="Copy all custom area rows (name, area, rate, %) into the Presumable Custom Areas section" style="margin-left:6px;background:rgba(46,138,82,.10);border:1px solid #2d8a52;color:#2d8a52;">&#10697; Copy All Customs over</button>
 
     <!-- SUBTOTALS ROW -->
     <table class="val-table" style="margin-top:.5rem;">
@@ -15992,7 +15994,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.344';
+var APP_VERSION = 'v2.345';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -16030,6 +16032,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.345',type:'feature',date:'08-20-2026',ts:'08-20-2026 04:00',_static:true,title:'Copy All Customs over, and the copy buttons now ask before overwriting',desc:'The Valuation screen could copy Parcels and Buildings across to the Presumable side but not the Custom Areas. It can now - the button sits next to Add Custom Row and works the same way. Separately, all three of those copy buttons used to replace whatever was already on the Presumable side without asking, so one stray click could wipe figures you had typed with nothing to get them back. They now ask first, but only when there is something real to lose: if the Presumable side is empty, or only has the starting row names with no figures in them, the copy just happens as before with no interruption.'},
   {v:'v2.344',type:'fix',date:'08-20-2026',ts:'08-20-2026 03:00',_static:true,title:'Floor Plan print controls are readable again',desc:'The Print / Preview panel in the Floor Plan module, and the rest of that module, was showing pale text on its white panels under every dark theme - close enough to invisible that the paper size and scale dropdowns could not be read. The module has always carried its own dark colour for text but never actually applied it, so it kept using the light text colour from whichever theme you were on. It now uses its own, and the dropdown lists are given their colours explicitly so the open list is legible too. Nothing moved and nothing else changed - only the text colour inside that module.'},
   {v:'v2.343',type:'feature',date:'08-20-2026',ts:'08-20-2026 02:00',_static:true,title:'A proper owners list with ownership shares',desc:'Registered owners can now be entered as a list, each with their share as a percentage, instead of being crammed into one line. The running total is shown as you type and turns amber if the shares do not add up to about 100 - a warning only, nothing is ever blocked, and thirds that come to 99.99 are treated as correct. You can print the list in one column or, when there are many owners, in two columns to use the page properly; names run down the left column and continue down the right. Percentages accept a comma, so 33,33 works. Orders that do not use the list are completely unchanged and keep the single owner line exactly as before. With very many owners the list is capped at twelve per column and says how many are not shown - if you need all of them on the page, move the Inspection Details to their own page under Report Section Order.'},
   {v:'v2.342',type:'fix',date:'08-20-2026',ts:'08-20-2026 01:30',_static:true,title:'The red location marker was missing on some reports',desc:'The red marker on the location map was not drawn at all for about one property in five, on every template - it was being positioned too high and pushed off the top edge of the map. It was never a template problem: whether it showed depended purely on where the property happened to sit within the map tile, which is why some reports looked fine and others did not. The map is built from square tiles, and the code assumed each one filled half the height of the box when it actually fills nearly sixty percent. Checked across a thousand positions at every zoom level: previously two hundred and five of them lost the marker, now none do. The map itself is unchanged - same size, same position, same page.'},
@@ -28695,6 +28698,20 @@ function delP2Row(btn){ try{ btn.closest('tr').remove(); }catch(e){} calcValP2()
 // §VAL-COPY (v2.202) — copy ALL Current rows (name / area / rate / %) into the matching
 //   Presumable table. Wired to the "Copy All Parcels/Buildings over" buttons. Replaces the
 //   Presumable table's rows with a mirror of the Current ones, then recalcs + saves the draft.
+// §VAL-COPY-GUARD (v2.345) — does a LIVE tbody currently hold real figures? Reuses
+//   §VAL-CLOBBER-GUARD's own definition of "content" (_valHasTableContent) rather than
+//   inventing a second one: a row counts only when it has an area OR a rate, so the
+//   seeded default labels ("Main Parcel / Lot", "Custom Area") with empty boxes are NOT
+//   content and the copy stays silent for the ordinary first-use case.
+function _valBodyHasContent(bodyId){
+  var b=document.getElementById(bodyId); if(!b) return false;
+  var rows=[];
+  b.querySelectorAll('tr').forEach(function(row){
+    var nums=row.querySelectorAll('input[type="number"]');
+    rows.push({ area:(nums[0]||{}).value||'', rate:(nums[1]||{}).value||'' });
+  });
+  try{ return _valHasTableContent({ parcel: rows }); }catch(e){ return false; }
+}
 function _valCopyToP2(srcBodyId, destBodyId, defLabel){
   var src=document.getElementById(srcBodyId), dest=document.getElementById(destBodyId);
   if(!src||!dest){ return; }
@@ -28705,6 +28722,14 @@ function _valCopyToP2(srcBodyId, destBodyId, defLabel){
     rows.push({ label:label, area:(nums[0]||{}).value||'', rate:(nums[1]||{}).value||'', pct:(nums[2]||{}).value||'' });
   });
   if(!rows.length){ alert('There are no rows to copy yet.'); return; }
+  // §VAL-COPY-GUARD (v2.345) — this copy REPLACES the Presumable table wholesale. Until
+  //   now it did so with no warning, so a Presumable figure the appraiser had already
+  //   typed was destroyed by one stray click, with nothing to recover from. Ask first —
+  //   but only when there is something real to lose. Declining touches NOTHING: no
+  //   innerHTML wipe, no _valDirty, no _valLocalSave, so no save path can observe it.
+  if(_valBodyHasContent(destBodyId)){
+    if(!confirm('The Presumable table already has figures in it.\n\nCopying over will REPLACE those rows with the Current ones. The replaced figures cannot be recovered afterwards.\n\nReplace them?')) return;
+  }
   dest.innerHTML='';
   rows.forEach(function(r){
     addP2Row(destBodyId, r.label||defLabel);
@@ -28719,7 +28744,10 @@ function _valCopyToP2(srcBodyId, destBodyId, defLabel){
 }
 function _valCopyParcelsToP2(){ _valCopyToP2('vmParcelBody','vmP2ParcelBody','Parcel'); }
 function _valCopyBuildsToP2(){ _valCopyToP2('vmBuildBody','vmP2BuildBody','Floor'); }
+// §VAL-COPY (v2.345) — Customs had no copy button; the helper was already body-agnostic.
+function _valCopyCustomsToP2(){ _valCopyToP2('vmCustomBody','vmP2CustomBody','Custom Area'); }
 window._valCopyToP2=_valCopyToP2; window._valCopyParcelsToP2=_valCopyParcelsToP2; window._valCopyBuildsToP2=_valCopyBuildsToP2;
+window._valCopyCustomsToP2=_valCopyCustomsToP2; window._valBodyHasContent=_valBodyHasContent;
 function calcValP2(){
   var rate=parseFloat((document.getElementById('vmP2AwgRate')||{}).value)||VAL_AWG_DEFAULT;
   function body(id){ var sub=0; var rows=document.getElementById(id); if(!rows) return 0;
