@@ -15994,7 +15994,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.347';
+var APP_VERSION = 'v2.348';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -16032,6 +16032,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.348',type:'fix',date:'08-21-2026',ts:'08-21-2026 03:00',_static:true,title:'Signature now always comes after the Appraiser Declaration',desc:'On reports where the Appraiser Declaration had been moved with Report Section Order, the signature was printing above the Declaration instead of below it. The order is now always Appraiser Sign-Off, then Appraiser Declaration, then the signature - on every template and however the sections are arranged. If the Declaration sits on the same page as the Sign-Off it is placed back in its proper position between the two, and if you have deliberately moved it to a later page the signature follows it there, so it always closes the group rather than being stranded in the middle. Reports where the Declaration was never moved print exactly as before, unchanged to the byte. The signature still sits 1.5 mm above its line and still travels with it.'},
   {v:'v2.347',type:'fix',date:'08-21-2026',ts:'08-21-2026 02:00',_static:true,title:'Appraiser Signature now sits on the signature line, on every template',desc:'The signature used to be pinned to the bottom of the sheet, so whenever the Sign-Off or Declaration grew, shrank, or was moved with Report Section Order, the line moved and the signature stayed behind. It now sits a fixed 1.5 mm above the signature line and travels with it - identically on every template, and whether or not the section has been moved. The Sign-Off, Declaration and signature were also being built by two separate pieces of code that had drifted apart, which is why they did not match everywhere; there is now only one, so they cannot drift again. BECAUSE OF THIS, THE X AND Y NUDGES YOU HAD SAVED HAVE BEEN RESET TO ZERO. Those numbers only existed to drag the signature up off the bottom of the page; measured from the line they would now push it too far. The signature should already be sitting correctly - if you want it elsewhere, nudge it again under Settings, Report Customization, Appraisal Signature. Your signature image, its size and its left, centre or right alignment are unchanged. The old Mid-Left, Mid-Centre and Mid-Right options were positions on the page rather than on the line, so they now simply mean Left, Centre and Right.'},
   {v:'v2.346',type:'fix',date:'08-20-2026',ts:'08-20-2026 05:00',_static:true,title:'The AI Conclusion now knows about the presumable value',desc:'When the AI wrote the Conclusion / Opinion it was only ever told the current value of the property. The presumable value - what the property is worth as proposed or completed - was never passed to it at all, so on a Type 3 report it was writing the closing paragraph without knowing the outcome of the very construction the report is about. It now receives both sets of figures, clearly labelled so they cannot be mixed up, along with the development cost and any adjustments that explain the difference, and it is asked to quantify that difference as the value the proposed work adds. On orders that only have a current value nothing changes. One further correction: a figure that has not been worked out yet is now described as not stated rather than being sent as a dash, and the AI is told never to guess at one - previously it could be handed a dash where a value should be.'},
   {v:'v2.345',type:'feature',date:'08-20-2026',ts:'08-20-2026 04:00',_static:true,title:'Copy All Customs over, and the copy buttons now ask before overwriting',desc:'The Valuation screen could copy Parcels and Buildings across to the Presumable side but not the Custom Areas. It can now - the button sits next to Add Custom Row and works the same way. Separately, all three of those copy buttons used to replace whatever was already on the Presumable side without asking, so one stray click could wipe figures you had typed with nothing to get them back. They now ask first, but only when there is something real to lose: if the Presumable side is empty, or only has the starting row names with no figures in them, the copy just happens as before with no interruption.'},
@@ -33378,6 +33379,49 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   function _soLayHas(id){ if(!_soLay) return false; for(var _k in _soLay){ if(_soLay[_k] && _soLay[_k].indexOf(id)>=0) return true; } return false; }
   var _secMovedSignoff = _soLayHas('signoff');
   var _secMovedDecl    = _soLayHas('declaration');
+  // ═══ §SIG-ORDER (v2.348) — Sign-Off → Appraiser Declaration → signature, ALWAYS ══════════
+  //   The three are ONE group and the signature is ALWAYS its tail. Until now the signature was
+  //   welded to the end of the Sign-Off BLOCK, which is the tail of the group only while the
+  //   Declaration is inline. Move the Declaration out with Report Section Order (§SEC-ADDPAGE,
+  //   v2.252) onto the SAME page and the driver printed it AFTER the sign-off block — i.e. after
+  //   the signature. That is the "signature one block too early" reported on order 2026-070.
+  //   The move capability is kept; only the ordering rule is added:
+  //     (A) Declaration NOT moved → inline in its canonical slot, signature the tail. Unchanged
+  //         and byte-identical — this is what every default order prints.
+  //     (B) Declaration moved onto the SAME page as the Sign-Off → the two are back-to-back on one
+  //         sheet whatever the drag order, so the Declaration is FOLDED BACK into its inline slot
+  //         and its stand-alone render is suppressed (_declFoldIn). The order then holds even when
+  //         the user dragged the Declaration ABOVE the Sign-Off, and there is still exactly ONE
+  //         signature emitter (§SIG-ONE-BUILDER, v2.347, preserved).
+  //     (C) Declaration moved to a DIFFERENT page → a layout the user deliberately chose, so
+  //         NEITHER block is relocated (relocating one could leave an added page blank). The
+  //         signature travels with whichever of the two ENDS the group in document order:
+  //           · Declaration on a LATER page → it ends the group, so the signature is emitted as the
+  //             TAIL OF THE DECLARATION and the Sign-Off body stops after Additional Notes.
+  //           · Declaration on an EARLIER page (the only possibility when the Sign-Off is left on
+  //             its own §7 page, since every placeable page precedes it) → the Sign-Off ends the
+  //             group and keeps the signature, exactly as before.
+  //   _pgList contract: nothing here adds, splits or removes a page. The signature block only ever
+  //   moves BETWEEN two blocks that both already print, so every page number is untouched.
+  function _soLayKeyOf(id){ if(!_soLay) return ''; for(var _k in _soLay){ if(_soLay[_k] && _soLay[_k].indexOf(id)>=0) return _k; } return ''; }
+  function _sigSecOn(id){ try{ return (typeof _orderSecEnabled!=='function') || _orderSecEnabled(order,id); }catch(e){ return true; } }
+  var _sigKeySignoff = _secMovedSignoff ? _soLayKeyOf('signoff')     : '';
+  var _sigKeyDecl    = _secMovedDecl    ? _soLayKeyOf('declaration') : '';
+  // (B) both blocks must actually print, or folding would drag a section the user unticked back
+  //   into the report, or hide the Declaration inside a host that is not printing at all.
+  var _declFoldIn = !!(_secMovedDecl && _secMovedSignoff && _sigKeyDecl && _sigKeyDecl===_sigKeySignoff
+                       && _sigSecOn('declaration') && _sigSecOn('signoff'));
+  // (C) lazy on purpose: _pgList does not exist yet at this point, and every caller runs later,
+  //   at render time, when it does. Reads _pgList, never writes it.
+  function _declEndsGroup(){
+    if(!_secMovedDecl || _declFoldIn || !_sigKeyDecl) return false;
+    if(!_sigSecOn('declaration')) return false;
+    try{
+      var _dp=_pgList.indexOf(_secPhysId(_sigKeyDecl));
+      var _sp=_secMovedSignoff ? (_sigKeySignoff ? _pgList.indexOf(_secPhysId(_sigKeySignoff)) : -1) : _pgList.indexOf('signoff');
+      return (_dp>=0 && _sp>=0 && _dp>_sp);
+    }catch(e){ return false; }
+  }
   var _secExtraLive = [];   // extra layout keys (p7+) with ≥1 enabled placed section, in page order
   if(_soLay){ Object.keys(_soLay).forEach(function(_k){ if(_isExtraPageKey(_k)){ var _arr=(_soLay[_k]||[]).filter(function(id){ return (typeof _orderSecEnabled!=='function')||_orderSecEnabled(order,id); }); if(_arr.length) _secExtraLive.push(_k); } }); _secExtraLive.sort(function(a,b){ return parseInt(a.slice(1),10)-parseInt(b.slice(1),10); }); }
   function _secExtraPhysId(k){ return 'secx'+(parseInt(k.slice(1),10)-6); }   // extra layout key p(6+i) → physical _pgList id 'secx'+i
@@ -34916,9 +34960,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   its own page, exactly as it always has. A moved section shares its page with others and must
   //   not claim the slack, so it passes false. No page is added, split or removed either way —
   //   the _pgList contract is untouched.
-  function _secSignoffBody(includeDecl, fillPage){
+  function _secSignoffBody(includeDecl, fillPage, omitSig){
     var _s12dSO=(order.inspData&&order.inspData.s12)||{};
-    var _soNameB=(_s12dSO.inspName||order.appraiser||'').trim();
     var _soN1=(_s12dSO.s12f2||'').trim(), _soN2=(_s12dSO.s12f3||'').trim(), _soN3=(_s12dSO.s12f4||'').trim();
     var _head = '<div class="sec-h">Appraiser Sign-Off</div>'
       +'<div class="sec-sub">Certification of appraisal · appraiser declaration · signature</div>'
@@ -34937,7 +34980,25 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
          +(_soN3?'<div style="font-size:10.5px;color:#0f0d0a;">'+esc(_soN3)+'</div>':'')
          +'</div>'
         :'');
+    // §SIG-ORDER (v2.348) — the signature is the tail of the GROUP, not of this block. When the
+    //   Declaration was moved onto a LATER page it ends the group, so it carries the signature
+    //   instead and this block stops after Additional Notes. Every other configuration passes
+    //   omitSig falsy and emits exactly what v2.347 emitted, in the same place, from the same
+    //   single builder.
     return (fillPage ? ('<div style="flex:1;">'+_head+'</div>') : _head)
+      + (omitSig ? '' : _sigTailHtml());
+  }
+  // §SIG-ORDER (v2.348) — THE signature block: the rule (§SIG-LINE, with the image floating
+  //   _SIG_GAP_MM above it), the printed name, the certification and licence lines, the
+  //   "Appraiser Signature & Stamp" caption and the optional stamp cell. Lifted out of
+  //   _secSignoffBody UNCHANGED — same markup, same order, same grid — so that the ONE builder
+  //   can be appended to whichever block ends the Sign-Off group. §SIG-ONE-BUILDER holds: this
+  //   is still the only place the signature markup exists, and _sigLineHtml() is still the only
+  //   place the image is positioned, so §DRAFT and the fixed gap are unaffected by the move.
+  function _sigTailHtml(){
+    var _s12dSO=(order.inspData&&order.inspData.s12)||{};
+    var _soNameB=(_s12dSO.inspName||order.appraiser||'').trim();
+    return ''
       // Signature block moved RIGHT (v1.852). Empty 1fr cell on the left pushes the signature
       // into the right 2/3; Date column removed (date is captured on cover + report metadata).
       +'<div style="border-top:1px solid #e8e0d4;padding-top:22px;">'
@@ -35006,8 +35067,14 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     conclusion:     function(){ return _conclBlockCache||''; },
     roi:            function(){ return _orderSecEnabled(order,'roi') ? _roiReportBlock() : ''; },
     valuation:      function(){ return _valBlockCache||''; },
-    signoff:        function(){ return _secSignoffBody(!_secMovedDecl); },   // §SEC-ADDPAGE — Declaration included unless it was moved out on its own
-    declaration:    function(){ return _declBlockCache; },                   // §SEC-ADDPAGE
+    // §SEC-ADDPAGE — Declaration included inline unless it was moved onto a DIFFERENT page
+    //   (§SIG-ORDER (v2.348): moved onto the SAME page it is folded back in, and the signature is
+    //   withheld here only when the Declaration is the block that ends the group).
+    signoff:        function(){ return _secSignoffBody(!_secMovedDecl || _declFoldIn, false, _declEndsGroup()); },
+    // §SIG-ORDER (v2.348) — folded back into the Sign-Off on a shared page (nothing to print
+    //   here, the Sign-Off already printed it); on a later page it ends the group and takes the
+    //   signature with it, which is what keeps Declaration BEFORE signature in every layout.
+    declaration:    function(){ return _declFoldIn ? '' : (_declBlockCache + (_declEndsGroup() ? _sigTailHtml() : '')); },
     condoAnalytics: function(){ return _secCondoAvail(order) ? _condoAnalyticsBlock() : ''; },   // §CONDO-GATE (v2.311) — condo / apartment / resort under ANY appraisal type (Type 3 always, as before). Placement + §SEC-ENABLE already gate this driver, so a custom layout that never carried it is untouched.
     introNote:      function(){ return _introNoteBlock(); }   // §SEC-INTRONOTE — movable on BOTH variants (T1 gained its page-3 driver hook in §SEC-P3-T1)
   };
@@ -36280,7 +36347,11 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   the flex:1 spacer that settles the signature block at the foot of THIS page, so a default
     //   report is laid out as before. The page-level _apprSigUnit overlay is gone entirely: the
     //   signature now lives inside its own line and travels with it.
-    +_secSignoffBody(!_secMovedDecl, true)
+    // §SIG-ORDER (v2.348) — both extra arguments are constant on THIS path (the inline page only
+    //   renders when the Sign-Off was NOT moved, so nothing can be folded in and every placeable
+    //   page precedes this one ⇒ the Declaration can never end the group here). They are passed
+    //   anyway so the two callers of the one builder cannot drift apart again.
+    +_secSignoffBody(!_secMovedDecl || _declFoldIn, true, _declEndsGroup())
     // _secSignoffBody closes its own grid and its border-top wrapper; this one closes .page-body,
     //   which has to shut BEFORE the running footer, exactly as it did when the markup was inline.
     +'</div>'+pgFtr('signoff')+'</div></div>';
