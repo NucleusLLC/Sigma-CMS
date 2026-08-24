@@ -385,6 +385,17 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# §BLU-DEVELOPMENTS — BLU Capital Group's Sales & Control Desk authenticates with a
+# shared bearer secret (BLU_INTAKE_SECRET), NOT a Supabase JWT, so JWT verification
+# must be off or the gateway rejects every request before the function's own secret
+# check ever runs. Only this function is listed; every other function keeps whatever
+# it is deployed with today.
+#   supabase secrets set BLU_INTAKE_SECRET="<shared secret>"
+#   supabase functions deploy blu-appraisal-intake --no-verify-jwt
+[functions.blu-appraisal-intake]
+enabled = true
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

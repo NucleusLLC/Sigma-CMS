@@ -7225,6 +7225,7 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
     <div class="ni" onclick="setView(&#39;dashboard&#39;)"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="3" y="15" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/></svg></span>Dashboard</div>
     <div class="ni" onclick="setView(&#39;orders&#39;)"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg></span>Orders<span class="nbadge">15</span></div>
     <div class="ni" onclick="setView(&#39;email&#39;)" data-rl="Email Requests"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>Email Requests<span class="nbadge" id="erBadge" style="display:none">0</span></div>
+    <div class="ni" onclick="setView(&#39;developments&#39;)" data-rl="Developments"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg></span>Developments<span class="nbadge" id="bluBadge" style="display:none">0</span></div>
     <div class="ni" onclick="setView(&#39;finance&#39;)" data-rl="Finance"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>Finance<span class="nbadge" id="finBadge" style="display:none">0</span></div>
     <div class="ni" onclick="setView(&#39;contacts&#39;)" data-rl="Contacts"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M15 2v20"/><path d="M15 7h5"/><path d="M15 12h5"/><path d="M15 17h5"/></svg></span>Contact Book</div>
     <div class="ni" onclick="setView('analytics')" data-rl="Sigma Analytics"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 9v4c0 1.66 4.03 3 9 3"/><path d="M3 13v4c0 1.49 3.49 2.79 8 2.98"/><circle cx="18.5" cy="18.5" r="2.5"/><path d="m21 21-1.2-1.2"/></svg></span>Σ Analytics</div>
@@ -7595,6 +7596,42 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
     <div id="erCount" style="font-size:12px;color:#a8a29e;white-space:nowrap;"></div>
   </div>
   <div id="erList" style="display:flex;flex-direction:column;gap:10px;"></div>
+</div>
+
+<!-- ══ §BLU-DEVELOPMENTS (v2.350) — appraisal requests from BLU Capital Group ══
+     BLU's Sales & Control Desk posts to the `blu-appraisal-intake` edge function
+     once a buyer's deposit is verified; the row lands in
+     public.blu_appraisal_requests with its appraisal number ALREADY ALLOCATED out
+     of SIGMA's shared yearly series, carrying a trailing 'B' (2026-045B). One
+     click turns a request into a Job Order under that same number — the same
+     shape as Email Requests above, and deliberately built in its idiom. -->
+<div class="view" id="view-developments">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap;">
+    <div>
+      <div class="ptitle" style="display:flex;align-items:center;gap:10px;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:#c49740"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg><span style="color:#fff;font-family:Sora,sans-serif;font-size:22px;font-weight:700;letter-spacing:-.01em;line-height:1;">Developments</span></div>
+      <div class="psub">BLU Capital Group &mdash; appraisal requests from the Sales &amp; Control Desk. The number is already reserved; one click raises the Job Order.</div>
+    </div>
+    <button class="btn-sec" onclick="bluFetch(true)" title="Fetch the latest development requests from the database" style="border-color:#c49740;color:#e0a93c;">&#8635; Refresh</button>
+  </div>
+  <div id="bluProjects" style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px;"></div>
+  <div class="fbar" style="justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1;">
+      <input class="finput" type="text" placeholder="Search number, client, lot, reservation..." id="bluSearch" oninput="bluRender()">
+      <select class="fsel" id="bluProjectFilter" onchange="bluRender()">
+        <option value="">All Projects</option>
+      </select>
+      <select class="fsel" id="bluStatusFilter" onchange="bluRender()">
+        <option value="open">Open (New + Seen)</option>
+        <option value="new">New only</option>
+        <option value="converted">Converted</option>
+        <option value="archived">Archived</option>
+        <option value="">All</option>
+      </select>
+      <button class="btn-sec" onclick="bluResetFilters()">&#8634; Reset</button>
+    </div>
+    <div id="bluCount" style="font-size:12px;color:#a8a29e;white-space:nowrap;"></div>
+  </div>
+  <div id="bluList" style="display:flex;flex-direction:column;gap:10px;"></div>
 </div>
 
 <!-- ══ §OVERVIEW-LIST (v2.310) — "Overview-List": every job order on one sheet, for
@@ -15995,7 +16032,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.349';
+var APP_VERSION = 'v2.350';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -16033,6 +16070,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.350',type:'feature',date:'08-23-2026',ts:'08-23-2026 09:00',_static:true,title:'Developments — appraisal requests from BLU Capital Group',desc:'A new Developments section in the sidebar receives appraisal requests from BLU Capital Group\u2019s Sales & Control Desk. When a buyer\u2019s deposit is verified BLU sends the request straight into SIGMA, and SIGMA answers immediately with the appraisal number — the next number in this year\u2019s series with a B after it, such as 2026-045B, so the numbering stays one single run and no ordinary order can ever be given that number. Each request shows the number, when it came in, the project and lot, the house model and package (or says plainly that BLU has not supplied them yet), the buyer\u2019s name, email and phone, the reservation reference, and whether the finished report goes to the buyer, to a bank contact, or to both. Create Job Order raises the order under the number that was already reserved, exactly the way Email Requests works, and the request is marked Converted with a link to the order. Sending the same request twice is harmless: BLU gets the same number back and nothing is duplicated. Actually producing and emailing the report is unchanged and still done by hand — this step is intake only.'},
   {v:'v2.349',type:'feature',date:'08-21-2026',ts:'08-21-2026 04:00',_static:true,title:'An uh-oh alert for team chat',desc:'There is a new notification sound for team chat - a short two-note falling uh-oh, in the spirit of the old ICQ alert. Choose it under Settings, Chat Notifications, where you can hear it with the Preview button before you commit. It is off unless you pick it: the two-tone chime is still the default. Like the other sounds it is generated by the app itself rather than being a recorded clip, so it adds nothing to loading time and works offline. It stays quiet in the same situations as the others - while older messages are still loading, when you are already looking at the chat, and never for your own messages.'},
   {v:'v2.348',type:'fix',date:'08-21-2026',ts:'08-21-2026 03:00',_static:true,title:'Signature now always comes after the Appraiser Declaration',desc:'On reports where the Appraiser Declaration had been moved with Report Section Order, the signature was printing above the Declaration instead of below it. The order is now always Appraiser Sign-Off, then Appraiser Declaration, then the signature - on every template and however the sections are arranged. If the Declaration sits on the same page as the Sign-Off it is placed back in its proper position between the two, and if you have deliberately moved it to a later page the signature follows it there, so it always closes the group rather than being stranded in the middle. Reports where the Declaration was never moved print exactly as before, unchanged to the byte. The signature still sits 1.5 mm above its line and still travels with it.'},
   {v:'v2.347',type:'fix',date:'08-21-2026',ts:'08-21-2026 02:00',_static:true,title:'Appraiser Signature now sits on the signature line, on every template',desc:'The signature used to be pinned to the bottom of the sheet, so whenever the Sign-Off or Declaration grew, shrank, or was moved with Report Section Order, the line moved and the signature stayed behind. It now sits a fixed 1.5 mm above the signature line and travels with it - identically on every template, and whether or not the section has been moved. The Sign-Off, Declaration and signature were also being built by two separate pieces of code that had drifted apart, which is why they did not match everywhere; there is now only one, so they cannot drift again. BECAUSE OF THIS, THE X AND Y NUDGES YOU HAD SAVED HAVE BEEN RESET TO ZERO. Those numbers only existed to drag the signature up off the bottom of the page; measured from the line they would now push it too far. The signature should already be sitting correctly - if you want it elsewhere, nudge it again under Settings, Report Customization, Appraisal Signature. Your signature image, its size and its left, centre or right alignment are unchanged. The old Mid-Left, Mid-Centre and Mid-Right options were positions on the page rather than on the line, so they now simply mean Left, Centre and Right.'},
@@ -20876,8 +20914,9 @@ function setView(view, sf2){
   if(view==='preferences'){renderUserList();}
   if(view==='reports'){setTimeout(()=>initChartsFor('rpt-overview'),100);}
   if(view==='calendar'){setTimeout(calRender,100);}
-  if(view==='dashboard'){ try{ clkStart(); }catch(e){} try{ erInit(true); }catch(e){} try{ dashActRender(); }catch(e){} }
+  if(view==='dashboard'){ try{ clkStart(); }catch(e){} try{ erInit(true); }catch(e){} try{ bluInit(); }catch(e){} try{ dashActRender(); }catch(e){} }
   if(view==='email'){ try{ erInit(); }catch(e){} }
+  if(view==='developments'){ try{ bluInit(); }catch(e){} }   // §BLU-DEVELOPMENTS (v2.350)
   if(view==='finance'){ try{ finInit(); }catch(e){} }
   if(view==='wiki'){ try{ if(typeof wikiInit==='function') wikiInit(); }catch(e){} }
   // Close mobile sidebar on nav
@@ -21382,6 +21421,10 @@ function openMO() {
   //   "New Appraisal Order" never inherits data from an abandoned convert flow.
   //   erCreateOrder() re-sets it immediately AFTER calling this.
   window._erPrefill = null;
+  // §BLU-DEVELOPMENTS (v2.350) — same rule for a development request: a manual
+  //   "New Appraisal Order" must never inherit an abandoned convert flow, and must
+  //   never pick up a reserved 2026-NNNB number. bluCreateOrder() re-sets it AFTER.
+  window._bluPrefill = null;
   _appraisalType = 0;
   document.querySelectorAll('.typick-option').forEach(o => o.classList.remove('selected'));
   document.getElementById('typickOverlay').classList.add('open');
@@ -21622,15 +21665,19 @@ function _openOrderForm(type) {
     });
     // §EMAIL-REQUESTS (v2.264) — fill the form from a website enquiry, if converting.
     try { _erApplyPrefill(type); } catch(e){ console.warn('[email-requests] prefill failed', e); }
+    // §BLU-DEVELOPMENTS (v2.350) — fill the form from a BLU development request, if converting.
+    try { _bluApplyPrefill(type); } catch(e){ console.warn('[developments] prefill failed', e); }
   }, 60);
 }
 
 function goBackToTypePicker() {
   // Preserve an in-flight website-enquiry prefill across "back" (openMO clears it).
   var _keepPrefill = window._erPrefill;
+  var _keepBlu     = window._bluPrefill;   // §BLU-DEVELOPMENTS (v2.350)
   closeMO();
   openMO();
   window._erPrefill = _keepPrefill;
+  window._bluPrefill = _keepBlu;
 }
 
 function closeMO() {
@@ -21679,12 +21726,25 @@ function moBg(e) {
 // Local fallback — ONLY when the database is unreachable, so an offline user can
 // still create an order. Unlike the old code this is year-aware.
 function _localOrderNumberFallback(yr){
-  var mx = ORDERS.reduce(function(m,o){
-    var p = String((o && o.id) || '').split('-');
+  function _hi(m, id){
+    var p = String(id || '').split('-');
     if (p[0] !== String(yr)) return m;                 // ignore other years
-    var n = parseInt(p[1], 10) || 0;
+    var n = parseInt(p[1], 10) || 0;                   // parseInt('045B') === 45
     return n > m ? n : m;
-  }, 0);
+  }
+  var mx = ORDERS.reduce(function(m,o){ return _hi(m, o && o.id); }, 0);
+  // §BLU-DEVELOPMENTS (v2.350) — a BLU appraisal number is RESERVED the moment the
+  //   request arrives and only becomes an order later, so in between 2026-045B
+  //   exists in blu_appraisal_requests and in NO order. The database allocator
+  //   knows that (one shared counter); this offline fallback does not, and without
+  //   this it would hand 2026-045 to an ordinary order while 2026-045B was already
+  //   promised to BLU. Purely in-memory — no await, no network — and a no-op when
+  //   the Developments area has never been opened.
+  try {
+    if (typeof BLU !== 'undefined' && BLU && BLU.rows) {
+      mx = BLU.rows.reduce(function(m,r){ return _hi(m, r && r.appraisal_number); }, mx);
+    }
+  } catch(e){}
   return yr + '-' + String(mx + 1).padStart(3, '0');
 }
 
@@ -21718,6 +21778,14 @@ async function _ensureUniqueOrderId(o){
       taken = !!(r.data && r.data.length);
     } catch(e) { return o.id; }
     if (!taken) return o.id;
+    // §BLU-DEVELOPMENTS (v2.350) — never quietly re-number a reserved BLU number.
+    //   If it is taken, this request has already become an order; issuing a
+    //   DIFFERENT number would hand the client a document BLU has never heard of.
+    //   Stop and say so — submitOrder()'s wrapper shows this in the modal.
+    if (window._bluPrefill && String(window._bluPrefill.appraisal_number || '') === o.id) {
+      throw new Error('Order ' + o.id + ' already exists. This BLU request has already been '
+        + 'turned into a Job Order — open that order instead of creating a second one.');
+    }
     var next = await _allocOrderNumber();
     if (next === o.id) break;                          // allocator can't help; stop
     console.warn('[order-no] ' + o.id + ' already exists — re-allocated ' + next);
@@ -21861,7 +21929,15 @@ async function _submitOrderImpl() {
   var _dp=dpParse(due);
   var dueDisplay=_dp ? dpFormat(_dp) : due;
   // §ORDER-NO (v2.270) — allocated by the database, not by this browser.
-  var newId = await _allocOrderNumber();
+  // §BLU-DEVELOPMENTS (v2.350) — a BLU development request already HAS its number:
+  //   sigma_next_order_number(year,'B') allocated it out of the same yearly series
+  //   the moment the request arrived, and BLU was told what it is. Allocating a
+  //   second one here would leave SIGMA and BLU calling one job two different
+  //   things, and would burn a number out of a series whose numeric part is also
+  //   an invoice number. So the reserved number is used verbatim.
+  var _bluForcedId = (window._bluPrefill && window._bluPrefill.appraisal_number)
+                       ? String(window._bluPrefill.appraisal_number) : '';
+  var newId = _bluForcedId || await _allocOrderNumber();
 
   var pSize = isT1 ? parseFloat(gv('moParcelM2'))
             : (at===3 ? parseFloat(gv('moParcelM2c')) : parseFloat(gv('moParcelM2b')));
@@ -21920,6 +21996,8 @@ async function _submitOrderImpl() {
     notes:       gv('moNotes'+sfx),
     /* §EMAIL-REQUESTS (v2.264) — provenance when this order came from a website enquiry */
     sourceInquiryId: (window._erPrefill && window._erPrefill.id) || '',
+    /* §BLU-DEVELOPMENTS (v2.350) — provenance when this order came from a BLU development request */
+    sourceBluRequestId: (window._bluPrefill && window._bluPrefill.id) || '',
     /* Photos */
     photo:    'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=112&h=92&fit=crop&auto=format',
     photoBig: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=480&fit=crop&auto=format'
@@ -21934,6 +22012,8 @@ async function _submitOrderImpl() {
   persistOrders(newId);
   // §EMAIL-REQUESTS (v2.264) — link the source enquiry and mark it converted.
   try { _erOnOrderCreated(newId); } catch(e){ console.warn('[email-requests] link failed', e); }
+  // §BLU-DEVELOPMENTS (v2.350) — link the source development request and mark it converted.
+  try { _bluOnOrderCreated(newId); } catch(e){ console.warn('[developments] link failed', e); }
   closeMO();
   setView('orders');
   setTimeout(function(){
@@ -27220,6 +27300,609 @@ function _erOnOrderCreated(orderId){
       else { try{ appLog('ACTION','Email Requests','Enquiry from '+(r.client_name||'?')+' converted to order '+orderId); }catch(e){} }
     })
     .catch(function(e){ console.warn('[email-requests] convert-link failed:', e); });
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §BLU-DEVELOPMENTS (v2.350) — BLU Capital Group development requests         ║
+// ║                                                                              ║
+// ║  Source: BLU Capital Group's Sales & Control Desk posts to the               ║
+// ║  `blu-appraisal-intake` edge function when a buyer's deposit is verified,    ║
+// ║  because the buyer needs an appraisal report to take to their bank for a     ║
+// ║  mortgage. The function inserts a row into public.blu_appraisal_requests     ║
+// ║  (service role) and answers with the appraisal number.                       ║
+// ║                                                                              ║
+// ║  THE NUMBER IS ALREADY ALLOCATED when the row appears here. It is the next   ║
+// ║  number in SIGMA's yearly series with a trailing 'B' — 2026-045B — issued by ║
+// ║  sigma_next_order_number(year,'B') out of the SAME counter every other order ║
+// ║  draws from, so no ordinary order will ever be issued 2026-045. This view    ║
+// ║  never allocates; it only spends what has already been reserved.             ║
+// ║                                                                              ║
+// ║  model_code / package_code are legitimately NULL: BLU has not yet supplied   ║
+// ║  house models or packages for Wayaca. The UI says "Not yet supplied" and     ║
+// ║  never invents a value.                                                      ║
+// ║                                                                              ║
+// ║  Convert flow: deliberately the SAME shape as Email Requests. bluCreateOrder ║
+// ║  stashes the row in window._bluPrefill and opens the NORMAL New-Order type   ║
+// ║  picker; _bluApplyPrefill() fills the form; the user confirms and submits    ║
+// ║  through the SAME submitOrder() path, so every validation and the invoice    ║
+// ║  step still run. _submitOrderImpl uses the reserved number verbatim, and     ║
+// ║  _bluOnOrderCreated() links the row and flips it to converted.               ║
+// ║                                                                              ║
+// ║  OUT OF SCOPE here: generating, rendering or emailing the appraisal report.  ║
+// ║  This ends at "request received → visible → converted to a Job Order".       ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var BLU = { rows: [], loaded:false, loading:false, error:null, open:{} };
+
+function bluById(id){
+  for(var i=0;i<BLU.rows.length;i++){ if(BLU.rows[i].id===id) return BLU.rows[i]; }
+  return null;
+}
+function _bluName(r){
+  return String(((r.client_first_name||'') + ' ' + (r.client_last_name||'')).trim() || '(no name)');
+}
+function _bluProjectLabel(r){
+  return r.project_name || r.project_code || '(no project)';
+}
+// A project code is text BLU supplies, and it goes into a JS string literal that
+// sits inside an HTML attribute — two layers of quoting. _erEsc alone is not enough
+// there: it turns ' into &#39;, which the parser hands back to JS as a bare quote,
+// ending the string early. Escape for JS first, then for HTML.
+function _bluAttr(v){
+  return _erEsc(String(v==null?'':v)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'"));
+}
+
+/* ── Load ─────────────────────────────────────────────────────────────────── */
+function bluInit(){
+  bluRender(); bluBadge();
+  if(!BLU.loading) bluFetch(false);
+}
+
+function bluFetch(force){
+  if(!_sb){ BLU.loaded=true; BLU.error='Cloud sync unavailable (running without Supabase).'; bluRender(); return; }
+  if(!force && typeof window.isSbPaused==='function' && window.isSbPaused()){
+    BLU.error='Cloud sync is paused — press Refresh to fetch anyway.'; bluRender(); return;
+  }
+  BLU.loading = true; BLU.error = null; bluRender();
+  _sb.schema('public').from('blu_appraisal_requests').select('*')
+    .order('created_at', { ascending:false })
+    .limit(500)
+    .then(function(res){
+      BLU.loading = false;
+      if(res.error){
+        BLU.error = (res.error.message||'').indexOf('does not exist') >= 0
+          ? 'The blu_appraisal_requests table does not exist yet — run SIGMA_blu_appraisal_requests.sql.'
+          : res.error.message;
+        console.warn('[developments] fetch failed:', res.error.message);
+      } else {
+        BLU.rows = res.data || []; BLU.loaded = true;
+      }
+      bluRender(); bluBadge();
+    })
+    .catch(function(err){
+      BLU.loading = false; BLU.error = String(err && err.message || err);
+      bluRender();
+    });
+}
+
+/* ── Filtering + render ───────────────────────────────────────────────────── */
+function bluResetFilters(){
+  var s=document.getElementById('bluSearch'); if(s) s.value='';
+  var p=document.getElementById('bluProjectFilter'); if(p) p.value='';
+  var st=document.getElementById('bluStatusFilter'); if(st) st.value='open';
+  bluRender();
+}
+
+function bluFiltered(){
+  var q   = (document.getElementById('bluSearch')||{}).value || '';
+  var prj = (document.getElementById('bluProjectFilter')||{}).value || '';
+  var st  = (document.getElementById('bluStatusFilter')||{}).value;
+  if(st === undefined) st = 'open';
+  q = q.trim().toLowerCase();
+  return BLU.rows.filter(function(r){
+    if(prj && (r.project_code||'') !== prj) return false;
+    if(st === 'open'){ if(r.status!=='new' && r.status!=='seen') return false; }
+    else if(st && r.status !== st) return false;
+    if(q){
+      var hay = [r.appraisal_number,r.client_first_name,r.client_last_name,r.client_email,
+                 r.client_phone,r.lot_number,r.model_code,r.package_code,r.reservation_ref,
+                 r.project_code,r.project_name,r.order_id].join(' ').toLowerCase();
+      if(hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+
+function _bluStatusPill(st){
+  if(st==='new')       return _erPill('New','rgba(196,151,64,.18)','#e8b84b','rgba(196,151,64,.45)');
+  if(st==='seen')      return _erPill('Seen','rgba(148,163,184,.12)','#94a3b8','rgba(148,163,184,.3)');
+  if(st==='converted') return _erPill('Converted','rgba(74,222,128,.15)','#4ade80','rgba(74,222,128,.4)');
+  if(st==='archived')  return _erPill('Archived','rgba(120,113,108,.15)','#a8a29e','rgba(120,113,108,.4)');
+  return _erPill(st||'—','rgba(148,163,184,.12)','#94a3b8','');
+}
+
+// The project strip: derived from the requests themselves, not from a projects
+// table. BLU has not supplied a project catalogue, and inventing one would mean
+// carrying a second, unverified copy of their data.
+function bluRenderProjects(){
+  var host = document.getElementById('bluProjects');
+  if(!host) return;
+  var byCode = {}, order = [];
+  BLU.rows.forEach(function(r){
+    var code = r.project_code || '';
+    if(!byCode[code]){ byCode[code] = { code:code, name:r.project_name||code||'(no project)', n:0, open:0 }; order.push(code); }
+    byCode[code].n++;
+    if(r.status==='new'||r.status==='seen') byCode[code].open++;
+  });
+
+  var sel = document.getElementById('bluProjectFilter');
+  if(sel){
+    var cur = sel.value;
+    var opts = '<option value="">All Projects</option>';
+    order.forEach(function(c){ if(c) opts += '<option value="'+_erEsc(c)+'">'+_erEsc(byCode[c].name)+'</option>'; });
+    if(sel.innerHTML !== opts){ sel.innerHTML = opts; sel.value = cur; }
+  }
+
+  if(!order.length){ host.innerHTML = ''; return; }
+  var active = (sel && sel.value) || '';
+  host.innerHTML = order.map(function(c){
+    var p = byCode[c], on = (active === c);
+    return '<div onclick="bluFilterProject(\'' + _bluAttr(c) + '\')" title="Show only this project" style="cursor:pointer;'
+      + 'border:1px solid ' + (on?'rgba(196,151,64,.55)':'rgba(255,255,255,.10)') + ';'
+      + 'background:' + (on?'rgba(196,151,64,.12)':'rgba(255,255,255,.03)') + ';'
+      + 'border-radius:11px;padding:9px 14px;min-width:150px;">'
+      + '<div style="font-family:Sora,sans-serif;font-size:13px;font-weight:700;color:#fff;">' + _erEsc(p.name) + '</div>'
+      + '<div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#a8a29e;margin-top:2px;">'
+      +   (c ? _erEsc(c) + ' &middot; ' : '') + p.n + ' request' + (p.n===1?'':'s')
+      +   (p.open ? ' &middot; <span style="color:#e8b84b;font-weight:700;">' + p.open + ' open</span>' : '')
+      + '</div></div>';
+  }).join('');
+}
+
+function bluFilterProject(code){
+  var sel = document.getElementById('bluProjectFilter');
+  if(!sel) return;
+  sel.value = (sel.value === code) ? '' : code;   // clicking the active chip clears it
+  bluRender();
+}
+
+function bluRender(){
+  var host = document.getElementById('bluList');
+  if(!host) return;
+  var cnt = document.getElementById('bluCount');
+  bluRenderProjects();
+
+  if(BLU.loading && !BLU.rows.length){
+    host.innerHTML = '<div style="padding:34px;text-align:center;color:#a8a29e;font-size:13px;">Loading development requests…</div>';
+    if(cnt) cnt.textContent = '';
+    return;
+  }
+  if(BLU.error && !BLU.rows.length){
+    host.innerHTML = '<div style="padding:26px;text-align:center;color:#fca5a5;font-size:13px;border:1px solid rgba(248,113,113,.3);border-radius:12px;background:rgba(248,113,113,.06);">'
+      + _erEsc(BLU.error) + '</div>';
+    if(cnt) cnt.textContent = '';
+    return;
+  }
+
+  var list = bluFiltered();
+  if(cnt) cnt.textContent = list.length + ' of ' + BLU.rows.length + ' shown';
+
+  if(!list.length){
+    host.innerHTML = '<div style="padding:40px;text-align:center;color:#a8a29e;font-size:13px;">'
+      + (BLU.rows.length ? 'No development requests match these filters.'
+                         : 'No development requests yet. When BLU Capital Group verifies a buyer’s deposit, the request appears here automatically with its appraisal number already reserved.')
+      + '</div>';
+    return;
+  }
+  host.innerHTML = list.map(bluRowHtml).join('');
+}
+
+// A value BLU has not supplied yet reads as absent, not as a rendering fault.
+function _bluField(label, value, href){
+  var inner;
+  if(value == null || value === ''){
+    inner = '<span style="color:#78716c;font-style:italic;">Not yet supplied</span>';
+  } else if(href){
+    inner = '<a href="' + _erEsc(href) + '" style="color:#e0a93c;text-decoration:none;">' + _erEsc(value) + '</a>';
+  } else {
+    inner = _erEsc(value);
+  }
+  return '<div><div style="font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:#a8a29e;margin-bottom:3px;">'
+       + _erEsc(label) + '</div><div style="font-size:13px;color:#e7e5e4;word-break:break-word;">' + inner + '</div></div>';
+}
+
+function bluRowHtml(r){
+  var opened = !!BLU.open[r.id];
+  var isNew  = (r.status === 'new');
+  var num    = r.appraisal_number || '';
+
+  var h = '<div style="border:1px solid ' + (isNew ? 'rgba(196,151,64,.38)' : 'rgba(255,255,255,.09)')
+        + ';border-radius:12px;background:' + (isNew ? 'rgba(196,151,64,.05)' : 'rgba(255,255,255,.022)')
+        + ';overflow:hidden;transition:.16s;">';
+
+  // ── header row (always visible, click to expand) ──
+  h += '<div onclick="bluToggle(\'' + r.id + '\')" style="display:flex;align-items:center;gap:14px;padding:13px 16px;cursor:pointer;">';
+  h += '<div style="min-width:112px;">'
+     +   '<div style="font-family:var(--font-mono,\'IBM Plex Mono\',monospace);font-size:14px;font-weight:700;color:#e0a93c;letter-spacing:.02em;">'
+     +     (num ? _erEsc(num) : '<span style="color:#fca5a5;font-size:11.5px;font-family:Sora,sans-serif;">no number</span>') + '</div>'
+     +   '<div style="margin-top:5px;">' + _bluStatusPill(r.status) + '</div>'
+     + '</div>';
+  h += '<div style="flex:1;min-width:0;">';
+  h +=   '<div style="font-family:Sora,sans-serif;font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+       + _erEsc(_bluName(r)) + '</div>';
+  h +=   '<div style="font-size:12px;color:#a8a29e;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+       + _erEsc(_bluProjectLabel(r))
+       + (r.lot_number ? '  ·  Lot ' + _erEsc(r.lot_number) : '')
+       + (r.reservation_ref ? '  ·  Res. ' + _erEsc(r.reservation_ref) : '')
+       + '</div>';
+  h += '</div>';
+  h += '<div style="text-align:right;flex-shrink:0;">';
+  h +=   '<div style="font-size:11.5px;color:#a8a29e;white-space:nowrap;">' + _erEsc(_erAgo(r.received_at || r.created_at)) + '</div>';
+  if(r.order_id) h += '<div style="font-size:11px;color:#4ade80;font-weight:700;margin-top:3px;">→ ' + _erEsc(r.order_id) + '</div>';
+  h += '</div>';
+  h += '<div style="color:#a8a29e;font-size:11px;flex-shrink:0;transform:rotate(' + (opened?'180':'0') + 'deg);transition:.18s;">▼</div>';
+  h += '</div>';
+
+  // ── expanded detail ──
+  if(opened){
+    h += '<div style="padding:2px 16px 15px;border-top:1px solid rgba(255,255,255,.07);">';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:11px 22px;margin:13px 0 4px;">';
+    h += _bluField('Appraisal number', num);
+    h += _bluField('Received',         _erDate(r.received_at || r.created_at));
+    h += _bluField('Status',           r.status);
+    h += _bluField('Project',          r.project_name || r.project_code);
+    h += _bluField('Project code',     r.project_code);
+    h += _bluField('Lot',              r.lot_number);
+    // NULL here means "BLU has not supplied it yet" — a real fact about the
+    // request, so it is SHOWN as that rather than hidden.
+    h += _bluField('House model',      r.model_code);
+    h += _bluField('Package',          r.package_code);
+    h += _bluField('Client',           _bluName(r));
+    h += _bluField('Email',            r.client_email, r.client_email ? 'mailto:'+r.client_email : '');
+    h += _bluField('Phone',            r.client_phone, r.client_phone ? 'tel:'+String(r.client_phone).replace(/\s+/g,'') : '');
+    h += _bluField('Reservation',      r.reservation_ref);
+    h += _bluField('Requested by',     r.requested_by_name
+                                        ? (r.requested_by_name + (r.requested_by_role ? ' (' + r.requested_by_role + ')' : ''))
+                                        : (r.requested_by_role || ''));
+    h += '</div>';
+
+    // ── where the finished report goes ──
+    var deliv = [];
+    if(r.deliver_to_client) deliv.push('the client' + (r.client_email ? ' (' + _erEsc(r.client_email) + ')' : ''));
+    if(r.bank_contact_email || r.bank_contact_name){
+      deliv.push('bank contact ' + _erEsc(r.bank_contact_name || '')
+                 + (r.bank_contact_email ? ' &lt;' + _erEsc(r.bank_contact_email) + '&gt;' : ''));
+    }
+    h += '<div style="margin:12px 0 4px;">'
+       + '<div style="font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e;margin-bottom:5px;">Deliver the report to</div>'
+       + '<div style="font-size:13px;line-height:1.55;color:#e7e5e4;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:11px 13px;">'
+       + (deliv.length ? deliv.join('<br>')
+                       : '<span style="color:#fca5a5;">No recipient stated — ask BLU before the report is issued.</span>')
+       + '<div style="margin-top:7px;font-size:11px;color:#a8a29e;font-style:italic;">Sending the report is still done by hand; SIGMA does not email it from here.</div>'
+       + '</div></div>';
+
+    // ── actions ──
+    h += '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:14px;">';
+    if(r.status !== 'converted'){
+      h += '<button onclick="bluCreateOrder(\'' + r.id + '\')" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;'
+         + 'background:linear-gradient(135deg,var(--au,#c49740) 0%,var(--au-lt,#ddb85a) 100%);color:#fff;border:none;border-radius:8px;'
+         + 'font-family:Sora,sans-serif;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;'
+         + 'box-shadow:0 2px 12px rgba(196,151,64,.4);">＋ Create Job Order' + (num ? ' ' + _erEsc(num) : '') + '</button>';
+    }
+    var _inBook = _bluFindContact(r);
+    if(_inBook){
+      h += '<span onclick="setView(\'contacts\')" title="Open the Contact Book" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border:1px solid rgba(74,222,128,.45);border-radius:8px;background:rgba(74,222,128,.10);color:#4ade80;font-size:12px;font-weight:700;">✓ In Contact Book</span>';
+    } else {
+      h += '<button class="btn-sec" onclick="bluAddToContacts(\'' + r.id + '\')" title="Save this buyer to the Contact Book" style="border-color:#e0a93c;color:#e0a93c;">＋ Add to Contact Book</button>';
+    }
+    if(r.order_id){
+      h += '<button class="btn-sec" onclick="setView(\'orders\')" style="border-color:#4ade80;color:#4ade80;">→ Open order ' + _erEsc(r.order_id) + '</button>';
+    }
+    h += '<div style="flex:1;"></div>';
+    if(r.client_email) h += '<button class="btn-sec" onclick="bluReply(\'' + r.id + '\')">✉ Reply</button>';
+    if(r.status === 'new')      h += '<button class="btn-sec" onclick="bluSetStatus(\'' + r.id + '\',\'seen\')">Mark seen</button>';
+    if(r.status !== 'archived') h += '<button class="btn-sec" onclick="bluSetStatus(\'' + r.id + '\',\'archived\')">Archive</button>';
+    else                        h += '<button class="btn-sec" onclick="bluSetStatus(\'' + r.id + '\',\'new\')">Restore</button>';
+    h += '</div>';
+    h += '</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function bluToggle(id){
+  BLU.open[id] = !BLU.open[id];
+  var r = bluById(id);
+  if(BLU.open[id] && r && r.status === 'new') bluSetStatus(id, 'seen', true);
+  else bluRender();
+}
+
+function bluSetStatus(id, status, keepOpen){
+  var r = bluById(id);
+  if(!r) return;
+  r.status = status;                       // optimistic — UI stays responsive
+  if(!keepOpen && status === 'archived') BLU.open[id] = false;
+  bluRender(); bluBadge();
+  if(!_sb) return;
+  _sb.schema('public').from('blu_appraisal_requests').update({ status:status }).eq('id', id)
+    .then(function(res){
+      if(res.error) console.warn('[developments] status update failed:', res.error.message);
+    })
+    .catch(function(e){ console.warn('[developments] status update failed:', e); });
+}
+
+function bluReply(id){
+  var r = bluById(id);
+  if(!r || !r.client_email) return;
+  var subj = 'Your appraisal' + (r.appraisal_number ? ' ' + r.appraisal_number : '')
+           + ' — Taxatie Bureau Jozef Laclé';
+  window.location.href = 'mailto:' + encodeURIComponent(r.client_email)
+    + '?subject=' + encodeURIComponent(subj)
+    + '&body=' + encodeURIComponent('Dear ' + _bluName(r) + ',\n\n');
+  if(r.status === 'new') bluSetStatus(id, 'seen', true);
+}
+
+function bluNewCount(){
+  return BLU.rows.filter(function(r){ return r.status === 'new'; }).length;
+}
+function bluBadge(){
+  var b = document.getElementById('bluBadge');
+  if(!b) return;
+  var n = bluNewCount();
+  b.textContent = n;
+  b.style.display = n ? '' : 'none';
+}
+
+/* ── Contact Book integration ─────────────────────────────────────────────── */
+// Mirrors §ER-CONTACT: the buyer becomes a Contact Book entry BEFORE the order
+// exists, so no Job Order is ever raised for someone who isn't a contact.
+// Matching is by EMAIL first, then first+last, so converting twice updates
+// rather than duplicates.
+function _bluFindContact(r){
+  if(!r || typeof cbLoad !== 'function') return null;
+  var contacts = cbLoad() || [];
+  var email = String(r.client_email||'').trim().toLowerCase();
+  var first = String(r.client_first_name||'').trim().toLowerCase();
+  var last  = String(r.client_last_name||'').trim().toLowerCase();
+  for(var i=0;i<contacts.length;i++){
+    var c = contacts[i];
+    if(email && String(c.email||'').trim().toLowerCase() === email) return c;
+    if((first||last)
+       && String(c.first||'').trim().toLowerCase() === first
+       && String(c.last ||'').trim().toLowerCase() === last) return c;
+  }
+  return null;
+}
+
+function _bluToContact(r){
+  if(!r) return null;
+  var first = String(r.client_first_name||'').trim();
+  var last  = String(r.client_last_name||'').trim();
+  var email = String(r.client_email||'').trim();
+  if(!first && !last && !email) return null;
+
+  var note = 'From BLU Capital Group (Sales & Control Desk) ' + _erDate(r.received_at || r.created_at)
+           + (r.appraisal_number ? '\nAppraisal: ' + r.appraisal_number : '')
+           + (r.project_name || r.project_code ? '\nProject: ' + _bluProjectLabel(r) : '')
+           + (r.lot_number      ? '\nLot: ' + r.lot_number : '')
+           + (r.reservation_ref ? '\nReservation: ' + r.reservation_ref : '');
+
+  var contacts = (typeof cbLoad === 'function') ? (cbLoad() || []) : [];
+  var match = _bluFindContact(r), created = false;
+
+  if(match){
+    // Only FILL GAPS — never overwrite details already curated in the Contact Book.
+    if(!match.first && first)               match.first     = first;
+    if(!match.last  && last)                match.last      = last;
+    if(!match.email && email)               match.email     = email;
+    if(!match.cellPhone && r.client_phone)  match.cellPhone = r.client_phone;
+    if(!match.hearFrom)                     match.hearFrom  = 'BLU Capital Group';
+    // The note carries its own reference, so re-converting the SAME request is a
+    // no-op instead of stacking duplicates.
+    if(String(match.notes||'').indexOf(note) === -1)
+      match.notes = (match.notes ? match.notes + '\n\n' : '') + note;
+    match.updatedAt = Date.now();
+    for(var i=0;i<contacts.length;i++){ if(contacts[i].id === match.id){ contacts[i] = match; break; } }
+  } else {
+    match = {
+      id: (typeof cbGenId === 'function') ? cbGenId() : ('c' + Date.now()),
+      first: first, last: last, company:'', clientType:'',
+      workPhone:'', cellPhone: r.client_phone || '',
+      email: email, addr:'', city:'', country:'',
+      hearFrom: 'BLU Capital Group',
+      notes: note,
+      createdAt: Date.now(), updatedAt: Date.now(), orderCount: 0
+    };
+    contacts.push(match);
+    created = true;
+  }
+
+  try { cbSaveAll(contacts); } catch(e){ console.warn('[developments] contact save failed', e); }
+  try { cbPushToSb(match);  } catch(e){ console.warn('[developments] contact sync failed', e); }
+  try {
+    var cv = document.getElementById('view-contacts');
+    if(cv && cv.classList.contains('active') && typeof cbRender === 'function') cbRender();
+  } catch(e){}
+  try { appLog('ACTION','Contacts',(created?'Created':'Updated')+' contact from BLU development request: '+((first+' '+last).trim()||email)); } catch(e){}
+  return { contact: match, created: created };
+}
+
+function bluAddToContacts(id){
+  var r = bluById(id);
+  if(!r) return;
+  var res = _bluToContact(r);
+  if(!res){ alert('This request has no name or email, so there is nothing to save to the Contact Book.'); return; }
+  var who = ((res.contact.first||'') + ' ' + (res.contact.last||'')).trim() || res.contact.email;
+  alert((res.created ? 'Added “' + who + '” to the Contact Book.' : 'Updated “' + who + '” in the Contact Book.'));
+  bluRender();
+}
+
+/* ── Convert a development request into a Job Order ───────────────────────── */
+// CONVERTING TWICE MUST BE IMPOSSIBLE, and there are three separate reasons a
+// second attempt can be tried: the row still says 'new' because the convert-link
+// write failed, the order list in this browser is stale, or two people are
+// looking at the same request. So it is checked three times, cheapest first:
+//   1. the request's own status / the in-memory order list  (instant)
+//   2. the orders table, asked directly                     (one query, here)
+//   3. _ensureUniqueOrderId(), which THROWS for a BLU number rather than
+//      re-allocating                                        (last line of defence)
+// Only 3 is load-bearing; 1 and 2 exist so the user is told plainly at the point
+// of the click rather than after filling in a form.
+async function bluCreateOrder(id){
+  var r = bluById(id);
+  if(!r) return;
+  if(!r.appraisal_number){
+    alert('This request has no appraisal number yet.\n\nThe number is allocated by the intake function when the request arrives. '
+        + 'Press Refresh; if it is still missing, ask BLU to re-send the request — the same idempotency key returns the same number, '
+        + 'so re-sending is safe and cannot create a duplicate.');
+    return;
+  }
+  // The number is already reserved and already known to BLU, so a second order
+  // under it is not possible. Say so plainly rather than silently re-numbering.
+  var _dupe = null;
+  try {
+    if(typeof ORDERS !== 'undefined'){
+      for(var i=0;i<ORDERS.length;i++){ if(ORDERS[i] && ORDERS[i].id === r.appraisal_number){ _dupe = ORDERS[i]; break; } }
+    }
+  } catch(e){}
+  if(r.status === 'converted' || _dupe){
+    alert('Order ' + (r.order_id || r.appraisal_number) + ' has already been created from this request.\n\n'
+        + 'The appraisal number is reserved for it and cannot be used twice — open that order from the Orders list instead.');
+    return;
+  }
+  // Ask the orders table itself. The in-memory list above is only what THIS browser
+  // has loaded — Orders is fetched lazily, so on a fresh session it is usually
+  // empty. persistOrders() upserts on order_id, so an unnoticed duplicate here
+  // would not fail: it would overwrite a real appraisal. One bounded query, in a
+  // click handler, never in a render path.
+  if(_sb){
+    try {
+      var chk = await _sb.schema('public').from('orders')
+                         .select('order_id').eq('order_id', r.appraisal_number).limit(1);
+      if(!chk.error && chk.data && chk.data.length){
+        // The order exists but this row was left unlinked — repair the link rather
+        // than just refusing, so the next person sees the truth.
+        r.status = 'converted'; r.order_id = r.appraisal_number;
+        bluRender(); bluBadge();
+        try {
+          _sb.schema('public').from('blu_appraisal_requests')
+             .update({ status:'converted', order_id:r.appraisal_number }).eq('id', r.id)
+             .then(function(){}, function(){});
+        } catch(e){}
+        alert('Order ' + r.appraisal_number + ' already exists.\n\n'
+            + 'This request had not been marked converted — it has been now. Open that order '
+            + 'from the Orders list; the appraisal number is reserved for it and cannot be used twice.');
+        return;
+      }
+    } catch(e){ console.warn('[developments] duplicate check failed', e); }
+  }
+  if(typeof openMO !== 'function'){ alert('The New Order form is unavailable.'); return; }
+  // FORCED step, as in §ER-CONTACT: the buyer is written into the Contact Book
+  // before the order form even opens. Idempotent.
+  try { _bluToContact(r); } catch(e){ console.warn('[developments] contact step failed', e); }
+  openMO();                  // clears any stale prefill…
+  window._bluPrefill = r;    // …then arm this one for _bluApplyPrefill()
+}
+
+// Everything the SIGMA form has no field for goes in the note.
+function _bluPrefillNote(r){
+  var L = [];
+  L.push('— From BLU Capital Group, Sales & Control Desk, ' + _erDate(r.received_at || r.created_at) + ' —');
+  L.push('Appraisal number: ' + (r.appraisal_number || '(not allocated)') + '  [reserved on intake — do not change]');
+  if(r.project_name || r.project_code) L.push('Project: ' + _bluProjectLabel(r) + (r.project_code ? '  (' + r.project_code + ')' : ''));
+  if(r.lot_number)      L.push('Lot: ' + r.lot_number);
+  L.push('House model: '  + (r.model_code   || 'not yet supplied by BLU'));
+  L.push('Package: '      + (r.package_code || 'not yet supplied by BLU'));
+  if(r.reservation_ref) L.push('Reservation reference: ' + r.reservation_ref);
+  if(r.requested_by_name) L.push('Requested by: ' + r.requested_by_name + (r.requested_by_role ? ' (' + r.requested_by_role + ')' : ''));
+  L.push('Reason: buyer deposit verified — the buyer needs the report for a bank mortgage.');
+  var deliv = [];
+  if(r.deliver_to_client) deliv.push('the client');
+  if(r.bank_contact_name || r.bank_contact_email){
+    deliv.push('bank contact ' + (r.bank_contact_name || '') + (r.bank_contact_email ? ' <' + r.bank_contact_email + '>' : ''));
+  }
+  L.push('Deliver the report to: ' + (deliv.length ? deliv.join(' and ') : 'NOT STATED — confirm with BLU'));
+  return L.join('\n');
+}
+
+function _bluApplyPrefill(type){
+  var r = window._bluPrefill;
+  if(!r) return;
+  var sfx = (type === 1) ? '' : (type === 3 ? '3' : '2');
+
+  function setAll(id, val){
+    if(val == null || val === '') return;
+    var els = document.querySelectorAll('[id="' + id + '"]');
+    for(var i=0;i<els.length;i++){ if(!els[i].value) els[i].value = val; }
+  }
+  function setSel(id, val){
+    if(!val) return;
+    var el = document.getElementById(id);
+    if(!el || el.value) return;
+    for(var i=0;i<el.options.length;i++){
+      var o = el.options[i];
+      if((o.value||o.text) === val){ el.selectedIndex = i; return; }
+    }
+  }
+
+  setAll('moClientFirstName'+sfx, r.client_first_name);
+  setAll('moClientLastName'+sfx,  r.client_last_name);
+  setAll('moClientEmail'+sfx,     r.client_email);
+  setAll('moClientCellPhone'+sfx, r.client_phone);
+  setAll('moHearFrom'+sfx,        'BLU Capital Group');
+  // The address SIGMA has is the project and the lot; BLU sends no street address.
+  setAll('moAddress'+sfx,         _bluProjectLabel(r) + (r.lot_number ? ' — Lot ' + r.lot_number : ''));
+  setAll('moCountry'+sfx,         'Aruba');
+  setAll('moParcelCountry'+sfx,   'Aruba');
+  // Type 1's Notes field is an <input type="text">, and the HTML value-sanitisation
+  // algorithm STRIPS newlines from those — a multi-line note would arrive as one
+  // run-on line with the separators silently deleted. So it is flattened with a
+  // VISIBLE separator instead. Types 2 and 3 use a <textarea> and keep the breaks.
+  var _noteEl = document.getElementById('moNotes'+sfx);
+  var _note   = _bluPrefillNote(r);
+  if(_noteEl && _noteEl.tagName === 'INPUT') _note = _note.replace(/\n+/g, '  ·  ');
+  setAll('moNotes'+sfx,           _note);
+  // Deposit verified → the buyer is taking this to a bank. That is the one
+  // purpose the request actually states, so it is the only one pre-selected.
+  setSel('moAppraisalPurpose'+sfx, 'Mortgage Loan');
+
+  var errEl = document.getElementById('moErr');
+  if(errEl){
+    errEl.innerHTML = '<span style="color:#e0a93c;font-weight:700;">✓ Pre-filled from a BLU Capital Group request</span> '
+      + '<span style="color:#a8a29e;">(' + _erEsc(_bluName(r)) + ')</span>'
+      + '<div style="margin-top:5px;font-size:11px;color:#a8a29e;">'
+      + 'This order will be created as <b style="color:#e0a93c;">' + _erEsc(r.appraisal_number || '—') + '</b> — the number '
+      + 'reserved when the request arrived, and already given to BLU. It is not re-allocated here.'
+      + '<br>Please confirm City, Parcel Type/Size and the appraisal type — BLU sends a project and a lot, not a street address'
+      + (r.model_code ? '' : ', and has not supplied a house model or package yet')
+      + '. Everything BLU sent is in the Notes field.</div>';
+  }
+}
+
+// Called from _submitOrderImpl right after the order is persisted.
+function _bluOnOrderCreated(orderId){
+  var r = window._bluPrefill;
+  if(!r) return;
+  window._bluPrefill = null;
+
+  var local = bluById(r.id);
+  if(local){ local.status = 'converted'; local.order_id = orderId; }
+  bluBadge(); bluRender();
+
+  if(!_sb) return;
+  _sb.schema('public').from('blu_appraisal_requests')
+    .update({ status:'converted', order_id:orderId }).eq('id', r.id)
+    .then(function(res){
+      // If this write is lost the row still says 'new'. That is survivable:
+      // bluCreateOrder() asks the orders table before it opens the form and
+      // repairs the link, and _ensureUniqueOrderId() throws rather than issuing
+      // a second order under a reserved number.
+      if(res.error) console.warn('[developments] convert-link failed:', res.error.message);
+      else { try{ appLog('ACTION','Developments','BLU request from '+_bluName(r)+' converted to order '+orderId); }catch(e){} }
+    })
+    .catch(function(e){ console.warn('[developments] convert-link failed:', e); });
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -41223,6 +41906,11 @@ function _toRow(o) {
       promilleBase:(o.promilleBase!=null?o.promilleBase:''), promilleRate:(o.promilleRate!=null?o.promilleRate:''),
       // §EMAIL-REQUESTS (v2.264) — id of the website enquiry this order was created from.
       sourceInquiryId:o.sourceInquiryId||'',
+      // §BLU-DEVELOPMENTS (v2.350) — id of the BLU development request this order came
+      //   from. Written ONLY when set (the §DRAFT / §OP-FORMAT precedent): JSON.stringify
+      //   drops an undefined value, so an order that never touched Developments produces
+      //   byte-for-byte the extra_data it did in v2.349.
+      sourceBluRequestId:(o.sourceBluRequestId||undefined),
       // §EDIT-PERSIST (v1.932) — Building Info extras + Cost checklist were never
       //   written to the DB, so they vanished on the next server sync. Persist
       //   them inside extra_data (no schema migration needed).
