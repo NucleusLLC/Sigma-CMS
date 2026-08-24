@@ -31,6 +31,7 @@
 //     "client": { "first_name": "...", "last_name": "...", "email": "...", "phone": "..." },
 //     "property": { "lot_number": "...", "model_code": null|"...", "package_code": null|"..." },
 //     "deliver_to": { "client": true, "bank_contact": null | { "name": "...", "email": "..." } },
+//     "valuation": null | { … see §BLU-VALUATION below … },
 //     "idempotency_key": "<stable per reservation, identical on every retry>"
 //   }
 // Success: { "ok": true, "appraisal_number": "2026-045B", "id": "<uuid>" }
@@ -39,6 +40,52 @@
 // model_code and package_code are LEGITIMATELY NULL — BLU has not yet supplied
 // house models or packages for Wayaca. They are accepted as null and stored as
 // null. Nothing here ever invents a value for them.
+//
+// ═══ §BLU-VALUATION — the presumable valuation ═══════════════════════════════
+// Added 2026-08-24. Optional member, so Coriara (a different valuation module) and
+// the four projects with none keep sending exactly what they send today.
+//
+//   "valuation": {
+//     "currency": "AWG",
+//     "lines": [{"key":"land","label":"Land","quantity_m2":196.4,
+//                "rate_minor":45000,"amount_minor":8838000}],
+//     "sub_total_minor":   42058375,
+//     "added_value_pct":   0.18,
+//     "added_value_minor":  7570508,
+//     "pfmv_minor":        49628883,
+//     "pev_pct":           0.8,
+//     "pev_minor":         39703106,
+//     "prcv_minor":        40790883,
+//     "rate_card_source": "Wayaca Modern Villas_Numbers.xlsx VALUES sheet",
+//     "supersedes": null
+//   }
+//
+// EVERY MONEY VALUE IS AN INTEGER IN MINOR UNITS (cents). A float where a minor
+// unit belongs is a BUG, not a rounding detail, and it is REJECTED — never
+// silently truncated, never silently rounded. 4962888.3 names the field it came
+// from and the whole request fails; storing 4962888 would put a figure on an
+// appraisal that nobody sent.
+//
+// The two percentages are FRACTIONS: 0.18 is 18%. A sender that switched to whole
+// percent would multiply a valuation by a hundred, so anything outside 0…1 is
+// rejected too.
+//
+// ABSENT vs ZERO. `valuation` may be missing or null, and a supplied figure may
+// legitimately be 0. Those are different facts, and SIGMA keeps them apart with a
+// separate timestamp column (valuation_received_at), not with a zero. So this
+// function never invents an empty valuation object: no member means no valuation.
+//
+// HALF A VALUATION IS WORSE THAN NONE. Every check below rejects the WHOLE request
+// with a named error BEFORE any database work, so no request can end up holding an
+// appraisal number and three of its six figures.
+//
+// ATOMICITY. The valuation is written by the same sigma_blu_record_request()
+// statement that claims the idempotency key and allocates the number — one
+// transaction. A retry cannot produce a row with a number and no figures.
+//
+// SIGMA STORES WHAT ARRIVES. The arithmetic is not re-derived and the three
+// headline figures are not renamed. Where BLU's own sheet does not tie, the
+// Developments card says so; it does not quietly correct it.
 //
 // ═══ IDEMPOTENCY — how it is actually enforced ═══════════════════════════════
 // By ONE database call, public.sigma_blu_record_request(jsonb), which claims the
@@ -67,8 +114,13 @@
 // ═══ DEPLOY (Greg runs this — nothing here deploys itself) ═══════════════════
 // Full runbook, including the rollback: docs/blu-developments/DEPLOY_RUNBOOK.md
 //   1. Apply supabase/SIGMA_milestone_20260824.sql        (snapshot first)
-//   2. Apply supabase/SIGMA_order_numbering_blu.sql       (the B-suffix allocator)
-//   3. Apply supabase/SIGMA_blu_appraisal_requests.sql    (table + RLS + the RPC)
+//   2. Apply supabase/SIGMA_order_numbering_blu.sql       (the B-suffix allocator)  ✔ live 2026-08-24
+//   3. Apply supabase/SIGMA_blu_appraisal_requests.sql    (table + RLS + the RPC)   ✔ live 2026-08-24
+//   3b. Apply supabase/SIGMA_blu_valuation_20260824.sql   (§BLU-VALUATION: the
+//       valuation columns + the RPC that records them). MUST be applied BEFORE this
+//       function is deployed — otherwise a request carrying a valuation still gets
+//       its number, but comes back with valuation_recorded:false and the figures
+//       are dropped until BLU re-sends.
 //   4. From sigma-deploy\ :
 //        supabase secrets set BLU_INTAKE_SECRET="<the shared secret given to BLU>"
 //        supabase functions deploy blu-appraisal-intake --no-verify-jwt
@@ -131,6 +183,133 @@ function obj(v: unknown): Record<string, unknown> {
   return (v && typeof v === "object" && !Array.isArray(v)) ? v as Record<string, unknown> : {};
 }
 
+// ── §BLU-VALUATION — validation ─────────────────────────────────────────────
+// Thrown, not returned, so the first bad field aborts the whole valuation and no
+// caller can accidentally carry on with a half-read one. Caught once, at the call
+// site, and turned into a 400 naming the field.
+class BadValuation extends Error {}
+function bad(msg: string): never { throw new BadValuation(msg); }
+
+const MAX_LINES = 200;          // a valuation, not a spreadsheet (2026-07-16 outage)
+const MAX_LABEL = 200;
+const MAX_KEY = 60;
+const MAX_SOURCE = 300;
+
+// An integer count of minor units, or null when the field is optional and absent.
+//
+// `typeof v === "number"` on purpose: "45000" is a string, and accepting it would
+// mean guessing whether the sender meant minor units or major ones. The contract
+// says integer; a string is a defect at the source and is reported as one.
+function minor(v: unknown, field: string, required: boolean): number | null {
+  if (v === undefined || v === null) {
+    if (required) bad(`valuation.${field} is required and must be an integer number of minor units (cents)`);
+    return null;
+  }
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    bad(`valuation.${field} must be a JSON number in minor units (cents), got ${typeof v === "string" ? `the string "${v}"` : String(v)}`);
+  }
+  if (!Number.isInteger(v)) {
+    bad(`valuation.${field} must be an INTEGER number of minor units (cents), got ${v} — a fractional cent is a bug at the source, not a rounding detail`);
+  }
+  if (v < 0) bad(`valuation.${field} must not be negative, got ${v}`);
+  if (!Number.isSafeInteger(v)) bad(`valuation.${field} exceeds the safe integer range, got ${v}`);
+  return v;
+}
+
+// A fraction: 0.18 means 18%.
+function fraction(v: unknown, field: string): number | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    bad(`valuation.${field} must be a JSON number expressed as a fraction (0.18 = 18%), got ${typeof v}`);
+  }
+  if (v < 0 || v > 1) {
+    bad(`valuation.${field} must be a fraction between 0 and 1 (0.18 = 18%, not 18), got ${v}`);
+  }
+  return v;
+}
+
+// A measured quantity — NOT money, so it is legitimately fractional (196.4 m²).
+function quantity(v: unknown, field: string): number | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    bad(`valuation.${field} must be a JSON number, got ${typeof v}`);
+  }
+  if (v < 0) bad(`valuation.${field} must not be negative, got ${v}`);
+  return v;
+}
+
+function shortText(v: unknown, field: string, max: number): string | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== "string") bad(`valuation.${field} must be a string or null, got ${typeof v}`);
+  const t = v.trim();
+  if (!t) return null;
+  if (t.length > max) bad(`valuation.${field} is longer than ${max} characters`);
+  return t;
+}
+
+type ValLine = {
+  key: string | null;
+  label: string | null;
+  quantity_m2: number | null;
+  rate_minor: number | null;
+  amount_minor: number | null;
+};
+
+// Returns the flat valuation the RPC expects, or null when BLU supplied none.
+// Throws BadValuation for anything malformed.
+//
+// Note what is NOT here: no arithmetic. sub_total, PFMV, PEV and PRCV are stored
+// exactly as sent. If BLU's own sheet does not tie, that is a fact about the
+// request and SIGMA shows it rather than silently correcting a figure a bank may
+// already have seen.
+function readValuation(raw: unknown): Record<string, unknown> | null {
+  if (raw === undefined || raw === null) return null;      // not supplied — the common case
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    bad(`valuation must be a JSON object or null, got ${Array.isArray(raw) ? "an array" : typeof raw}`);
+  }
+  const v = raw as Record<string, unknown>;
+
+  const currency = typeof v.currency === "string" ? v.currency.trim().toUpperCase() : "";
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    bad(`valuation.currency must be a 3-letter ISO 4217 code, got ${v.currency === undefined ? "(missing)" : JSON.stringify(v.currency)}`);
+  }
+
+  if (!Array.isArray(v.lines)) {
+    bad(`valuation.lines must be an array (it may be empty), got ${v.lines === undefined ? "(missing)" : typeof v.lines}`);
+  }
+  const src = v.lines as unknown[];
+  if (src.length > MAX_LINES) {
+    bad(`valuation.lines has ${src.length} entries; the limit is ${MAX_LINES}`);
+  }
+  const lines: ValLine[] = src.map((entry, i) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      bad(`valuation.lines[${i}] must be an object`);
+    }
+    const L = entry as Record<string, unknown>;
+    return {
+      key:          shortText(L.key,   `lines[${i}].key`,   MAX_KEY),
+      label:        shortText(L.label, `lines[${i}].label`, MAX_LABEL),
+      quantity_m2:  quantity(L.quantity_m2,  `lines[${i}].quantity_m2`),
+      rate_minor:   minor(L.rate_minor,   `lines[${i}].rate_minor`,   false),
+      amount_minor: minor(L.amount_minor, `lines[${i}].amount_minor`, false),
+    };
+  });
+
+  return {
+    currency,
+    lines,
+    sub_total_minor:   minor(v.sub_total_minor,   "sub_total_minor",   true),
+    added_value_pct:   fraction(v.added_value_pct, "added_value_pct"),
+    added_value_minor: minor(v.added_value_minor, "added_value_minor", false),
+    pfmv_minor:        minor(v.pfmv_minor,        "pfmv_minor",        true),
+    pev_pct:           fraction(v.pev_pct,        "pev_pct"),
+    pev_minor:         minor(v.pev_minor,         "pev_minor",         true),
+    prcv_minor:        minor(v.prcv_minor,        "prcv_minor",        true),
+    rate_card_source:  shortText(v.rate_card_source, "rate_card_source", MAX_SOURCE),
+    supersedes:        shortText(v.supersedes,       "supersedes",       MAX_LABEL),
+  };
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
   const ch = corsHeaders(origin);
@@ -190,6 +369,29 @@ Deno.serve(async (req: Request) => {
     return jsonRes({ ok: false, error: "idempotency_key too long (max 200)" }, 400, ch);
   }
 
+  // §BLU-VALUATION — read and validate BEFORE anything is written, and before the
+  // missing-field check below. Two reasons, both deliberate:
+  //   • a malformed valuation fails the WHOLE request with a named error: better
+  //     that BLU's desk sees "valuation.pfmv_minor must be an INTEGER…" and fixes
+  //     the sender than that SIGMA records an appraisal number against half a
+  //     valuation;
+  //   • running it FIRST makes a free build-probe possible — a payload that is both
+  //     missing a required field AND carrying a bad valuation is refused by every
+  //     version of this function, with a message that says which version answered
+  //     (see step 7 of docs/blu-developments/DEPLOY_RUNBOOK.md).
+  // Nothing here depends on the fields below, so the order costs nothing: a
+  // well-formed valuation raises nothing and the missing-field error still wins.
+  let valuation: Record<string, unknown> | null;
+  try {
+    valuation = readValuation(body.valuation);
+  } catch (e) {
+    if (e instanceof BadValuation) {
+      return jsonRes({ ok: false, error: e.message }, 400, ch);
+    }
+    throw e;
+  }
+  const hasValuation = valuation !== null;
+
   const reference   = obj(body.reference);
   const client      = obj(body.client);
   const property    = obj(body.property);
@@ -237,23 +439,41 @@ Deno.serve(async (req: Request) => {
     bank_contact_email: s(bank.email),
     idempotency_key:    idem,
     raw:                body,
+    // Omitted entirely when BLU sent none — the RPC tests `p ? 'valuation'`, and
+    // an explicit null would be indistinguishable from an empty one supplied.
+    ...(hasValuation ? { valuation } : {}),
   };
 
   try {
     // ── fast path ───────────────────────────────────────────────────────────
     // A repeat that already has its number is answered without opening a write
     // transaction. An optimisation only; the RPC below is correct on its own.
-    const q = "select=id,appraisal_number&idempotency_key=eq." + encodeURIComponent(idem);
+    //
+    // §BLU-VALUATION — with ONE exception, which is load-bearing rather than an
+    // optimisation: if this request carries a valuation and the stored row has
+    // none, the fast path must NOT answer, or the re-send that is meant to attach
+    // the figures would be short-circuited and the valuation lost for good. That
+    // happens for real — a request sent before BLU turned the valuation on, and
+    // any request that arrived while SIGMA_blu_valuation_20260824.sql was not yet
+    // applied. Falling through lets the RPC's resume path fill the gap, under the
+    // same row lock and without allocating a second number.
+    //
+    // valuation_received_at is selected explicitly; on a database where the
+    // migration has not run PostgREST answers 400 for the unknown column, the read
+    // is treated as failed (as any other read failure is) and the RPC decides.
+    const q = "select=id,appraisal_number,valuation_received_at&idempotency_key=eq." + encodeURIComponent(idem);
     const pre = await rest(`${TABLE}?${q}&limit=1`);
     if (pre.ok) {
       const rows = await pre.json().catch(() => []);
       const row = (Array.isArray(rows) && rows[0]) ? rows[0] : null;
-      if (row && row.appraisal_number) {
+      const needsValuation = hasValuation && !row?.valuation_received_at;
+      if (row && row.appraisal_number && !needsValuation) {
         return jsonRes({
           ok: true,
           appraisal_number: String(row.appraisal_number),
           id: String(row.id),
           repeat: true,
+          ...(hasValuation ? { valuation_recorded: true } : {}),
         }, 200, ch);
       }
     } else if (pre.status === 404) {
@@ -281,6 +501,13 @@ Deno.serve(async (req: Request) => {
                + "Apply SIGMA_blu_appraisal_requests.sql, then run: notify pgrst, 'reload schema';",
         }, 503, ch);
       }
+      // §BLU-VALUATION — a named validation error raised inside the RPC (the
+      // defence-in-depth copy of the checks above) is the sender's problem, not
+      // SIGMA's: report it as a 400 with the message, not as a 502. Nothing was
+      // written — the whole statement rolled back, and no number was spent.
+      if (r.status === 400 && /valuation\./.test(detail)) {
+        return jsonRes({ ok: false, error: `rejected by SIGMA: ${detail.slice(0, 300)}` }, 400, ch);
+      }
       return jsonRes({ ok: false, error: `intake failed (${r.status})`, detail }, 502, ch);
     }
 
@@ -293,9 +520,29 @@ Deno.serve(async (req: Request) => {
       return jsonRes({ ok: false, error: "SIGMA recorded the request but returned no appraisal number" }, 502, ch);
     }
 
-    return rec.created === true
-      ? jsonRes({ ok: true, appraisal_number: num, id }, 200, ch)
-      : jsonRes({ ok: true, appraisal_number: num, id, repeat: true }, 200, ch);
+    const out: Record<string, unknown> = { ok: true, appraisal_number: num, id };
+    if (rec.created !== true) out.repeat = true;
+
+    if (hasValuation) {
+      // The number IS allocated and BLU must be told it, so a valuation that did
+      // not land is reported as a warning beside a successful answer rather than
+      // as a failure. Turning this into a 5xx would make the desk retry for ever
+      // against an unchanged database while the number stays spent.
+      //
+      // `valuation_recorded` is absent (not false) from the pre-valuation RPC, so
+      // the one case this catches in practice is "the function was deployed before
+      // SIGMA_blu_valuation_20260824.sql was applied".
+      const recorded = rec.valuation_recorded === true;
+      out.valuation_recorded = recorded;
+      if (!recorded) {
+        out.warning = "SIGMA recorded the request and allocated the appraisal number, but NOT the valuation: "
+          + "the valuation columns are not installed. Apply supabase/SIGMA_blu_valuation_20260824.sql, then "
+          + "re-send this request with the SAME idempotency_key — it attaches the valuation to the existing "
+          + "row and does not allocate a second number.";
+      }
+    }
+
+    return jsonRes(out, 200, ch);
   } catch (e) {
     return jsonRes({ ok: false, error: String((e && (e as Error).message) || e) }, 502, ch);
   }

@@ -7604,12 +7604,17 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
      public.blu_appraisal_requests with its appraisal number ALREADY ALLOCATED out
      of SIGMA's shared yearly series, carrying a trailing 'B' (2026-045B). One
      click turns a request into a Job Order under that same number — the same
-     shape as Email Requests above, and deliberately built in its idiom. -->
+     shape as Email Requests above, and deliberately built in its idiom.
+
+     §BLU-VALUATION (v2.351) — a request may also carry BLU's presumable valuation
+     (PFMV / PEV / PRCV, in integer minor units, with its line items). It is shown
+     on the card and carried into the Job Order's valuation. A request without one
+     says "Not supplied" and never shows a zero. -->
 <div class="view" id="view-developments">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap;">
     <div>
       <div class="ptitle" style="display:flex;align-items:center;gap:10px;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:#c49740"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg><span style="color:#fff;font-family:Sora,sans-serif;font-size:22px;font-weight:700;letter-spacing:-.01em;line-height:1;">Developments</span></div>
-      <div class="psub">BLU Capital Group &mdash; appraisal requests from the Sales &amp; Control Desk. The number is already reserved; one click raises the Job Order.</div>
+      <div class="psub">BLU Capital Group &mdash; appraisal requests from the Sales &amp; Control Desk. The number is already reserved; one click raises the Job Order, with BLU&rsquo;s presumable valuation already in it.</div>
     </div>
     <button class="btn-sec" onclick="bluFetch(true)" title="Fetch the latest development requests from the database" style="border-color:#c49740;color:#e0a93c;">&#8635; Refresh</button>
   </div>
@@ -16032,7 +16037,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.350';
+var APP_VERSION = 'v2.351';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -16070,6 +16075,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.351',type:'feature',date:'08-24-2026',ts:'08-24-2026 18:00',_static:true,title:'Developments — BLU now sends the presumable valuation, and the Job Order arrives with it',desc:'A BLU Capital Group appraisal request can now carry the presumable valuation alongside the buyer and the lot: the line items, the sub-total, the green-building added value, and the three presumable figures — Presumable Free Market Value, Presumable Execution Value and Presumable Re-Construction Value. Each request card shows the three values as money, clearly labelled, with the line items one click away; a request BLU sent no valuation with says “Not supplied” rather than showing a zero. When the request is converted, the valuation goes into the Job Order: the Valuation screen opens on the Presumable calculator already filled in with BLU’s line items, their execution rate and their added-value adjustment, and everything BLU sent is written verbatim into the order’s Notes as well. Two of the three figures come out exactly as BLU stated them. The third will not, and the app says so in three places rather than hiding it: SIGMA’s Presumable Re-Construction Value adds a 10% demolition allowance to the same base, so it prints 10% above BLU’s — the appraiser decides which convention the report asserts. Nothing is recalculated behind BLU’s back, and where their own figures do not add up the card says which ones and by how much. Requests without a valuation, and every other project, behave exactly as before.'},
   {v:'v2.350',type:'feature',date:'08-23-2026',ts:'08-23-2026 09:00',_static:true,title:'Developments — appraisal requests from BLU Capital Group',desc:'A new Developments section in the sidebar receives appraisal requests from BLU Capital Group\u2019s Sales & Control Desk. When a buyer\u2019s deposit is verified BLU sends the request straight into SIGMA, and SIGMA answers immediately with the appraisal number — the next number in this year\u2019s series with a B after it, such as 2026-045B, so the numbering stays one single run and no ordinary order can ever be given that number. Each request shows the number, when it came in, the project and lot, the house model and package (or says plainly that BLU has not supplied them yet), the buyer\u2019s name, email and phone, the reservation reference, and whether the finished report goes to the buyer, to a bank contact, or to both. Create Job Order raises the order under the number that was already reserved, exactly the way Email Requests works, and the request is marked Converted with a link to the order. Sending the same request twice is harmless: BLU gets the same number back and nothing is duplicated. Actually producing and emailing the report is unchanged and still done by hand — this step is intake only.'},
   {v:'v2.349',type:'feature',date:'08-21-2026',ts:'08-21-2026 04:00',_static:true,title:'An uh-oh alert for team chat',desc:'There is a new notification sound for team chat - a short two-note falling uh-oh, in the spirit of the old ICQ alert. Choose it under Settings, Chat Notifications, where you can hear it with the Preview button before you commit. It is off unless you pick it: the two-tone chime is still the default. Like the other sounds it is generated by the app itself rather than being a recorded clip, so it adds nothing to loading time and works offline. It stays quiet in the same situations as the others - while older messages are still loading, when you are already looking at the chat, and never for your own messages.'},
   {v:'v2.348',type:'fix',date:'08-21-2026',ts:'08-21-2026 03:00',_static:true,title:'Signature now always comes after the Appraiser Declaration',desc:'On reports where the Appraiser Declaration had been moved with Report Section Order, the signature was printing above the Declaration instead of below it. The order is now always Appraiser Sign-Off, then Appraiser Declaration, then the signature - on every template and however the sections are arranged. If the Declaration sits on the same page as the Sign-Off it is placed back in its proper position between the two, and if you have deliberately moved it to a later page the signature follows it there, so it always closes the group rather than being stranded in the middle. Reports where the Declaration was never moved print exactly as before, unchanged to the byte. The signature still sits 1.5 mm above its line and still travels with it.'},
@@ -22003,6 +22009,20 @@ async function _submitOrderImpl() {
     photoBig: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=480&fit=crop&auto=format'
   };
 
+  // §BLU-VALUATION (v2.351) — carry BLU's presumable valuation into the order, so
+  //   the appraiser opens a populated Valuation screen instead of a blank one. Set
+  //   BEFORE the first persist: _toRow() writes o.valData to orders.val_data (a
+  //   small, structured column — NOT insp_data, see §DOC-SERVER-STRIP), and a new
+  //   order has no valuation of its own for this to overwrite. Returns null when
+  //   BLU supplied none, and then nothing is written at all: an order with no
+  //   valuation must keep an empty one, never an invented one.
+  try {
+    if(window._bluPrefill){
+      var _bluVd = _bluValToValData(window._bluPrefill);
+      if(_bluVd) newOrder.valData = _bluVd;
+    }
+  } catch(e){ console.warn('[developments] valuation carry-over failed', e); }
+
   // §ORDER-NO (v2.270) — verify the number is still free before the upsert, which
   //   would otherwise overwrite an existing order rather than report a clash.
   newId = await _ensureUniqueOrderId(newOrder);   // mutates newOrder.id if re-allocated
@@ -27331,7 +27351,7 @@ function _erOnOrderCreated(orderId){
 // ║  OUT OF SCOPE here: generating, rendering or emailing the appraisal report.  ║
 // ║  This ends at "request received → visible → converted to a Job Order".       ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-var BLU = { rows: [], loaded:false, loading:false, error:null, open:{} };
+var BLU = { rows: [], loaded:false, loading:false, error:null, open:{}, openLines:{} };
 
 function bluById(id){
   for(var i=0;i<BLU.rows.length;i++){ if(BLU.rows[i].id===id) return BLU.rows[i]; }
@@ -27351,6 +27371,110 @@ function _bluAttr(v){
   return _erEsc(String(v==null?'':v)
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'"));
+}
+
+/* ══ §BLU-VALUATION (v2.351) — the presumable valuation BLU sends with a request ══
+ *
+ *  BLU's Sales & Control Desk now sends the presumable valuation alongside the
+ *  request, so the appraiser opens the Job Order with the figures already in it
+ *  instead of re-keying them out of an email. The columns arrive on the request
+ *  row (see supabase/SIGMA_blu_valuation_20260824.sql):
+ *
+ *    valuation_received_at        NULL  = BLU supplied NO valuation
+ *                                 set   = one was supplied; every figure is real,
+ *                                         including any that is zero
+ *    valuation_currency           'AWG'
+ *    valuation_lines              [{key,label,quantity_m2,rate_minor,amount_minor}]
+ *    valuation_sub_total_minor    ┐
+ *    valuation_added_value_pct    │ a FRACTION: 0.18 is 18%
+ *    valuation_added_value_minor  │
+ *    valuation_pfmv_minor         │ ALL MONEY IS AN INTEGER IN MINOR UNITS (cents)
+ *    valuation_pev_pct            │
+ *    valuation_pev_minor          │
+ *    valuation_prcv_minor         ┘
+ *    valuation_rate_card_source   which sheet produced them
+ *    valuation_supersedes         BLU's pointer at the valuation this replaces
+ *
+ *  PFMV = sub-total + green-building uplift.  PEV = pev_pct × PFMV.
+ *  PRCV = PFMV − the land line.
+ *
+ *  NOTHING HERE RECOMPUTES ANY OF THEM. What BLU sent is what is shown, and where
+ *  their own arithmetic does not tie, _bluValChecks() SAYS SO rather than quietly
+ *  correcting a figure a bank may already have been shown.
+ *
+ *  ⚠ ONE FIGURE SIGMA AND BLU GENUINELY DISAGREE ON — see _bluValToValData():
+ *  SIGMA's Presumable Re-Construction Value is ((Sub-Total − Parcel) ± adj) × 1.10,
+ *  a house convention that adds a 10% demolition allowance. BLU's PRCV is the same
+ *  base WITHOUT the 10%. The report will therefore print exactly 1.10 × BLU's PRCV
+ *  unless the appraiser decides otherwise, and both the prefill banner and the
+ *  order's Notes say so in as many words.
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+// Was a valuation supplied at all? The TIMESTAMP is the test, never a zero: a
+// supplied figure of 0 is a real answer and must not read as "nothing came".
+function _bluHasVal(r){ return !!(r && r.valuation_received_at); }
+
+// minor units → money. Two decimals, which is right for AWG and for every currency
+// BLU quotes in; the code is printed alongside so nothing depends on guessing it.
+function _bluMoney(minorUnits, cur){
+  if(minorUnits === null || minorUnits === undefined || minorUnits === '') return null;
+  var n = Number(minorUnits);
+  if(!isFinite(n)) return null;
+  return (cur ? cur + ' ' : '') + (n/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function _bluPct(frac){
+  if(frac === null || frac === undefined || frac === '') return null;
+  var n = Number(frac);
+  if(!isFinite(n)) return null;
+  return (Math.round(n*10000)/100) + '%';
+}
+// The land line — the one BLU's PRCV subtracts. Matched on the key first, because
+// the label is free text BLU could reword at any time.
+function _bluLandLine(r){
+  var L = Array.isArray(r && r.valuation_lines) ? r.valuation_lines : [];
+  for(var i=0;i<L.length;i++){
+    var k = String((L[i]&&L[i].key)||'').toLowerCase();
+    if(k === 'land' || k === 'parcel' || k === 'lot') return L[i];
+  }
+  for(var j=0;j<L.length;j++){
+    if(/^\s*(land|parcel|lot)\b/i.test(String((L[j]&&L[j].label)||''))) return L[j];
+  }
+  return null;
+}
+// Does BLU's own arithmetic tie? Reported, never corrected. One cent of tolerance:
+// their sheet rounds, and a rounding difference is not something to put in front of
+// an appraiser as a discrepancy.
+function _bluValChecks(r){
+  var out = [];
+  if(!_bluHasVal(r)) return out;
+  var cur = r.valuation_currency || '';
+  var num = function(v){ return (v===null||v===undefined||v==='') ? null : Number(v); };
+  var st = num(r.valuation_sub_total_minor), av = num(r.valuation_added_value_minor),
+      pf = num(r.valuation_pfmv_minor),      pv = num(r.valuation_pev_minor),
+      pr = num(r.valuation_prcv_minor),      pvp = num(r.valuation_pev_pct);
+  var near = function(a,b){ return Math.abs(a-b) <= 1; };
+  var L = Array.isArray(r.valuation_lines) ? r.valuation_lines : [];
+
+  if(L.length && st !== null){
+    var sum = 0, all = true;
+    L.forEach(function(x){ var a = num(x && x.amount_minor); if(a===null) all=false; else sum += a; });
+    if(all && !near(sum, st)) out.push('The line items add up to ' + _bluMoney(sum,cur) + ', not to the stated sub-total of ' + _bluMoney(st,cur) + '.');
+  }
+  if(st !== null && pf !== null && !near(pf, st + (av||0))){
+    out.push('PFMV is not the sub-total plus the added value: ' + _bluMoney(st,cur)
+             + (av ? ' + ' + _bluMoney(av,cur) : '') + ' = ' + _bluMoney(st+(av||0),cur)
+             + ', but PFMV is stated as ' + _bluMoney(pf,cur) + '.');
+  }
+  if(pf !== null && pv !== null && pvp !== null && Math.abs(pv - pf*pvp) > 1){
+    out.push('PEV is not ' + _bluPct(pvp) + ' of PFMV: that would be ' + _bluMoney(Math.round(pf*pvp),cur)
+             + ', but PEV is stated as ' + _bluMoney(pv,cur) + '.');
+  }
+  var land = _bluLandLine(r), la = num(land && land.amount_minor);
+  if(pf !== null && pr !== null && la !== null && !near(pr, pf - la)){
+    out.push('PRCV is not PFMV minus the land line: that would be ' + _bluMoney(pf-la,cur)
+             + ', but PRCV is stated as ' + _bluMoney(pr,cur) + '.');
+  }
+  return out;
 }
 
 /* ── Load ─────────────────────────────────────────────────────────────────── */
@@ -27512,6 +27636,110 @@ function _bluField(label, value, href){
        + _erEsc(label) + '</div><div style="font-size:13px;color:#e7e5e4;word-break:break-word;">' + inner + '</div></div>';
 }
 
+/* ── §BLU-VALUATION (v2.351) — the presumable values, on the request card ──────
+ *  "Not supplied" where BLU sent no valuation — NEVER a zero, and never a blank
+ *  card that could be read as a valuation of nothing. A figure of 0 that BLU did
+ *  send prints as 0 and is a different statement entirely.                       */
+function _bluValCard(label, sub, money, accent){
+  return '<div style="flex:1;min-width:150px;border:1px solid ' + accent + '33;border-top:2px solid ' + accent + ';'
+       + 'border-radius:0 0 9px 9px;background:rgba(255,255,255,.025);padding:9px 12px;">'
+       + '<div style="font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:' + accent + ';">' + _erEsc(label) + '</div>'
+       + '<div style="font-family:var(--font-mono,\'IBM Plex Mono\',monospace);font-size:15px;font-weight:700;color:#fff;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+       +   _erEsc(money || '—') + '</div>'
+       + (sub ? '<div style="font-size:10.5px;color:#a8a29e;margin-top:3px;">' + sub + '</div>' : '')
+       + '</div>';
+}
+function _bluValHtml(r){
+  var lbl = '<div style="font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e;margin:14px 0 6px;">Presumable values</div>';
+
+  if(!_bluHasVal(r)){
+    return lbl
+      + '<div style="font-size:13px;color:#78716c;font-style:italic;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);'
+      + 'border-radius:9px;padding:11px 13px;">Not supplied &mdash; BLU sent no valuation with this request. '
+      + '<span style="font-style:normal;color:#a8a29e;">The appraiser starts the valuation from scratch.</span></div>';
+  }
+
+  var cur   = r.valuation_currency || '';
+  var pevP  = _bluPct(r.valuation_pev_pct);
+  var addP  = _bluPct(r.valuation_added_value_pct);
+  var lines = Array.isArray(r.valuation_lines) ? r.valuation_lines : [];
+  var open  = !!BLU.openLines[r.id];
+
+  var h = lbl + '<div style="display:flex;gap:9px;flex-wrap:wrap;">'
+    + _bluValCard('Presumable Free Market Value (PFMV)', 'Sub-total + added value',
+                  _bluMoney(r.valuation_pfmv_minor, cur), '#e8b84b')
+    + _bluValCard('Presumable Execution Value (PEV)', pevP ? (pevP + ' of PFMV') : '',
+                  _bluMoney(r.valuation_pev_minor, cur), '#4ade80')
+    + _bluValCard('Presumable Re-Construction Value (PRCV)', 'PFMV &minus; the land line',
+                  _bluMoney(r.valuation_prcv_minor, cur), '#7dd3fc')
+    + '</div>';
+
+  // sub-total / uplift / provenance
+  h += '<div style="margin-top:9px;font-size:12px;color:#e7e5e4;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:10px 13px;line-height:1.7;">'
+     + '<div>Sub-total <b style="font-family:var(--font-mono,\'IBM Plex Mono\',monospace);">' + _erEsc(_bluMoney(r.valuation_sub_total_minor, cur) || '—') + '</b>'
+     + (r.valuation_added_value_minor !== null && r.valuation_added_value_minor !== undefined
+          ? '  &middot;  added value ' + (addP ? _erEsc(addP) + ' = ' : '')
+            + '<b style="font-family:var(--font-mono,\'IBM Plex Mono\',monospace);">' + _erEsc(_bluMoney(r.valuation_added_value_minor, cur)) + '</b>'
+          : '')
+     + '</div>'
+     + '<div style="font-size:11px;color:#a8a29e;">Rate card: '
+     +   (r.valuation_rate_card_source ? _erEsc(r.valuation_rate_card_source) : '<span style="font-style:italic;color:#78716c;">Not supplied</span>')
+     +   '  &middot;  received ' + _erEsc(_erDate(r.valuation_received_at))
+     +   (r.valuation_supersedes ? '  &middot;  supersedes ' + _erEsc(r.valuation_supersedes) : '')
+     + '</div></div>';
+
+  // where BLU's own arithmetic does not tie. Stated, never corrected.
+  var probs = _bluValChecks(r);
+  if(probs.length){
+    h += '<div style="margin-top:8px;font-size:12px;line-height:1.6;color:#fcd34d;background:rgba(196,151,64,.08);'
+       + 'border:1px solid rgba(196,151,64,.45);border-radius:9px;padding:10px 13px;">'
+       + '<b>These figures are stored exactly as BLU sent them, but they do not tie:</b><ul style="margin:5px 0 0;padding-left:18px;">'
+       + probs.map(function(p){ return '<li>' + _erEsc(p) + '</li>'; }).join('')
+       + '</ul><div style="color:#a8a29e;margin-top:5px;">SIGMA does not recalculate them. Query it with BLU before the report is issued.</div></div>';
+  }
+
+  // ── line items ──
+  if(lines.length){
+    h += '<div style="margin-top:8px;">'
+       + '<span onclick="bluToggleLines(\'' + r.id + '\')" style="cursor:pointer;font-size:11.5px;font-weight:700;color:#e0a93c;user-select:none;">'
+       + (open ? '▾' : '▸') + ' ' + lines.length + ' line item' + (lines.length===1?'':'s') + '</span>';
+    if(open){
+      h += '<div style="margin-top:7px;border:1px solid rgba(255,255,255,.08);border-radius:9px;overflow:hidden;">'
+         + '<table style="width:100%;border-collapse:collapse;font-size:11.5px;">'
+         + '<thead><tr style="background:rgba(255,255,255,.045);">'
+         +   '<th style="text-align:left;padding:6px 11px;color:#a8a29e;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-size:9.5px;">Item</th>'
+         +   '<th style="text-align:right;padding:6px 11px;color:#a8a29e;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-size:9.5px;">Qty m&sup2;</th>'
+         +   '<th style="text-align:right;padding:6px 11px;color:#a8a29e;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-size:9.5px;">Rate</th>'
+         +   '<th style="text-align:right;padding:6px 11px;color:#a8a29e;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-size:9.5px;">Amount</th>'
+         + '</tr></thead><tbody>';
+      lines.forEach(function(L){
+        L = L || {};
+        var q = (L.quantity_m2 === null || L.quantity_m2 === undefined || L.quantity_m2 === '')
+                  ? '<span style="color:#78716c;font-style:italic;">n/a</span>'
+                  : _erEsc(Number(L.quantity_m2).toLocaleString('en-US',{maximumFractionDigits:2}));
+        h += '<tr style="border-top:1px solid rgba(255,255,255,.055);">'
+           +   '<td style="padding:5px 11px;color:#e7e5e4;">' + _erEsc(L.label || L.key || '—') + '</td>'
+           +   '<td style="padding:5px 11px;text-align:right;color:#a8a29e;font-family:var(--font-mono,\'IBM Plex Mono\',monospace);">' + q + '</td>'
+           +   '<td style="padding:5px 11px;text-align:right;color:#a8a29e;font-family:var(--font-mono,\'IBM Plex Mono\',monospace);">' + _erEsc(_bluMoney(L.rate_minor, '') || '—') + '</td>'
+           +   '<td style="padding:5px 11px;text-align:right;color:#fff;font-weight:700;font-family:var(--font-mono,\'IBM Plex Mono\',monospace);">' + _erEsc(_bluMoney(L.amount_minor, '') || '—') + '</td>'
+           + '</tr>';
+      });
+      h += '</tbody></table>'
+         + '<div style="padding:5px 11px;font-size:10.5px;color:#78716c;background:rgba(255,255,255,.02);">All amounts in ' + _erEsc(cur || 'the stated currency') + '.</div>'
+         + '</div>';
+    }
+    h += '</div>';
+  } else {
+    h += '<div style="margin-top:8px;font-size:11.5px;color:#78716c;font-style:italic;">No line items supplied.</div>';
+  }
+
+  return h;
+}
+function bluToggleLines(id){
+  BLU.openLines[id] = !BLU.openLines[id];
+  bluRender();
+}
+
 function bluRowHtml(r){
   var opened = !!BLU.open[r.id];
   var isNew  = (r.status === 'new');
@@ -27538,6 +27766,12 @@ function bluRowHtml(r){
        + '</div>';
   h += '</div>';
   h += '<div style="text-align:right;flex-shrink:0;">';
+  // §BLU-VALUATION (v2.351) — the one figure worth seeing without opening the card.
+  if(_bluHasVal(r)){
+    h += '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6b7280;">PFMV</div>'
+       + '<div style="font-family:var(--font-mono,\'IBM Plex Mono\',monospace);font-size:13px;font-weight:700;color:#4ade80;white-space:nowrap;margin-bottom:3px;">'
+       + _erEsc(_bluMoney(r.valuation_pfmv_minor, r.valuation_currency) || '—') + '</div>';
+  }
   h +=   '<div style="font-size:11.5px;color:#a8a29e;white-space:nowrap;">' + _erEsc(_erAgo(r.received_at || r.created_at)) + '</div>';
   if(r.order_id) h += '<div style="font-size:11px;color:#4ade80;font-weight:700;margin-top:3px;">→ ' + _erEsc(r.order_id) + '</div>';
   h += '</div>';
@@ -27566,6 +27800,9 @@ function bluRowHtml(r){
                                         ? (r.requested_by_name + (r.requested_by_role ? ' (' + r.requested_by_role + ')' : ''))
                                         : (r.requested_by_role || ''));
     h += '</div>';
+
+    // ── §BLU-VALUATION (v2.351) — the presumable values BLU supplied ──
+    h += _bluValHtml(r);
 
     // ── where the finished report goes ──
     var deliv = [];
@@ -27806,6 +28043,141 @@ async function bluCreateOrder(id){
   window._bluPrefill = r;    // …then arm this one for _bluApplyPrefill()
 }
 
+/* ══ §BLU-VALUATION (v2.351) — carry the valuation INTO the Job Order ═══════════
+ *
+ *  The point of the whole change: the appraiser opens the order and the valuation
+ *  is already there. It is written into `order.valData`, which _toRow() persists to
+ *  orders.val_data — deliberately NOT into insp_data. insp_data is the column that
+ *  drowned the database on 2026-07-16 when document bytes were embedded in it
+ *  (§DOC-SERVER-STRIP / §RAW-GUARD); val_data is the small, structured column the
+ *  valuation screens and the report already read, and everything added here is a
+ *  handful of short strings and numbers — under 2 KB for a six-line valuation.
+ *
+ *  THREE THINGS ARE WRITTEN, and they are different in kind:
+ *
+ *   1 · valData.bluValuation — the VERBATIM record, in minor units, exactly as BLU
+ *       sent it. This is evidence, not working data: nothing in the app recomputes
+ *       it and nothing overwrites it. It is what you compare against if the report
+ *       and BLU's sheet ever disagree.
+ *
+ *   2 · valData.presumData — the app's INDEPENDENT presumable calculator, seeded
+ *       from BLU's line items so the appraiser inherits the working detail instead
+ *       of re-typing six rows. This is the structure the Valuation screen edits and
+ *       the structure the Type-3 report actually prints (index.html §T3-VALPAGE),
+ *       so seeding it is what makes the order arrive "fully made".
+ *
+ *   3 · valData.valMode = 'presumable' — because a presumable valuation is all BLU
+ *       supplied. Left unset, a Type-3 order defaults to 'both' and the report
+ *       would print an empty Current section beside the populated one.
+ *
+ *  ⚠ THE ONE FIGURE THAT WILL NOT MATCH, AND WHY IT IS LEFT ALONE
+ *    Seeding (2) means SIGMA derives its own trio from those rows. Two of the three
+ *    come out identical to BLU's:
+ *       PFMV = sub-total + adjustments            ✓ matches
+ *       PEV  = PFMV × execRate                    ✓ matches (execRate = pev_pct)
+ *       PRCV = ((sub-total − parcel) ± adj) × 1.10   ✗ exactly 1.10 × BLU's PRCV
+ *    SIGMA's Presumable Re-Construction Value carries a 10% demolition allowance;
+ *    BLU's PRCV is PFMV minus the land line with no uplift. Same base, one house
+ *    convention apart. That is NOT silently reconciled here — the true figure
+ *    depends on which convention the report is meant to assert, and only the
+ *    appraiser can decide that. Both the prefill banner and the order's Notes name
+ *    the two numbers, and (1) keeps BLU's untouched either way.
+ *
+ *  Returns null when BLU supplied no valuation — an order with no valuation must
+ *  keep an empty valuation, not an invented one.                                  */
+function _bluValToValData(r){
+  if(!_bluHasVal(r)) return null;
+
+  var cur   = String(r.valuation_currency || '').toUpperCase();
+  var lines = Array.isArray(r.valuation_lines) ? r.valuation_lines : [];
+  var num   = function(v){ return (v===null||v===undefined||v==='') ? null : Number(v); };
+  var maj   = function(m){ var n = num(m); return (n===null) ? null : (n/100); };
+  var str   = function(n){ return (n===null||n===undefined) ? '' : String(n); };
+
+  // 1 · verbatim, minor units, nothing derived
+  var vd = {
+    _ts: Date.now(),
+    bluValuation: {
+      _v: 1,
+      requestId:        r.id,
+      appraisalNumber:  r.appraisal_number || '',
+      project:          _bluProjectLabel(r),
+      lot:              r.lot_number || '',
+      receivedAt:       r.valuation_received_at,
+      currency:         cur,
+      subTotalMinor:    num(r.valuation_sub_total_minor),
+      addedValuePct:    num(r.valuation_added_value_pct),
+      addedValueMinor:  num(r.valuation_added_value_minor),
+      pfmvMinor:        num(r.valuation_pfmv_minor),
+      pevPct:           num(r.valuation_pev_pct),
+      pevMinor:         num(r.valuation_pev_minor),
+      prcvMinor:        num(r.valuation_prcv_minor),
+      rateCardSource:   r.valuation_rate_card_source || '',
+      supersedes:       r.valuation_supersedes || null,
+      lines: lines.map(function(L){
+        L = L || {};
+        return { key:String(L.key||''), label:String(L.label||''),
+                 quantityM2:num(L.quantity_m2), rateMinor:num(L.rate_minor), amountMinor:num(L.amount_minor) };
+      })
+    }
+  };
+
+  // SIGMA's valuation screens are AWG-primary throughout — every rate box, every
+  // total, the USD conversion. Pouring a USD valuation into them would read as
+  // florins on the report. The verbatim record above still carries every figure and
+  // its currency; the calculator is simply left for the appraiser.
+  if(cur !== 'AWG') return vd;
+
+  // 2 · the working calculator, seeded from the line items
+  var land = _bluLandLine(r);
+  var row = function(L){
+    L = L || {};
+    var q = num(L.quantity_m2), rate = maj(L.rate_minor), amt = maj(L.amount_minor);
+    // Area × Rate × % is the only shape these tables have. When BLU sent a quantity
+    // AND a rate, they go in as they are. When either is missing, the SAME amount is
+    // expressed as 1 × amount rather than being dropped — the row's value is
+    // identical, and no figure is invented to fill the gap.
+    if(q !== null && q > 0 && rate !== null) return { label:String(L.label||L.key||'Item'), area:str(q), rate:str(rate), pct:'100' };
+    if(amt !== null)                          return { label:String(L.label||L.key||'Item'), area:'1',    rate:str(amt),  pct:'100' };
+    return { label:String(L.label||L.key||'Item'), area:'', rate:'', pct:'100' };
+  };
+  var parcel = [], build = [];
+  lines.forEach(function(L){ (L === land ? parcel : build).push(row(L)); });
+
+  // The green-building uplift becomes a Value Adjustment, which is exactly what it
+  // is. The other five standard rows are kept, blank, so the appraiser sees the
+  // familiar table rather than a stripped-down one.
+  var adj = (typeof VAL_ADJ_SEED !== 'undefined' ? VAL_ADJ_SEED : []).map(function(s){
+    return { label:s[0], sign:s[1], basis:s[2], value:'' };
+  });
+  var avPct = num(r.valuation_added_value_pct), avAmt = maj(r.valuation_added_value_minor);
+  if(avPct || avAmt){
+    var slot = null;
+    for(var i=0;i<adj.length;i++){ if(/green building/i.test(adj[i].label)){ slot = adj[i]; break; } }
+    if(!slot){ slot = { label:'Green building added value', sign:'plus', basis:'pct', value:'' }; adj.push(slot); }
+    // Prefer the percentage BLU stated; fall back to the amount when only that came.
+    if(avPct){ slot.basis = 'pct'; slot.value = String(Math.round(avPct*10000)/100); }
+    else     { slot.basis = 'awg'; slot.value = String(avAmt); }
+    slot.sign = 'plus';
+  }
+
+  var pevPct = num(r.valuation_pev_pct);
+  vd.valMode   = 'presumable';
+  vd.presumData = {
+    _rowsExplicit: true,            // §VAL-ROW-DELETE (v2.300) — these rows are deliberate
+    parcel: parcel, build: build, custom: [],
+    // execRate is BLU's pev_pct as a percentage. Left blank when they sent none, so
+    // the app's own 80% default applies rather than a number nobody supplied.
+    execRate: pevPct ? String(Math.round(pevPct*10000)/100) : '',
+    awgRate: '',
+    // Total Construction Development Cost is NOT the valuation sub-total and BLU
+    // does not send one. Left empty; the report prints "—" until it is entered.
+    devCost: '',
+    adj: adj
+  };
+  return vd;
+}
+
 // Everything the SIGMA form has no field for goes in the note.
 function _bluPrefillNote(r){
   var L = [];
@@ -27824,6 +28196,53 @@ function _bluPrefillNote(r){
     deliv.push('bank contact ' + (r.bank_contact_name || '') + (r.bank_contact_email ? ' <' + r.bank_contact_email + '>' : ''));
   }
   L.push('Deliver the report to: ' + (deliv.length ? deliv.join(' and ') : 'NOT STATED — confirm with BLU'));
+
+  // §BLU-VALUATION (v2.351) — the figures, in the one field the appraiser reads
+  // without opening anything: verbatim, named, and with the one convention SIGMA
+  // and BLU differ on spelled out rather than buried in a calculator.
+  if(_bluHasVal(r)){
+    var cur = r.valuation_currency || '';
+    L.push('');
+    L.push('PRESUMABLE VALUATION SUPPLIED BY BLU' + (cur && cur !== 'AWG' ? '  [' + cur + ' — NOT AWG]' : ''));
+    L.push('  Presumable Free Market Value (PFMV): '     + (_bluMoney(r.valuation_pfmv_minor, cur) || '—'));
+    L.push('  Presumable Execution Value (PEV): '        + (_bluMoney(r.valuation_pev_minor,  cur) || '—')
+           + (r.valuation_pev_pct ? '  (' + _bluPct(r.valuation_pev_pct) + ' of PFMV)' : ''));
+    L.push('  Presumable Re-Construction Value (PRCV): ' + (_bluMoney(r.valuation_prcv_minor, cur) || '—')
+           + '  (BLU: PFMV minus the land line)');
+    L.push('  Sub-total: ' + (_bluMoney(r.valuation_sub_total_minor, cur) || '—')
+           + (r.valuation_added_value_minor != null
+                ? '  ·  added value ' + (r.valuation_added_value_pct ? _bluPct(r.valuation_added_value_pct) + ' = ' : '')
+                  + _bluMoney(r.valuation_added_value_minor, cur)
+                : ''));
+    if(r.valuation_rate_card_source) L.push('  Rate card: ' + r.valuation_rate_card_source);
+    if(r.valuation_supersedes)       L.push('  Supersedes: ' + r.valuation_supersedes);
+    var _ln = Array.isArray(r.valuation_lines) ? r.valuation_lines : [];
+    _ln.forEach(function(x){
+      x = x || {};
+      L.push('    · ' + (x.label || x.key || 'Item')
+             + (x.quantity_m2 != null ? '  ' + x.quantity_m2 + ' m²' : '')
+             + (x.rate_minor  != null ? ' × ' + _bluMoney(x.rate_minor, '') : '')
+             + (x.amount_minor != null ? '  = ' + _bluMoney(x.amount_minor, cur) : ''));
+    });
+    if(cur === 'AWG'){
+      L.push('  → These figures are loaded into the Valuation screen (Presumable). PFMV and PEV come out identical.');
+      L.push('    PRCV WILL NOT: SIGMA adds a 10% demolition allowance to the same base, so the report prints '
+             + (_bluMoney(Math.round(Number(r.valuation_prcv_minor||0)*1.10), cur) || '—')
+             + ' where BLU says ' + (_bluMoney(r.valuation_prcv_minor, cur) || '—')
+             + '. Decide which convention this report asserts before issuing it.');
+    } else {
+      L.push('  → NOT loaded into the Valuation screen: SIGMA’s valuation is AWG-primary and these figures are '
+             + cur + '. Convert and enter them by hand.');
+    }
+    var _probs = _bluValChecks(r);
+    if(_probs.length){
+      L.push('  ⚠ BLU’s own arithmetic does not tie — stored as sent, not corrected:');
+      _probs.forEach(function(p){ L.push('    · ' + p); });
+    }
+  } else {
+    L.push('');
+    L.push('Presumable valuation: NOT SUPPLIED by BLU with this request.');
+  }
   return L.join('\n');
 }
 
@@ -27877,7 +28296,29 @@ function _bluApplyPrefill(type){
       + 'reserved when the request arrived, and already given to BLU. It is not re-allocated here.'
       + '<br>Please confirm City, Parcel Type/Size and the appraisal type — BLU sends a project and a lot, not a street address'
       + (r.model_code ? '' : ', and has not supplied a house model or package yet')
-      + '. Everything BLU sent is in the Notes field.</div>';
+      + '. Everything BLU sent is in the Notes field.'
+      // §BLU-VALUATION (v2.351) — say plainly what will be in the valuation, and
+      // say plainly the one figure SIGMA is going to state differently.
+      + (function(){
+          if(!_bluHasVal(r)){
+            return '<br><span style="color:#a8a29e;">BLU supplied <b>no valuation</b> with this request — the Valuation screen starts empty.</span>';
+          }
+          var cur = r.valuation_currency || '';
+          if(cur !== 'AWG'){
+            return '<br><span style="color:#fca5a5;font-weight:700;">BLU’s valuation is in ' + _erEsc(cur) + ', not AWG</span>'
+                 + '<span style="color:#a8a29e;">, so it is NOT loaded into the Valuation screen — the figures are in the Notes and on the request card. Enter them by hand.</span>';
+          }
+          return '<br><span style="color:#4ade80;font-weight:700;">✓ The presumable valuation is loaded</span> '
+               + '<span style="color:#a8a29e;">— PFMV ' + _erEsc(_bluMoney(r.valuation_pfmv_minor, cur) || '—')
+               + ', PEV ' + _erEsc(_bluMoney(r.valuation_pev_minor, cur) || '—')
+               + ', line items and the added-value adjustment, all in the Presumable calculator.</span>'
+               + '<br><span style="color:#e0a93c;">Note the PRCV:</span> <span style="color:#a8a29e;">BLU says '
+               + _erEsc(_bluMoney(r.valuation_prcv_minor, cur) || '—')
+               + '; SIGMA’s formula adds a 10% demolition allowance to the same base and will print '
+               + _erEsc(_bluMoney(Math.round(Number(r.valuation_prcv_minor||0)*1.10), cur) || '—')
+               + '. Decide which convention this report asserts.</span>';
+        })()
+      + '</div>';
   }
 }
 
