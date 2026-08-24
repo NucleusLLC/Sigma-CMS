@@ -37,8 +37,13 @@ create table if not exists public.order_number_counters_backup_20260824 as
 --   select b.order_id from public.orders_id_backup_20260824 b
 --    where not exists (select 1 from public.orders o where o.order_id = b.order_id);
 --   -- must return ZERO rows.
+-- order_id ALONE. An earlier version of this file also selected created_at, which
+-- public.orders does not have -- it has updated_at. The whole snapshot aborted on
+-- that column, in a transaction, so nothing was captured and the operator only
+-- found out after the change had gone in. The column added nothing the stated
+-- purpose needs, so it is gone rather than corrected.
 create table if not exists public.orders_id_backup_20260824 as
-  select order_id, created_at, now() as snapshot_at from public.orders;
+  select order_id, now() as snapshot_at from public.orders;
 
 -- ── 3. The numbering functions, as source ───────────────────────────────────
 -- SIGMA_order_numbering_blu.sql uses `create or replace` on
@@ -72,6 +77,31 @@ begin
   else
     raise notice 'snapshot: blu_appraisal_requests skipped (absent, or already snapshot)';
   end if;
+end $$;
+
+-- ── 4b. Lock the snapshots down ─────────────────────────────────────────────
+-- `create table ... as` inherits Supabase's default grants for anon and
+-- authenticated, and the anon key ships inside index.html. orders_id_backup is a
+-- complete index of every order number this firm has ever issued, so left open it
+-- is a public listing of the order book. RLS with no policies denies anon and
+-- authenticated outright while the SQL editor and service_role bypass it, which is
+-- exactly the access this data should have.
+--
+-- Done here rather than left to the dashboard's "Run and enable RLS" prompt: that
+-- prompt never sees the table created inside the DO block above, because it is
+-- built from a string the linter cannot parse.
+do $$
+declare t text;
+begin
+  foreach t in array array['order_number_counters_backup_20260824',
+                           'orders_id_backup_20260824',
+                           'sigma_funcdef_backup_20260824',
+                           'blu_appraisal_requests_backup_20260824'] loop
+    if to_regclass('public.'||t) is not null then
+      execute format('alter table public.%I enable row level security', t);
+      execute format('revoke all on public.%I from anon, authenticated', t);
+    end if;
+  end loop;
 end $$;
 
 -- ── 5. Confirm what was captured (read-only) ────────────────────────────────
