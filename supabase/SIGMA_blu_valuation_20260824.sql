@@ -300,8 +300,8 @@ begin
   return n;
 end $$;
 
-revoke all on function public.sigma_blu_minor(jsonb, text, boolean) from public;
-revoke all on function public.sigma_blu_fraction(jsonb, text)       from public;
+revoke all on function public.sigma_blu_minor(jsonb, text, boolean) from public, anon, authenticated;
+revoke all on function public.sigma_blu_fraction(jsonb, text)       from public, anon, authenticated;
 grant execute on function public.sigma_blu_minor(jsonb, text, boolean) to service_role;
 grant execute on function public.sigma_blu_fraction(jsonb, text)       to service_role;
 
@@ -526,7 +526,7 @@ end $$;
 -- Postgres grants EXECUTE to PUBLIC by default, and `create or replace` RESETS the
 -- grants to that default. Re-apply them, or the anon key that ships in index.html
 -- regains the two powers this whole design withholds.
-revoke all on function public.sigma_blu_record_request(jsonb) from public;
+revoke all on function public.sigma_blu_record_request(jsonb) from public, anon, authenticated;
 grant execute on function public.sigma_blu_record_request(jsonb) to service_role;
 
 -- PostgREST caches the column list as well as the function list. Without this,

@@ -140,6 +140,14 @@ begin
 end $$;
 
 -- ── 4. Grants ───────────────────────────────────────────────────────────────
+-- REVOKING FROM `public` ALONE IS NOT ENOUGH ON SUPABASE, and an earlier version of
+-- this file did exactly that. Supabase ships
+--   alter default privileges in schema public grant all on functions to anon, authenticated;
+-- so a newly created function carries an EXPLICIT grant to both roles, not merely the
+-- PUBLIC default. `revoke ... from public` removes the default and leaves the explicit
+-- grants untouched, so anon kept EXECUTE on every function below and the check in the
+-- runbook read `anon = true` on a live database. Every revoke here now names all three.
+--
 -- Postgres grants EXECUTE on a new function to PUBLIC by default, so every one of
 -- these is REVOKED first and then granted deliberately. On a SECURITY DEFINER
 -- function that increments a counter, "granted by default" means "anyone holding
@@ -155,9 +163,9 @@ end $$;
 --                                       they reach it as their SECURITY DEFINER
 --                                       owner, not as the caller, so revoking it
 --                                       from anon breaks nothing.
-revoke all on function public.sigma_next_order_seq(int)             from public;
-revoke all on function public.sigma_next_order_number(int)          from public;
-revoke all on function public.sigma_next_order_number(int, text)    from public;
+revoke all on function public.sigma_next_order_seq(int)             from public, anon, authenticated;
+revoke all on function public.sigma_next_order_number(int)          from public, anon, authenticated;
+revoke all on function public.sigma_next_order_number(int, text)    from public, anon, authenticated;
 
 grant execute on function public.sigma_next_order_seq(int)             to service_role;
 grant execute on function public.sigma_next_order_number(int)          to anon, authenticated, service_role;

@@ -279,7 +279,7 @@ end $$;
 -- that both INSERTs into this table and spends an appraisal number, leaving that
 -- default in place would hand anyone holding the public anon key exactly the two
 -- powers the RLS policies below are written to withhold.
-revoke all on function public.sigma_blu_record_request(jsonb) from public;
+revoke all on function public.sigma_blu_record_request(jsonb) from public, anon, authenticated;
 grant execute on function public.sigma_blu_record_request(jsonb) to service_role;
 
 -- ── Re-seed the counter from RESERVED numbers ───────────────────────────────
