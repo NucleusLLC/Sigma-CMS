@@ -12509,11 +12509,17 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
     <div style="display:grid;grid-template-columns:1fr 90px auto;gap:10px;align-items:end;">
       <div class="efg" style="margin:0;">
         <label style="font-size:10.5px;">Value (AWG)</label>
-        <input type="number" id="ePmBase" placeholder="e.g. 750000" min="0" step="0.01" oninput="eRecalcCostFromOrder()" style="font-family:var(--font-mono);">
+        <!-- §PROMILLE-FIX (v2.352) — type="text" inputmode="decimal", NOT type="number".
+             See §PM-PARSE: type="number" reports '' for "750,000" while showing it. -->
+        <input type="text" inputmode="decimal" id="ePmBase" placeholder="e.g. 750,000" autocomplete="off"
+               title="The value the fee is charged on. Type it the way you write it — 750,000 · 750.000 · 750000 · 750000,50 are all read correctly."
+               oninput="eRecalcCostFromOrder()" style="font-family:var(--font-mono);">
       </div>
       <div class="efg" style="margin:0;">
         <label style="font-size:10.5px;">Rate (‰)</label>
-        <input type="number" id="ePmRate" placeholder="e.g. 2" min="0" step="0.01" oninput="eRecalcCostFromOrder()" style="font-family:var(--font-mono);">
+        <input type="text" inputmode="decimal" id="ePmRate" placeholder="e.g. 2" autocomplete="off"
+               title="The per-mille rate. A comma or a dot both work as the decimal mark — 2,5 and 2.5 are the same rate. A rate is never grouped, so 1.500 means 1.5."
+               oninput="eRecalcCostFromOrder()" style="font-family:var(--font-mono);">
       </div>
       <div style="text-align:right;padding-bottom:6px;">
         <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Charge</div>
@@ -12521,6 +12527,39 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
       </div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-top:8px;">Charges Rate ÷ 1000 of the value (e.g. 2‰ of AWG 750,000 = AWG 1,500). Leave blank to skip. This is added to the total above and appears as its own line on the invoice.</div>
+    <!-- §PROMILLE-FIX (v2.352) — what SIGMA actually read out of the two boxes, so a
+         typed figure can never disagree in silence with the charge or the invoice line. -->
+    <div id="ePmEcho" style="font-size:11px;color:var(--muted);margin-top:5px;font-family:var(--font-mono);"></div>
+  </div>
+
+  <!-- ── §COST-DISCOUNT (v2.352) — discount on the order’s fee, % or a fixed amount ── -->
+  <div style="margin-bottom:16px;border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;">
+      <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0;">Discount</label>
+      <span style="font-size:11px;color:var(--muted);">off the subtotal, Pro Mille included</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 110px auto;gap:10px;align-items:end;">
+      <div class="efg" style="margin:0;">
+        <label style="font-size:10.5px;">Type</label>
+        <select id="eDiscType" onchange="eRecalcCostFromOrder()">
+          <option value="">No discount</option>
+          <option value="percent">Percentage (%)</option>
+          <option value="amount">Amount (AWG)</option>
+        </select>
+      </div>
+      <div class="efg" style="margin:0;">
+        <label style="font-size:10.5px;">Value</label>
+        <input type="text" inputmode="decimal" id="eDiscVal" placeholder="e.g. 10" autocomplete="off" disabled
+               title="A comma or a dot both work as the decimal mark — 33,33 and 33.33 are the same."
+               oninput="eRecalcCostFromOrder()" style="font-family:var(--font-mono);">
+      </div>
+      <div style="text-align:right;padding-bottom:6px;">
+        <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Discount</div>
+        <span id="eDiscAmount" style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--muted);">— AWG</span>
+      </div>
+    </div>
+    <div id="eDiscSub" style="font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--font-mono);"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">Taken off the cost items <b>and</b> the Pro Mille charge, and capped at the subtotal so the total can never go below zero. It sets the Invoiced Fee below. When the invoice is raised its lines stay at full price and this is recorded as the invoice’s own discount, so the invoice stays editable.</div>
   </div>
 
   <!-- ── Fee + status row ────────────────────────────────────────── -->
@@ -16037,7 +16076,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.351';
+var APP_VERSION = 'v2.352';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -16075,6 +16114,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.352',type:'fix',date:'08-27-2026',ts:'08-27-2026 10:00',_static:true,title:'The Pro Mille charge now reads the value you typed — and a discount on the Cost tab',desc:'Two things on the Cost tab. (1) The Pro Mille boxes no longer throw away what you type. They were number-only boxes, and a number-only box silently reports NOTHING when it is given “750,000” — the very way SIGMA itself prints every amount. The figure stayed on screen while the charge computed as AWG 0.00. Both boxes now accept the number written any normal way — 750,000 · 750.000 · 750000 · 750000,50 — and a line underneath says exactly what SIGMA read, so what is charged can never quietly disagree with what is on screen. Opening an order also used to redraw the Cost total and the Invoiced Fee WITHOUT the Pro Mille charge; it no longer does. The Cost total now prints with two decimals like every other amount in SIGMA. (2) A new Discount box takes a percentage or a fixed amount off the subtotal — cost items and Pro Mille together — capped so a total can never go below zero. When the invoice is raised its lines stay at full price and the discount is recorded as the invoice’s own discount, so the invoice can still be edited afterwards.'},
   {v:'v2.351',type:'feature',date:'08-24-2026',ts:'08-24-2026 18:00',_static:true,title:'Developments — BLU now sends the presumable valuation, and the Job Order arrives with it',desc:'A BLU Capital Group appraisal request can now carry the presumable valuation alongside the buyer and the lot: the line items, the sub-total, the green-building added value, and the three presumable figures — Presumable Free Market Value, Presumable Execution Value and Presumable Re-Construction Value. Each request card shows the three values as money, clearly labelled, with the line items one click away; a request BLU sent no valuation with says “Not supplied” rather than showing a zero. When the request is converted, the valuation goes into the Job Order: the Valuation screen opens on the Presumable calculator already filled in with BLU’s line items, their execution rate and their added-value adjustment, and everything BLU sent is written verbatim into the order’s Notes as well. Two of the three figures come out exactly as BLU stated them. The third will not, and the app says so in three places rather than hiding it: SIGMA’s Presumable Re-Construction Value adds a 10% demolition allowance to the same base, so it prints 10% above BLU’s — the appraiser decides which convention the report asserts. Nothing is recalculated behind BLU’s back, and where their own figures do not add up the card says which ones and by how much. Requests without a valuation, and every other project, behave exactly as before.'},
   {v:'v2.350',type:'feature',date:'08-23-2026',ts:'08-23-2026 09:00',_static:true,title:'Developments — appraisal requests from BLU Capital Group',desc:'A new Developments section in the sidebar receives appraisal requests from BLU Capital Group\u2019s Sales & Control Desk. When a buyer\u2019s deposit is verified BLU sends the request straight into SIGMA, and SIGMA answers immediately with the appraisal number — the next number in this year\u2019s series with a B after it, such as 2026-045B, so the numbering stays one single run and no ordinary order can ever be given that number. Each request shows the number, when it came in, the project and lot, the house model and package (or says plainly that BLU has not supplied them yet), the buyer\u2019s name, email and phone, the reservation reference, and whether the finished report goes to the buyer, to a bank contact, or to both. Create Job Order raises the order under the number that was already reserved, exactly the way Email Requests works, and the request is marked Converted with a link to the order. Sending the same request twice is harmless: BLU gets the same number back and nothing is duplicated. Actually producing and emailing the report is unchanged and still done by hand — this step is intake only.'},
   {v:'v2.349',type:'feature',date:'08-21-2026',ts:'08-21-2026 04:00',_static:true,title:'An uh-oh alert for team chat',desc:'There is a new notification sound for team chat - a short two-note falling uh-oh, in the spirit of the old ICQ alert. Choose it under Settings, Chat Notifications, where you can hear it with the Preview button before you commit. It is off unless you pick it: the two-tone chime is still the default. Like the other sounds it is generated by the app itself rather than being a recorded clip, so it adds nothing to loading time and works offline. It stays quiet in the same situations as the others - while older messages are still loading, when you are already looking at the chat, and never for your own messages.'},
@@ -22378,7 +22418,12 @@ function _finLinesForOrder(o){
       ? _promilleAmount(o.promilleBase, o.promilleRate)
       : ((Number(o.promilleBase)||0) * (Number(o.promilleRate)||0) / 1000);
     if(pm > 0){
-      var baseFmt = Number(o.promilleBase).toLocaleString('en-US');
+      // §PROMILLE-FIX (v2.352) — cap the description at cents. A bare toLocaleString()
+      //   prints up to THREE decimals, so a base of 750000.555 read as "AWG 750,000.555"
+      //   on the invoice while the Cost tab showed AWG 750,000.56. A whole-number base is
+      //   untouched by this (750000 ⇢ "750,000" either way), so no existing invoice line
+      //   changes description and _finLinesKey cannot see a spurious mismatch.
+      var baseFmt = Number(o.promilleBase).toLocaleString('en-US', { maximumFractionDigits:2 });
       lines.push({ description: 'Valuation fee (' + Number(o.promilleRate) + '‰ of AWG ' + baseFmt + ')', quantity: 1, unit_price: pm });
     }
   } catch(e){}
@@ -22393,9 +22438,18 @@ function _finLinesForOrder(o){
   var _fee = Number(o.fee);
   if(isFinite(_fee) && _fee > 0){
     var _itemsTotal = lines.reduce(function(s,l){ return s + (Number(l.unit_price)||0)*(Number(l.quantity)||1); }, 0);
-    var _diff = Math.round((_fee - _itemsTotal) * 100) / 100;
+    // §COST-DISCOUNT (v2.352) — a Cost-tab discount has ALREADY been taken off o.fee, and
+    //   it is carried by the invoice's OWN discount field, never by a line. Compare the
+    //   PRE-discount fee here: comparing the discounted one would push the difference out
+    //   as a negative 'Agreed discount' line, and sigma_edit_invoice REJECTS a negative
+    //   unit price — which would leave the invoice permanently un-editable. The Invoiced
+    //   Fee can still be overridden by hand on top of a discount; that difference is a
+    //   real override and still shows as its own line, exactly as §BILLING-TOTAL intends.
+    var _cdA   = (typeof _costDiscOnOrder === 'function') ? _costDiscOnOrder(o, _itemsTotal) : 0;
+    var _gross = Math.round((_fee + _cdA) * 100) / 100;
+    var _diff  = Math.round((_gross - _itemsTotal) * 100) / 100;
     if(!lines.length){
-      lines.push({ description: 'Appraisal services — ' + o.id, quantity: 1, unit_price: _fee });
+      lines.push({ description: 'Appraisal services — ' + o.id, quantity: 1, unit_price: _gross });
     } else if(Math.abs(_diff) >= 0.01){
       lines.push({ description: (_diff > 0 ? 'Additional agreed charges' : 'Agreed discount'), quantity: 1, unit_price: _diff });
     }
@@ -22412,9 +22466,13 @@ async function _finOfferInvoiceOnCreate(order){
   var lines = _finLinesForOrder(order);
   var total = lines.reduce(function(s,l){ return s + (Number(l.unit_price)||0)*(Number(l.quantity)||1); }, 0);
   if(!(total > 0)) return;                                // nothing to bill yet
+  // §COST-DISCOUNT (v2.352) — quote the figure the client will actually be billed.
+  var _offA = _costDiscOnOrder(order, total);
+  var _offT = Math.round((total - _offA) * 100) / 100;
   if(confirm('Order ' + order.id + ' created.\n\nRaise its invoice now? It takes the order number ('
            + order.id + ') and is created as a DRAFT you can review before finalising.\n\nTotal: '
-           + _finMoney(total))){
+           + _finMoney(_offT)
+           + (_offA > 0 ? ('   (after a discount of ' + _finMoney(_offA) + ')') : ''))){
     await finCreateForOrder(order.id);
     setView('finance');
   }
@@ -22430,9 +22488,21 @@ async function finCreateForOrder(orderId){
 
   var lines = _finLinesForOrder(o);
   var total = lines.reduce(function(s,l){ return s + (Number(l.unit_price)||0) * (Number(l.quantity)||1); }, 0);
+  // §COST-DISCOUNT (v2.352) — the order's quote discount. The lines above stay at FULL
+  //   price; this is applied afterwards through sigma_set_invoice_discount, the same
+  //   server-side, clamped, tax-recomputing, audited path §BBO-DISCOUNT (v2.328) uses.
+  var _cdT = _costDiscType(o), _cdV = _costDiscValue(o);
+  var _cdA = _costDiscOnOrder(o, total);
+  var _cdTxt = (_cdT === 'percent') ? (String(Number(_cdV.toFixed(2))) + '%') : _finMoney(_cdV);
   var body  = 'Raise invoice ' + orderId + ' for ' + (o.client || 'this client') + '?\n\n'
             + lines.map(function(l){ return '  · ' + l.description + '  ' + _finMoney(l.unit_price); }).join('\n')
             + '\n\nTotal: ' + _finMoney(total)
+            + (_cdA > 0
+                ? ('\nDiscount (' + _cdTxt + '): −' + _finMoney(_cdA)
+                   + '\nTo pay: ' + _finMoney(Math.round((total - _cdA) * 100) / 100)
+                   + '\n\nThe lines are raised at full price and the discount is recorded as the '
+                   + 'invoice\u2019s own discount, so the invoice stays editable.')
+                : '')
             + '\n\nThe invoice number is the order number and cannot be changed.\nIt is created as a DRAFT — you can review it before finalising.';
   if(!confirm(body)) return null;
 
@@ -22456,6 +22526,33 @@ async function finCreateForOrder(orderId){
     }
     try { appLog('ACTION','FINANCE','Invoice ' + orderId + ' created (draft)'); } catch(e){}
     await finFetch(true);
+    // §COST-DISCOUNT (v2.352) — hand the Cost-tab discount to the invoice's OWN discount
+    //   mechanism. The database clamps it, recomputes the total and the included tax, and
+    //   records it. If it does NOT go through we say so loudly and say where to fix it: an
+    //   invoice quietly raised at full price is a client billed the wrong amount.
+    if(_cdT && _cdV > 0){
+      var _newId = (r.data && typeof r.data === 'object') ? (r.data.id || r.data.invoice_id) : r.data;
+      if(!_newId || typeof _newId !== 'string'){
+        try { var _f = finById_byNumber(orderId); if(_f) _newId = _f.id; } catch(e){}
+      }
+      var _dErr = _newId ? null : 'SIGMA could not identify the invoice it had just created.';
+      if(_newId){
+        try {
+          var _dr = await _sb.rpc('sigma_set_invoice_discount', {
+            p_invoice: _newId, p_type: _cdT, p_value: _cdV,
+            p_reason: 'Agreed discount on the order (Cost tab)', p_allow_overpay: false });
+          if(_dr && _dr.error) _dErr = _dr.error.message || 'unknown error';
+        } catch(e){ _dErr = (e && e.message) ? e.message : String(e); }
+      }
+      if(_dErr){
+        alert('Invoice ' + orderId + ' was created, but the discount of ' + _cdTxt + ' was NOT applied to it.\n\n'
+            + _dErr + '\n\nThe invoice currently bills the FULL amount. Open Finance and use the '
+            + '“% Discount” button on this invoice before sending it.');
+      } else {
+        try { appLog('ACTION','FINANCE','Invoice ' + orderId + ' — Cost-tab discount ' + _cdTxt + ' applied'); } catch(e){}
+        await finFetch(false);
+      }
+    }
     return r.data;
   } catch(e){
     alert('Could not create the invoice:\n\n' + (e && e.message || e));
@@ -25868,6 +25965,11 @@ async function finPreviewProposed(){
   var lines = _finLinesForOrder(order);
   if(!lines.length){ alert('This order has no billable items yet. Add cost items or a Pro-Mille charge on the Cost tab first.'); return; }
   var total = lines.reduce(function(s,l){ return s + Number(l.unit_price||0)*Number(l.quantity||1); }, 0);
+  // §COST-DISCOUNT (v2.352) — preview it the way the invoice will really carry it:
+  //   full-price lines, the discount as the invoice's own discount.
+  var _pvT = _costDiscType(order), _pvV = _costDiscValue(order);
+  var _pvA = _costDiscOnOrder(order, total);
+  var _pvNet = Math.round((total - _pvA) * 100) / 100;
   var due = ''; try { var d=new Date(); d.setDate(d.getDate()+30); due=d.toISOString().slice(0,10); } catch(e){}
   var inv = {
     invoice_number: order.id, order_number: order.id,
@@ -25878,9 +25980,9 @@ async function finPreviewProposed(){
     property_address: (order.address || '') + (order.city ? (', ' + order.city) : ''),
     appraiser: order.appraiser || '',
     invoice_date: new Date().toISOString().slice(0,10), due_date: due,
-    currency: 'AWG', subtotal: total, tax_amount: _finTaxIncluded(total), total: total, amount_paid: 0, balance: total,
+    currency: 'AWG', subtotal: total, tax_amount: _finTaxIncluded(_pvNet), total: _pvNet, amount_paid: 0, balance: _pvNet,
     tax_rate: _FIN_TAX.rate, tax_label: _FIN_TAX.label,
-    discount_type: 'none', discount_value: 0, discount_amount: 0,
+    discount_type: (_pvA > 0 ? _pvT : 'none'), discount_value: (_pvA > 0 ? _pvV : 0), discount_amount: _pvA,
     payment_terms: (_finCompany().paymentTerms || 'Due at Receipt'), public_notes: ''   // §PAYMENT-TERMS (v2.283)
   };
   await _finOpenPreview(inv, lines);   // §INVOICE-LOGO-SRC (v2.291)
@@ -28470,7 +28572,7 @@ var EDIT_LS_KEY      = 'editDraft_';
 var EDIT_SB_TIMEOUT  = 8000;
 
 // All field IDs in the edit modal
-var EDIT_FIELD_IDS=['eId','eStatus','eOrderDate','eDue','eInspDate','eAppraiser','eClientFirst','eClientLast','eClientWork','eClientCell','eEmail','eClientAddr','eCity','eZip','eCountry','eStateZip','eHearFrom','ePropCategory','ePropCategoryOther','eAddress','ePropType','eLotSize','eRopvZone','eLegal','eAPN','eOwner','ePurpose','eFinInst','eFee','eFeeStatus','ePmBase','ePmRate','eFlag','eFlagOther','eLoanAmt','eBuildType','eGLA','eYearBuilt','eBeds','eBaths','eFencingShared','eFencingOwned','eFlooring','eParking','eBldgNote1','eCompDate','eBuilder','eInternalNotes','eRevision','eAssignNotes','eComps'];
+var EDIT_FIELD_IDS=['eId','eStatus','eOrderDate','eDue','eInspDate','eAppraiser','eClientFirst','eClientLast','eClientWork','eClientCell','eEmail','eClientAddr','eCity','eZip','eCountry','eStateZip','eHearFrom','ePropCategory','ePropCategoryOther','eAddress','ePropType','eLotSize','eRopvZone','eLegal','eAPN','eOwner','ePurpose','eFinInst','eFee','eFeeStatus','ePmBase','ePmRate','eDiscType','eDiscVal','eFlag','eFlagOther','eLoanAmt','eBuildType','eGLA','eYearBuilt','eBeds','eBaths','eFencingShared','eFencingOwned','eFlooring','eParking','eBldgNote1','eCompDate','eBuilder','eInternalNotes','eRevision','eAssignNotes','eComps'];
 
 
 
@@ -28646,8 +28748,17 @@ function _editApplyToOrder(idx,snap){
   var loan=parseFloat(snap.eLoanAmt); if(!isNaN(loan))o.loanAmt=loan;
   // §PROMILLE (v2.281) — commercial per-mille charge (value + rate). Stored so the
   //   invoice can show it as its own line "Valuation fee (X‰ of AWG Y)".
-  o.promilleBase = parseFloat(snap.ePmBase) || 0;
-  o.promilleRate = parseFloat(snap.ePmRate) || 0;
+  //   §PROMILLE-FIX (v2.352) — parsed by _pmNum (§PM-PARSE), not parseFloat: the boxes are
+  //   text now, so "750,000" and "750.000" reach here as typed and must read as 750000.
+  o.promilleBase = _pmMoney(snap.ePmBase);
+  o.promilleRate = _pmRate(snap.ePmRate);
+  // §COST-DISCOUNT (v2.352) — the quote discount. No type selected ⇢ no discount at all,
+  //   and the value is cleared with it so re-selecting a type can never bring back an old
+  //   figure the appraiser had already taken off.
+  o.costDiscType  = (snap.eDiscType === 'percent' || snap.eDiscType === 'amount') ? snap.eDiscType : '';
+  var _cdv = _pmNum(snap.eDiscVal, o.costDiscType === 'amount');
+  o.costDiscValue = (o.costDiscType && isFinite(_cdv) && _cdv > 0) ? _cdv : 0;
+  if(!(o.costDiscValue > 0)) { o.costDiscType = ''; o.costDiscValue = 0; }
   // Building
   o.buildType   = snap.eBuildType  || o.buildType  ||'';
   o.compDate    = snap.eCompDate   || o.compDate   ||'';
@@ -29096,6 +29207,17 @@ function openEdit(order) {
   sv('eFee',     order.fee     != null ? order.fee : '');
   sv('ePmBase',  order.promilleBase ? order.promilleBase : '');   // §PROMILLE (v2.281)
   sv('ePmRate',  order.promilleRate ? order.promilleRate : '');
+  // §COST-DISCOUNT (v2.352) — set directly, not through ss(): ss() returns early on a
+  //   falsy value, so it could never put the select back to “No discount”.
+  try {
+    var _dtEl = g('eDiscType');
+    var _dt   = (order.costDiscType === 'percent' || order.costDiscType === 'amount') ? order.costDiscType : '';
+    var _dv   = Number(order.costDiscValue) || 0;
+    if(!(_dv > 0)) _dt = '';
+    if(_dtEl) _dtEl.value = _dt;
+    var _dvEl = g('eDiscVal');
+    if(_dvEl){ _dvEl.value = _dt ? String(_dv) : ''; _dvEl.disabled = !_dt; }
+  } catch(e){}
   _eRenderFeeStatus(order);   // §INVOICE-STEP (v2.248) — read-only, flow-driven status badge
   ss('eFlag',    order.flag    || '');
   sv('eFlagOther', order.flagOther || ''); if(typeof _eFlagToggle==='function') _eFlagToggle(); // §FLAG-OTHER (v2.212)
@@ -29171,7 +29293,13 @@ function openEdit(order) {
         +'</div>';
     }).join('');
 
-    recalc();
+    // §PROMILLE-FIX (v2.352) — the local recalc() above totals the ticked items ONLY. It
+    //   also writes #eFee, so opening an order that carried a Pro Mille charge redrew the
+    //   Cost total without it AND overwrote the Invoiced Fee with the items-only figure,
+    //   which the next save then captured. eRecalcCostFromOrder() is the one function that
+    //   knows about the charge and the discount; recalc() stays only as a fallback so a
+    //   throw can never leave the checklist blank.
+    try { eRecalcCostFromOrder(); } catch(e){ recalc(); }
   })();
 
   // ── Notes ──────────────────────────────────────────────────────────────────
@@ -42345,6 +42473,13 @@ function _toRow(o) {
       hearFrom:o.hearFrom||'',
       // §PROMILLE (v2.281) — commercial per-mille charge (value + rate).
       promilleBase:(o.promilleBase!=null?o.promilleBase:''), promilleRate:(o.promilleRate!=null?o.promilleRate:''),
+      // §COST-DISCOUNT (v2.352) — the Cost-tab quote discount. BOTH keys are written ONLY
+      //   when a discount is actually set (the §DRAFT / §OP-FORMAT precedent): JSON.stringify
+      //   drops an undefined value entirely, so an order that never touched this feature
+      //   produces byte-for-byte the extra_data it did in v2.351. No schema migration —
+      //   this rides in extra_data exactly like promilleBase above.
+      costDiscType:(((o.costDiscType==='percent'||o.costDiscType==='amount')&&Number(o.costDiscValue)>0)?o.costDiscType:undefined),
+      costDiscValue:(((o.costDiscType==='percent'||o.costDiscType==='amount')&&Number(o.costDiscValue)>0)?Number(o.costDiscValue):undefined),
       // §EMAIL-REQUESTS (v2.264) — id of the website enquiry this order was created from.
       sourceInquiryId:o.sourceInquiryId||'',
       // §BLU-DEVELOPMENTS (v2.350) — id of the BLU development request this order came
@@ -42542,6 +42677,13 @@ function _fromRow(row, order) {
       // §PROMILLE (v2.281) — restore the commercial per-mille charge.
       if (x.promilleBase!=null && x.promilleBase!=='') order.promilleBase = parseFloat(x.promilleBase)||0;
       if (x.promilleRate!=null && x.promilleRate!=='') order.promilleRate = parseFloat(x.promilleRate)||0;
+      // §COST-DISCOUNT (v2.352) — set UNCONDITIONALLY (the §OWNERS-LIST ownersCols
+      //   precedent): removing the discount STOPS writing the keys, so reading the row back
+      //   has to clear the fields rather than let a stale in-memory value resurrect a
+      //   discount the appraiser has just taken off.
+      order.costDiscType  = (x.costDiscType==='percent'||x.costDiscType==='amount') ? x.costDiscType : '';
+      order.costDiscValue = order.costDiscType ? (Number(x.costDiscValue)||0) : 0;
+      if(!(order.costDiscValue > 0)) { order.costDiscType = ''; order.costDiscValue = 0; }
       // §PER-ORDER-TPL (v1.904) — restore the per-order template binding.
       if (x.templateId)     order.templateId     = x.templateId;
       if (x.templateName)   order.templateName   = x.templateName;
@@ -49385,12 +49527,158 @@ function eRecalcCost(){
 }
 
 // ── Recalculate using stored amounts (more reliable) ─────────────────────────
+// ── §PROMILLE-FIX (v2.352) · §PM-PARSE — reading the number the appraiser typed ────
+//   The Pro Mille value and rate were <input type="number">. That control carries the
+//   badInput trap this app has already been bitten by twice: §VAL-SAFE-SAVE (v2.326)
+//   after it wiped a user's valuation figures, and §OWNERS-LIST (v2.343) which pre-empted
+//   it for the ownership shares. Type "750,000" — the way this app itself PRINTS every
+//   amount — and the browser SHOWS "750,000" while .value reports ''. Number('') is 0, so
+//   a 2‰ charge on AWG 750,000 computed as AWG 0.00 with a seven-figure number sitting on
+//   screen. Both fields are text now (a text field cannot lose characters, and
+//   inputmode="decimal" still raises the numeric keypad on a tablet in the field) and are
+//   parsed HERE.
+//
+//   Conventions accepted — `money` true for an amount, false for a rate or a percentage:
+//     · plain                750000    750000.50    2      2.5
+//     · comma as the decimal  750000,50    2,5    33,33            (Dutch / Papiamento)
+//     · BOTH separators       750,000.50   750.000,50  ⇢ the LAST one is the decimal mark
+//     · repeated separator    1,750,000    1.750.000   ⇢ grouping, whichever mark it is
+//     · ONE separator, exactly three digits after it, 1–3 digits before it, no leading
+//       zero, and money=true ⇢ GROUPING:  750,000 = 750.000 = 750000
+//       money=false NEVER applies that rule — a rate is not grouped, so 1,500 and 1.500
+//       are both 1.5. Grouping a rate would turn 1.5‰ into 1500‰.
+//     · stripped as noise: spaces, NBSP, thin/figure spaces, apostrophes, AWG / Afl / ƒ /
+//       $, and the % and ‰ signs.
+//   Anything it cannot read comes back NaN and is NEVER silently read as zero — the Cost
+//   tab says so out loud instead (see #ePmEcho / #eDiscSub).
+function _pmNum(v, money){
+  if(v == null) return NaN;
+  var s = String(v)
+    .replace(/[\s\u00a0\u202f\u2009\u2007']/g, '')
+    .replace(/AWG|Afl\.?|\u0192|\$/gi, '')
+    .replace(/[%\u2030]/g, '');
+  if(!s) return NaN;
+  var neg = s.charAt(0) === '-';
+  if(neg || s.charAt(0) === '+') s = s.slice(1);
+  if(!/^[0-9.,]+$/.test(s)) return NaN;
+  var iC = s.lastIndexOf(','), iD = s.lastIndexOf('.'), dec = -1;
+  if(iC >= 0 && iD >= 0){
+    dec = (iC > iD) ? iC : iD;                      // both present ⇢ the last one decides
+  } else if(iC >= 0 || iD >= 0){
+    var mark = (iC >= 0) ? ',' : '.';
+    var idx  = (iC >= 0) ? iC : iD;
+    var many = (s.split(mark).length - 1) > 1;
+    var grouped = many || (money === true
+                           && (s.length - idx - 1) === 3
+                           && /^[1-9][0-9]{0,2}$/.test(s.slice(0, idx)));
+    dec = grouped ? -1 : idx;
+  }
+  var head = (dec >= 0) ? s.slice(0, dec) : s;
+  var tail = (dec >= 0) ? s.slice(dec + 1) : '';
+  // Whatever separators remain in the head must be GROUPING, and grouping has a shape:
+  //   one kind of mark, three digits per group, 1-3 digits in front. Without this check
+  //   "1.2.3,4,5" and "750,00,0" strip down to a plausible-looking number, which is the
+  //   same failure as the one being fixed here — a figure read as something the appraiser
+  //   never typed. Anything that is not a well-formed number comes back NaN.
+  if(/[.,]/.test(head)){
+    var gm = (head.indexOf(',') >= 0) ? ',' : '.';
+    if(head.indexOf(gm === ',' ? '.' : ',') >= 0) return NaN;   // two kinds in the head
+    if(!new RegExp('^[0-9]{1,3}(\\' + gm + '[0-9]{3})+$').test(head)) return NaN;
+    head = head.split(gm).join('');
+  }
+  if(!/^[0-9]*$/.test(head) || !/^[0-9]*$/.test(tail)) return NaN;
+  if(!head && !tail) return NaN;
+  var n = parseFloat((head || '0') + (tail ? ('.' + tail) : ''));
+  if(!isFinite(n)) return NaN;
+  return neg ? -n : n;
+}
+// The two callers. Unreadable text is 0 HERE (a charge of nothing), never a wrong figure.
+function _pmMoney(v){ var n = _pmNum(v, true);  return isFinite(n) ? n : 0; }
+function _pmRate(v){  var n = _pmNum(v, false); return isFinite(n) ? n : 0; }
+// §PROMILLE-FIX (v2.352) — money printed the way this app prints money everywhere else
+//   (_finMoney's convention): grouped, ALWAYS two decimals. The Cost total used a bare
+//   toLocaleString(), so a total of 1502.5 printed as "1,502.5" and 1502.567 as
+//   "1,502.567" — neither of which is an amount of money, and neither of which matched
+//   what the invoice would show.
+function _costMoney(n){
+  var v = Number(n) || 0;
+  return v.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+// §PROMILLE-FIX (v2.352) — cents, rounded HALF AWAY FROM ZERO on the decimal value.
+//   Math.round(v * 100) / 100 is what the rest of this file uses and it is wrong on the
+//   half-cent: 649.935 is stored as 649.93499999999994 in binary, so ×100 lands below the
+//   half and rounds DOWN to 649.93. Postgres computes invoices in `numeric`, which keeps
+//   the decimal and rounds UP to 649.94 — so a 33.33% discount displayed on the Cost tab
+//   disagreed with the invoice the database produced, by a cent. toFixed() works from the
+//   decimal expansion, so it sees the half that the multiplication loses.
+//   It also kills the ordinary float dust: 450 + 1500.57 = 1950.5700000000002.
+function _cents(n){
+  var v = Number(n);
+  if(!isFinite(v)) return 0;
+  var neg = v < 0; if(neg) v = -v;
+  var s = v.toFixed(3), p = s.split('.');
+  var c = (Number(p[0]) * 100) + Number(p[1].slice(0, 2));
+  if(Number(p[1].charAt(2)) >= 5) c += 1;
+  var r = c / 100;
+  return neg ? -r : r;
+}
+
 // §PROMILLE (v2.281) — the per-mille charge = value × rate ÷ 1000, rounded to cents.
 //   Shared by the Cost tab and the invoice line builder so they always agree.
+//   §PROMILLE-FIX (v2.352) — it now parses through _pmNum, so it reads the raw text off
+//   the Cost tab and the number stored on the order in exactly the same way. Rounding to
+//   cents happens HERE, on the charge itself, before it joins the other cost items: the
+//   charge is a money figure in its own right and it is what the invoice bills as one
+//   line, so it must be the same cents on the Cost tab, in the fee, and on the invoice.
 function _promilleAmount(base, rate){
-  var b = Number(base) || 0, r = Number(rate) || 0;
-  if(b <= 0 || r <= 0) return 0;
-  return Math.round(b * r / 1000 * 100) / 100;
+  var b = _pmMoney(base), r = _pmRate(rate);
+  if(!(b > 0) || !(r > 0)) return 0;
+  return _cents(b * r / 1000);
+}
+
+// ── §COST-DISCOUNT (v2.352) — a discount on the ORDER's fee, before any invoice ─────
+//   There are now two discounts and they are NOT the same thing:
+//
+//     · THIS one is a QUOTE discount. It lives on the order, it is set on the Cost tab, it
+//       reduces the Invoiced Fee, and it exists before an invoice does. It is the intent.
+//     · §BBO-DISCOUNT (v2.328) is an INVOICE discount: invoices.discount_type /
+//       discount_value / discount_amount, applied by sigma_set_invoice_discount, which
+//       clamps it, recomputes the total, recomputes the tax on the discounted figure and
+//       records it in the audit trail. It is the record.
+//
+//   When an invoice is raised for an order that carries a quote discount, the LINES are
+//   written at full price and the discount is handed to sigma_set_invoice_discount — see
+//   finCreateForOrder. It is deliberately NOT emitted as a negative line: sigma_edit_invoice
+//   rejects a negative unit price, so an invoice that contains one can never be edited
+//   again. §BILLING-TOTAL's "Agreed discount" line is exactly that trap, and _finLinesForOrder
+//   below now compares the PRE-discount fee so this feature cannot spring it.
+//
+//   It applies to the subtotal AFTER the Pro Mille charge, i.e. to the cost items and the
+//   per-mille charge together. On a commercial order the per-mille valuation fee is
+//   normally the largest part of the bill, so a percentage that skipped it would discount
+//   almost nothing and would not mean what the client was told it means.
+function _costDiscType(o){
+  var t = o && o.costDiscType;
+  return (t === 'percent' || t === 'amount') ? t : '';
+}
+function _costDiscValue(o){
+  var v = o ? Number(o.costDiscValue) : 0;
+  return (isFinite(v) && v > 0) ? v : 0;
+}
+// The AWG actually taken off `sub`. Clamped to [0, sub] — a percentage above 100 and an
+//   amount above the subtotal both come back as exactly the subtotal, so the total lands
+//   on zero and can never go through it.
+function _costDiscAmount(sub, type, value){
+  var s = Number(sub) || 0, v = Number(value) || 0;
+  if(!(s > 0) || !(v > 0)) return 0;
+  var d = (type === 'percent') ? (s * (v > 100 ? 100 : v) / 100)
+        : (type === 'amount')  ? v
+        : 0;
+  if(!(d > 0)) return 0;
+  return _cents(d > s ? s : d);
+}
+function _costDiscOnOrder(o, sub){
+  return _costDiscAmount(sub, _costDiscType(o), _costDiscValue(o));
 }
 
 function eRecalcCostFromOrder(){
@@ -49412,18 +49700,75 @@ function eRecalcCostFromOrder(){
     }
   });
   // §PROMILLE (v2.281) — add the commercial per-mille charge, if entered.
+  //   §PROMILLE-FIX (v2.352) — read through _pmNum (§PM-PARSE) and echo the figure that
+  //   was actually understood, so what is charged can never disagree in silence with what
+  //   is on screen.
   var pmB = document.getElementById('ePmBase'), pmR = document.getElementById('ePmRate'), pmA = document.getElementById('ePmAmount');
-  var pm = _promilleAmount(pmB ? pmB.value : 0, pmR ? pmR.value : 0);
+  var pmBraw = pmB ? pmB.value : '', pmRraw = pmR ? pmR.value : '';
+  var pmBn = _pmNum(pmBraw, true), pmRn = _pmNum(pmRraw, false);
+  var pm = _promilleAmount(pmBraw, pmRraw);
   if(pmA){
-    pmA.textContent = pm > 0 ? (pm.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + ' AWG') : '— AWG';
+    pmA.textContent = pm > 0 ? (_costMoney(pm) + ' AWG') : '— AWG';
     pmA.style.color = pm > 0 ? 'var(--au,#c8922a)' : 'var(--muted)';
   }
-  tot += pm;
+  var pmE = document.getElementById('ePmEcho');
+  if(pmE){
+    var _pmBad = (String(pmBraw).trim() !== '' && isNaN(pmBn)) || (String(pmRraw).trim() !== '' && isNaN(pmRn));
+    if(_pmBad){
+      pmE.textContent = 'That is not a number SIGMA can read, so nothing has been charged. Use digits — e.g. 750,000 and 2.';
+      pmE.style.color = '#fca5a5';
+    } else if(pm > 0){
+      pmE.textContent = 'Read as ' + String(Number(pmRn.toFixed(3))) + '‰ of AWG ' + _costMoney(pmBn) + ' = AWG ' + _costMoney(pm) + '.';
+      pmE.style.color = 'var(--muted)';
+    } else {
+      pmE.textContent = '';
+    }
+  }
+  tot = _cents(tot + pm);
+
+  // §COST-DISCOUNT (v2.352) — the quote discount, taken off the subtotal INCLUDING the
+  //   per-mille charge, and clamped so the total can never go below zero.
+  var dT = document.getElementById('eDiscType'), dV = document.getElementById('eDiscVal');
+  var dA = document.getElementById('eDiscAmount'), dS = document.getElementById('eDiscSub');
+  var dType = dT ? String(dT.value || '') : '';
+  if(dType !== 'percent' && dType !== 'amount') dType = '';
+  var dRaw  = dV ? dV.value : '';
+  var dNum  = _pmNum(dRaw, dType === 'amount');
+  var disc  = _costDiscAmount(tot, dType, isFinite(dNum) ? dNum : 0);
+  if(dV) dV.disabled = !dType;
+  if(dA){
+    dA.textContent = disc > 0 ? ('− ' + _costMoney(disc) + ' AWG') : '— AWG';
+    dA.style.color = disc > 0 ? '#f8b4b4' : 'var(--muted)';
+  }
+  if(dS){
+    if(!dType){
+      dS.textContent = '';
+    } else if(String(dRaw).trim() !== '' && isNaN(dNum)){
+      dS.textContent = 'That is not a number SIGMA can read, so nothing has been discounted.';
+      dS.style.color = '#fca5a5';
+    } else {
+      var _dn = isFinite(dNum) ? dNum : 0;
+      var _capped = (dType === 'percent' && _dn > 100) || (dType === 'amount' && _dn > tot);
+      dS.textContent = 'Subtotal AWG ' + _costMoney(tot)
+        + (disc > 0
+            ? (' less ' + (dType === 'percent' ? (String(Number(_dn.toFixed(2))) + '%') : ('AWG ' + _costMoney(_dn)))
+               + ' = AWG ' + _costMoney(_cents(tot - disc)))
+            : '')
+        + (_capped ? '  — capped at the subtotal; the total never goes below zero.' : '');
+      dS.style.color = _capped ? '#e8b84b' : 'var(--muted)';
+    }
+  }
+  tot = _cents(tot - disc);
 
   var tEl=document.getElementById('eCostTotal');
-  if(tEl)tEl.textContent=tot.toLocaleString()+' AWG';
+  // §PROMILLE-FIX (v2.352) — two decimals, like every other money figure in SIGMA.
+  if(tEl)tEl.textContent=_costMoney(tot)+' AWG';
   var fEl=document.getElementById('eFee');
-  if(fEl)fEl.value=tot||'';
+  //   §PROMILLE-FIX (v2.352) — the fee carries the rounded figure, so the number saved is
+  //   the number shown. A zero total still writes '' — unchanged behaviour: #eFee is a
+  //   number input, '' means "not entered", and _editApplySnapshot's parseFloat('') is NaN,
+  //   which leaves any fee already agreed on the order alone rather than zeroing it.
+  if(fEl)fEl.value=tot?String(tot):'';
 }
 
 
