@@ -11292,7 +11292,7 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
         </div>
         <div class="fg">
           <label>Inspection Date <span class="req">*</span></label>
-          <div class="dp-wrap"><input type="text" id="inspDate" placeholder="Select date" readonly="" data-key="inspDate" data-dp-ready="1"><span class="dp-icon">📅</span></div>
+          <div class="dp-wrap"><input type="text" id="inspDate" placeholder="Select date" readonly="" data-key="inspDate"><span class="dp-icon">📅</span></div>
         </div>
         <div class="fg">
           <label>Inspection Duration</label>
@@ -12211,7 +12211,7 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
         <div class="pfg"><label>License Number</label>
           <input type="text" id="aeLicense" placeholder="AZ-CREA-00000"></div>
         <div class="pfg"><label>License Expiry</label>
-          <div class="dp-wrap"><input type="text" id="aeExpiry" placeholder="Select date" readonly="" data-dp-ready="1"><span class="dp-icon">📅</span></div></div>
+          <div class="dp-wrap"><input type="text" id="aeExpiry" placeholder="Select date" readonly=""><span class="dp-icon">📅</span></div></div>
         <div class="pfg"><label>Office / Location</label>
           <input type="text" id="aeOffice" placeholder="Phoenix, AZ"></div>
         <div class="pfg"><label>Availability</label>
@@ -12307,7 +12307,7 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
     <div class="efg"><label>Start-up Date <span style="color:var(--au)">*</span></label>
       <div class="dp-wrap"><input type="text" id="eDue" placeholder="Select date" readonly=""><span class="dp-icon">📅</span></div></div>
     <div class="efg"><label>Inspection Date</label>
-      <div class="dp-wrap"><input type="text" id="eInspDate" placeholder="Select date" readonly="" data-dp-ready="1"><span class="dp-icon">📅</span></div></div>
+      <div class="dp-wrap"><input type="text" id="eInspDate" placeholder="Select date" readonly=""><span class="dp-icon">📅</span></div></div>
   </div>
   <!-- §PROP-TYPE (v2.216) — Property Type category (drives the report's page-2 "Property Type"). Other → free-text to the right. -->
   <div class="egrid eg2" style="margin-top:10px;">
@@ -13861,6 +13861,32 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
 
         <div class="euser-section-title" style="margin-bottom:.6rem;">Line items</div>
         <div id="invEdLines"></div>
+
+        <!-- §INVOICE-EDIT-DISCOUNT (v2.359) — the invoice's OWN discount, editable HERE.
+             It used to live only behind the "% Discount" button on a Finance row, so an
+             invoice raised without a discount could not be given one from the Edit screen
+             — the one place a user goes to correct an invoice they got wrong. Same server
+             call as that button (sigma_set_invoice_discount): the database still clamps
+             the figure, recomputes the total and the included tax, and audits it. Nothing
+             about the discount is computed here except the on-screen preview. -->
+        <div class="euser-section" style="margin-top:1rem;">
+          <div class="euser-section-title">Discount on this invoice</div>
+          <div id="invEdDiscNow" style="font-size:12px;color:var(--slate-lt);margin-bottom:.6rem;"></div>
+          <div class="euser-grid">
+            <div class="pfg"><label>Discount</label>
+              <select id="invEdDiscType" onchange="_invEdDiscToggle();invEditRecalc()">
+                <option value="none">No discount</option>
+                <option value="amount">Amount</option>
+                <option value="percent">Percentage (%)</option>
+              </select></div>
+            <div class="pfg" id="invEdDiscValWrap"><label id="invEdDiscValLbl">Amount</label>
+              <input type="number" id="invEdDiscVal" step="0.01" min="0" placeholder="0.00" oninput="invEditRecalc()"></div>
+            <div class="pfg" id="invEdDiscWhyWrap" style="grid-column:1/-1;"><label>Reason for the discount (printed nowhere, kept in the invoice history)</label>
+              <input type="text" id="invEdDiscWhy" placeholder="e.g. agreed reduction for a repeat client"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:.4rem;">Taken off the invoice subtotal. The total and the included tax are recalculated by the database, never here.</div>
+        </div>
+
         <div id="invEdMoney" style="margin:12px 0 4px;"></div>
 
         <div class="euser-section" style="margin-top:1rem;">
@@ -17083,7 +17109,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.355';
+var APP_VERSION = 'v2.359';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17121,6 +17147,10 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.359',type:'feature',date:'08-29-2026',ts:'08-29-2026 10:00',_static:true,title:'You can now add or change the discount from the Edit invoice screen',desc:'If an invoice was raised without a discount, the only way to add one was the “% Discount” button on a Finance row — the Edit invoice screen had no discount at all, so an invoice opened from the order’s Billing tab could not be given one. Edit invoice now has a Discount section: none, a fixed amount or a percentage, with a reason kept in the invoice history. The figure on screen shows the subtotal, the discount and the resulting total before you save, and the total quoted in the confirmation now includes the discount instead of the pre-discount figure. The discount itself is still written by the database, which clamps it, recalculates the total and the included tax and re-applies payments — exactly as the Finance button does.'},
+  {v:'v2.358',type:'fix',date:'08-29-2026',ts:'08-29-2026 09:30',_static:true,title:'Date picker — the month arrows no longer close the calendar',desc:'In any date field, clicking ‹ or › to change month, clicking the month/year heading, or picking a month or a year shut the calendar instead of navigating. Redrawing the calendar replaced the button under the pointer, and the app then read the click as a click outside the calendar and closed it. Navigation now works in every view; picking a day, Today and Clear still close it as before.'},
+  {v:'v2.357',type:'fix',date:'08-29-2026',ts:'08-29-2026 09:00',_static:true,title:'Project Data — the Inspection Date field opens its calendar again',desc:'On a new order, Project Data › General, clicking Inspection Date did nothing. The field is read-only and opens a calendar on click, but a stale marker baked into the page markup made the app believe the calendar had already been wired up, so the click handler was never attached. Same fault fixed on the Inspection form’s Inspection Date and on Appraiser License Expiry.'},
+  {v:'v2.356',type:'fix',date:'08-28-2026',ts:'08-28-2026 23:30',_static:true,title:'Project Sales Price \u2014 the report no longer re-reads a typed price as a smaller number',desc:'The SALES PRICE box on the Valuation screen is free text \u2014 its own placeholder is \u201ce.g. AWG 350,000\u201d \u2014 so the report has to work out what the appraiser meant by what they typed. Until now it kept only the digits and the dots and ran those through parseFloat, which quietly re-read the way money is written on this island as a different figure: \u201c350.000\u201d printed as AWG 350, and \u201cAfl. 350.000\u201d printed as AWG 0. A thousand times too small, on the page a bank reads, with nothing on the report to show the number had been altered at all. SIGMA reads this figure, it never authors it, so it no longer guesses. A price written the way the box asks for it \u2014 an optional currency word, comma grouping, at most two decimals \u2014 is formatted exactly as before, so every sale price that prints correctly today prints byte-identically. Anything else is now printed VERBATIM, in the appraiser\u2019s own characters, which is what the Total Construction Development Cost band beside it has always done with its own free-text box. Two things follow. An em dash in the Project Sales Price band now means one thing and one thing only: the box is empty. And the USD line under it is shown only when a real number was resolved, never derived back out of the printed string \u2014 which also repairs the Dutch report, where the printed \u201cAWG 350.000\u201d was being read back as 350. The band still prints on the \u201cSIGMA_Type3.T2-MultiBuilding+MultiParcel_NewProject\u201d template and nowhere else, and no other figure on that page, or on any other template, changes.'},
   {v:'v2.355',type:'feature',date:'08-28-2026',ts:'08-28-2026 21:00',_static:true,title:'Sales Price — a place to enter the unit’s sale price',desc:'The Valuation screen’s Presumable section now opens with a SALES PRICE field, above the Total Construction Development Cost. It holds the approved sale price of the unit, in AWG. It is deliberately the first thing on that section and it is deliberately outside the arithmetic: nothing on the valuation screen reads it, no component table feeds it, and V1, V2 and V3 are exactly what they were before. A valuation measures what something is worth; a sale price is what somebody agreed to pay, and the report must not let the two be mistaken for one another. The figure is stored on the same key an incoming BLU appraisal request already seeds (presumData.projectSalePrice), so a price BLU sends arrives in this box and a price BLU has not sent can simply be typed. That also repairs a quiet loss: until now the valuation screen never captured this key, so an order that arrived from BLU with a sale price lost it the first time anybody opened Valuation and saved. It prints where it always did — the Project Sales Price band on the “SIGMA_Type3.T2-MultiBuilding+MultiParcel_NewProject” template, and nowhere else. An empty box still prints an em dash there. No other template, and no other figure on this one, changes.'},
   {v:'v2.354',type:'feature',date:'08-28-2026',ts:'08-28-2026 19:00',_static:true,title:'Dutch language support for the appraisal report',desc:'The report can now be produced in Dutch. The switch is PER TEMPLATE, not per order: Report Customization \u2192 Layout gains a \u201cReport Language\u201d card with English / Nederlands, saved as the ordinary RC key rcLang, so a Dutch report is simply a template whose config carries rcLang:\u2018nl\u2019 and it travels with template save / load / export exactly like every other setting. Every printed label in the report now goes through ONE string table (REPORT_STRINGS + _rt()): the front cover, the Table of Contents and its descriptions, all section headings and sub-headings, the project-information grids, the Inspection Data Summary, the Inspection Details checklist (all three appraisal types), the Condition Assessment Matrix (grade columns and row labels), the floor-plan and space-schedule tables, the valuation page (headline values, formulas, adjustments), R.O.I., the Attached Documents index, the photo contact sheet and the Sign-Off page. A key missing from Dutch falls back to English; a key missing from both prints the key itself, so a gap can never show up as a blank label on a client document. Number and date formatting is Dutch too, through one funnel (_rfLoc / _rfNum / _rfMoney / _rfFix / _rfDate / _rfPages): AWG 1.500,50 not AWG 1,500.50, 28-08-2026 not August 28 2026, 11,88% not 11.88%. That was the highest-risk part of the change \u2014 a valuation with the separators swapped reads a thousand times off. The six AI generators and the More/Less-Text length editor gain a language instruction so the model WRITES Dutch rather than translating English output; in English the instruction is the empty string, so the prompts are unchanged. THE LEGAL TEXT IS NOT SWITCHED. The Certification &amp; Limiting Conditions (three variants) and the Appraiser Declaration are legal text printed over the appraiser\u2019s signature. Careful Dutch drafts ship in REPORT_LEGAL_NL but they are UNREVIEWED and they do not render: a Dutch report still prints those blocks, and the Notes on this Report, in ENGLISH until the owner reads the drafts and ticks \u201cDutch legal text approved\u201d (rcLangLegalApproved, default off). Turning them on is that one setting, not a code change. rcLang:\u2018en\u2019 is byte-identical to the previous release: twelve renders (appraisal types 1/2/3 \u00d7 templates T1/T2 \u00d7 valuation modes current/both) were generated before and after and match to the byte. The _pgList contract is untouched \u2014 no page is added, split or removed, and a rendered Dutch report clips no label that the English one does not.'},
   {v:'v2.353',type:'feature',date:'08-28-2026',ts:'08-28-2026 17:00',_static:true,title:'NewProject template — presumable figures only, plus the Project Sales Price',desc:'The template named “SIGMA_Type3.T2-MultiBuilding+MultiParcel_NewProject” now reports a development that has not been built yet, and its Valuation page says so. The Presumable Valuation is unchanged — Presumable Free Market Value, Presumable Execution Value (PEV) and Presumable Re-Construction Value (PRCV) all print exactly as before. The Current Valuation section still prints its heading, its component table and its two value cards, but every Current figure is now an em dash: a property that does not exist yet has no current value, and a number in those boxes would be a claim about nothing. The Value Adjustments block and the Total Construction Development Cost band, both of which are Current-side figures, are withheld on this template for the same reason. The page and its Table of Contents entry now read “Presumable Valuation” rather than “Current &amp; Presumable Valuation”, which would no longer have been true. The page also carries a new Project Sales Price band under the presumable figures. That number is the approved sale price of the unit and it belongs to BLU Capital Group, not to SIGMA: it is read from the appraisal request, never calculated here, and never derived from any valuation — a valuation measures what something is worth, a sale price is what somebody agreed to pay, and the two must not be confused. BLU does not send it yet, so the band prints an em dash until they add it to the intake; when they do it will appear with no further change here. A sale price sent in a currency other than AWG is deliberately not shown, because every figure on this page is in florins. Nothing outside this one template changes: every other template, including the other MultiBuilding ones, renders byte-identically.'},
@@ -24798,7 +24828,7 @@ window.finEmailLogRefresh = finEmailLogRefresh;
 // ║  no failure is swallowed into console.warn: a refusal is printed in full, in  ║
 // ║  the dialog, in red, with the dialog left open and everything typed intact.   ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-var INVED = { id:null, inv:null, lines:[], orig:[], from:'billing', expect:'', busy:false };
+var INVED = { id:null, inv:null, lines:[], orig:[], from:'billing', expect:'', busy:false, disc0:{ type:'none', value:0, reason:'' } };
 
 var INVED_TERMS = ['', '50% deposit', '100% due at start', 'Due at Receipt', 'As Agreed'];
 
@@ -24806,6 +24836,45 @@ function _invEdEl(id){ return document.getElementById(id); }
 function _invEdVal(id){ var el = _invEdEl(id); return el ? String(el.value) : ''; }
 function _invEdSet(id, v){ var el = _invEdEl(id); if(el) el.value = (v == null ? '' : String(v)); }
 function _invEdN(v, dflt){ var n = parseFloat(v); return isFinite(n) ? n : (dflt || 0); }
+
+// §INVOICE-EDIT-DISCOUNT (v2.359) — read the discount controls as the same intent
+//   triple the "% Discount" button sends: type / value / reason. 'none' zeroes the
+//   value so a leftover number in a hidden box can never be sent as a live discount.
+function _invEdDiscRead(){
+  var t = _invEdVal('invEdDiscType') || 'none';
+  if(t !== 'amount' && t !== 'percent') t = 'none';
+  var v = t === 'none' ? 0 : _invEdN(_invEdVal('invEdDiscVal'), 0);
+  if(!(v > 0)) { if(t !== 'none') v = 0; }
+  return { type:t, value:v, reason:String(_invEdVal('invEdDiscWhy') || '').trim() };
+}
+// The value box is meaningless under "No discount", so it is hidden rather than
+//   left on screen inviting a number that would be thrown away.
+function _invEdDiscToggle(){
+  var t   = _invEdVal('invEdDiscType') || 'none';
+  var wrap= _invEdEl('invEdDiscValWrap'), why = _invEdEl('invEdDiscWhyWrap'), lbl = _invEdEl('invEdDiscValLbl');
+  var on  = (t === 'amount' || t === 'percent');
+  if(wrap) wrap.style.display = on ? '' : 'none';
+  if(why)  why.style.display  = on ? '' : 'none';
+  if(lbl)  lbl.textContent    = (t === 'percent') ? 'Percentage (%)'
+                              : ('Amount (' + ((INVED.inv && INVED.inv.currency) || 'AWG') + ')');
+}
+// What the discount comes to against a given subtotal. PREVIEW ONLY — the stored
+//   figure is whatever sigma_set_invoice_discount computes and clamps server-side.
+function _invEdDiscAmount(sub){
+  var d = _invEdDiscRead();
+  if(d.type === 'none' || !(d.value > 0)) return 0;
+  var a = (d.type === 'percent') ? (sub * d.value / 100) : d.value;
+  if(a > sub) a = sub;              // the database clamps at the subtotal; say so here too
+  if(a < 0)   a = 0;
+  return Math.round(a * 100) / 100;
+}
+function _invEdDiscChanged(){
+  var was = INVED.disc0 || { type:'none', value:0, reason:'' };
+  var now = _invEdDiscRead();
+  return now.type !== was.type
+      || Math.round(now.value * 100) !== Math.round(was.value * 100)
+      || (now.type !== 'none' && now.reason !== was.reason);
+}
 function _invEdDay(s){ return s ? String(s).slice(0,10) : ''; }
 function _invEdMsg(txt, colour){
   var el = _invEdEl('invEdMsg'); if(!el) return;
@@ -24908,6 +24977,23 @@ function invEditRecalc(){
   }
   total = Math.round(total * 100) / 100;
 
+  // §INVOICE-EDIT-DISCOUNT (v2.359) — the invoice-level discount comes off AFTER the
+  //   lines. Before this, the box quoted the pre-discount figure and so disagreed with
+  //   the invoice on any discounted invoice opened here — including one that already
+  //   carried a discount and was opened for an unrelated correction.
+  var _sub  = total;
+  var _dAmt = _invEdDiscAmount(_sub);
+  total = Math.round((_sub - _dAmt) * 100) / 100;
+  var _dBox = _invEdEl('invEdDiscNow');
+  if(_dBox){
+    var _d = _invEdDiscRead();
+    _dBox.innerHTML = (_dAmt > 0)
+      ? ('Subtotal ' + _erEsc(_finMoney(_sub, cur)) + ' &minus; ' + _erEsc(_finMoney(_dAmt, cur))
+         + (_d.type === 'percent' ? ' (' + _erEsc(String(_d.value)) + '%)' : '')
+         + ' = <b>' + _erEsc(_finMoney(total, cur)) + '</b>')
+      : 'No discount on this invoice.';
+  }
+
   var paid = Number(inv.amount_paid || 0);
   var oldT = Number(inv.total || 0);
   var newB = Math.round((total - paid) * 100) / 100;
@@ -24947,7 +25033,7 @@ function invEditRecalc(){
 async function invEditOpen(id, expect, from){
   var ov = _invEdEl('invEdOverlay');
   if(!ov){ alert('The Edit invoice screen is missing from this copy of SIGMA. Reload the page and try again.'); return; }
-  INVED = { id:id, inv:null, lines:[], orig:[], from:(from === 'finance' ? 'finance' : 'billing'), expect:(expect || ''), busy:false };
+  INVED = { id:id, inv:null, lines:[], orig:[], from:(from === 'finance' ? 'finance' : 'billing'), expect:(expect || ''), busy:false, disc0:{ type:'none', value:0, reason:'' } };
 
   ov.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -25059,6 +25145,20 @@ async function invEditOpen(id, expect, from){
         + _erEsc(inv.client_name || 'the current client') + '. Only do this to correct a typo — if it is the wrong person, void this invoice and raise a new one.';
   }
 
+  // §INVOICE-EDIT-DISCOUNT (v2.359) — seed the discount controls from the invoice.
+  //   invoices_v carries the stored discount; a row without those columns simply reads
+  //   as "no discount" rather than throwing and taking the whole screen down.
+  var _dt = String(inv.discount_type || 'none');
+  if(_dt !== 'amount' && _dt !== 'percent') _dt = 'none';
+  var _dv = Number(inv.discount_value  || 0);
+  var _da = Number(inv.discount_amount || 0);
+  var _dr = String(inv.discount_reason || '');
+  INVED.disc0 = { type:_dt, value:(_dt === 'none' ? 0 : _dv), reason:(_dt === 'none' ? '' : _dr) };
+  _invEdSet('invEdDiscType', _dt);
+  _invEdSet('invEdDiscVal',  _dt === 'none' ? '' : (_dv > 0 ? _dv : ''));
+  _invEdSet('invEdDiscWhy',  _dt === 'none' ? '' : _dr);
+  _invEdDiscToggle();
+
   _invEdPaintLines();
   if(form) form.style.display = '';
   _invEdMsg('');
@@ -25068,7 +25168,7 @@ function invEditClose(){
   var ov = _invEdEl('invEdOverlay');
   if(ov) ov.classList.remove('open');
   document.body.style.overflow = '';
-  INVED = { id:null, inv:null, lines:[], orig:[], from:'billing', expect:'', busy:false };
+  INVED = { id:null, inv:null, lines:[], orig:[], from:'billing', expect:'', busy:false, disc0:{ type:'none', value:0, reason:'' } };
 }
 function invEditBg(e){ if(e.target === _invEdEl('invEdOverlay')) invEditClose(); }
 
@@ -25094,6 +25194,17 @@ async function invEditSave(){
       _invEdMsg('Line ' + (i+1) + ' (' + L.description + ') has a negative price or discount. Nothing has been saved.', '#f87171'); return; }
   }
   if(!_invEdVal('invEdDate')){ _invEdMsg('An invoice must have a date. Nothing has been saved.', '#f87171'); return; }
+
+  // §INVOICE-EDIT-DISCOUNT (v2.359) — same refusals the "% Discount" button makes, made
+  //   here before the write rather than left to come back as a server error on a screen
+  //   the user has already walked away from.
+  var _disc = _invEdDiscRead();
+  if(_disc.type !== 'none'){
+    if(!(_disc.value > 0)){
+      _invEdMsg('Enter a discount greater than zero, or set Discount to "No discount". Nothing has been saved.', '#f87171'); return; }
+    if(_disc.type === 'percent' && _disc.value > 100){
+      _invEdMsg('A percentage discount cannot exceed 100%. Nothing has been saved.', '#f87171'); return; }
+  }
 
   if(!isDraft){
     var ack = _invEdEl('invEdAck');
@@ -25130,7 +25241,11 @@ async function invEditSave(){
   }
 
   var linesChanged = (_invEdLineKey(INVED.lines) !== _invEdLineKey(INVED.orig));
-  if(!linesChanged && !Object.keys(patch).length){
+  // §INVOICE-EDIT-DISCOUNT (v2.359) — the discount is NOT part of p_patch: it is written
+  //   by its own RPC below. It must still count as a change, or adding a forgotten
+  //   discount and pressing Save would be answered with "nothing to save".
+  var discChanged = _invEdDiscChanged();
+  if(!linesChanged && !discChanged && !Object.keys(patch).length){
     _invEdMsg('Nothing on this invoice has been changed, so there was nothing to save.', 'var(--slate-lt)');
     return;
   }
@@ -25154,9 +25269,14 @@ async function invEditSave(){
     if(newSt !== inv.status) q += 'The invoice will change from ' + _invEdStatusLabel(inv.status) + ' to ' + _invEdStatusLabel(newSt) + '.\n';
     q += '\n';
   }
+  // §INVOICE-EDIT-DISCOUNT (v2.359) — the discount is listed with the rest, so the
+  //   confirmation says out loud that a discount is being added, changed or removed.
+  var _chg = Object.keys(patch).slice();
+  if(linesChanged) _chg.push('line items');
+  if(discChanged)  _chg.push(_disc.type === 'none' ? 'the discount is being REMOVED'
+                    : ('discount ' + (_disc.type === 'percent' ? (_disc.value + '%') : _finMoney(_disc.value, cur))));
   var names = Object.keys(patch);
-  if(names.length) q += 'Changing: ' + names.join(', ') + (linesChanged ? ', line items' : '') + '\n\n';
-  else if(linesChanged) q += 'Changing: line items\n\n';
+  if(_chg.length) q += 'Changing: ' + _chg.join(', ') + '\n\n';
   q += 'The change is recorded in the invoice history with your name and the time.';
   if(!confirm(q)) { _invEdMsg('Cancelled. Nothing has been saved.', 'var(--slate-lt)'); return; }
 
@@ -25181,7 +25301,12 @@ async function invEditSave(){
   try {
     // §BILLING-WATCHDOG (v2.295) — bounded. A stall becomes a message on screen,
     //   never a button that was pressed and then did nothing for ever.
-    var r = await _finRace(_sb.rpc('sigma_edit_invoice', {
+    // §INVOICE-EDIT-DISCOUNT (v2.359) — when ONLY the discount moved there is nothing for
+    //   sigma_edit_invoice to do, and calling it with an empty patch would write an
+    //   'invoice_edited' audit entry that changed nothing. The discount RPC below audits
+    //   its own change.
+    var r = (!linesChanged && !Object.keys(patch).length) ? null
+          : await _finRace(_sb.rpc('sigma_edit_invoice', {
       p_invoice:       invId,
       p_patch:         patch,
       p_lines:         linesChanged ? INVED.lines.map(function(l){
@@ -25195,11 +25320,44 @@ async function invEditSave(){
       p_allow_overpay: allowOverpay
     }), FIN_WRITE_MS, 'saving the changes to invoice ' + invNo);
     if(r && r.error) throw r.error;
+
+    // §INVOICE-EDIT-DISCOUNT (v2.359) — the discount goes through its OWN server call,
+    //   the same one the Finance "% Discount" button uses: the database clamps it,
+    //   recomputes the total and the tax on the discounted figure, re-applies payments
+    //   and audits it. It runs AFTER the lines so it is applied to the new subtotal.
+    if(discChanged){
+      var _dArgs = { p_invoice: invId, p_type: _disc.type, p_value: _disc.value,
+                     p_reason: (_disc.type === 'none' ? 'discount removed' : (_disc.reason || null)),
+                     p_allow_overpay: allowOverpay };
+      var _dRes = await _finRace(_sb.rpc('sigma_set_invoice_discount', _dArgs),
+                                 FIN_WRITE_MS, 'applying the discount to invoice ' + invNo);
+      if(_dRes && _dRes.error){
+        // The server refuses a discount that would take the invoice below what has already
+        //   been paid. Offer the overpayment rather than only reporting failure — same
+        //   answer §BBO-DISCOUNT (v2.328) gives from the Finance row.
+        if(/already been paid|overpay|balance/i.test(_dRes.error.message || '')
+           && confirm(_dRes.error.message + '\n\nApply it anyway and leave invoice ' + invNo + ' overpaid?')){
+          _dArgs.p_allow_overpay = true;
+          var _dRes2 = await _finRace(_sb.rpc('sigma_set_invoice_discount', _dArgs),
+                                      FIN_WRITE_MS, 'applying the discount to invoice ' + invNo);
+          if(_dRes2 && _dRes2.error) throw _dRes2.error;
+        } else {
+          // Everything else on the invoice HAS been saved by now. Say exactly that, so
+          //   nobody walks away believing the discount went with it.
+          throw new Error('The other changes to ' + invNo + ' were saved, but the discount was NOT applied.\n\n'
+                        + (_dRes.error.message || 'The database refused it.'));
+        }
+      }
+    }
   } catch(e){
     var m = (e && (e.message || e.hint || e.details)) || String(e);
     // NOT swallowed. The dialog stays open with everything typed still in it.
-    _invEdMsg('NOT SAVED — invoice ' + invNo + ' is unchanged.\n\n' + m
-            + (_finIsTimeout(e) ? '\n\nNothing was written. Wait a moment and press Save changes again.' : ''), '#f87171');
+    // §INVOICE-EDIT-DISCOUNT (v2.359) — a discount failure can happen AFTER the rest of
+    //   the invoice was written, so a blanket "is unchanged" would be a lie. That case throws
+    //   a message that already says what WAS saved; every other failure still claims nothing moved.
+    var _partial = /were saved, but the discount/.test(m);
+    _invEdMsg((_partial ? ('PARTLY SAVED — invoice ' + invNo + '.') : ('NOT SAVED — invoice ' + invNo + ' is unchanged.')) + '\n\n' + m
+            + (_finIsTimeout(e) && !_partial ? '\n\nNothing was written. Wait a moment and press Save changes again.' : ''), '#f87171');
     try { appLog('ERROR','FINANCE','Invoice edit refused on ' + invNo + ': ' + m); } catch(_e){}
     INVED.busy = false;
     if(btn){ btn.disabled = false; btn.textContent = 'Save changes'; }
@@ -25211,6 +25369,8 @@ async function invEditSave(){
   try { appLog('ACTION','FINANCE','Invoice ' + invNo + ' edited'
     + (names.length ? ' (' + names.join(', ') + ')' : '')
     + (linesChanged ? ' + line items, total now ' + _finMoney(newTotal, cur) : '')
+    + (discChanged ? (_disc.type === 'none' ? ' + discount removed'
+                     : (' + discount ' + (_disc.type === 'percent' ? (_disc.value + '%') : _finMoney(_disc.value, cur)))) : '')
     + (wasFinalised ? ' — the invoice had already been issued' : '')); } catch(e){}
 
   invEditClose();
@@ -30390,8 +30550,8 @@ function openEdit(order) {
   //   on any field was silently lost and reverted to the old DB value on reopen.
   try{ _editWireAutoSave(); }catch(e){}
   setTimeout(function(){
-    ['eDue','eCompDate'].forEach(function(id){
-      var el2=g(id);if(el2)delete el2.dataset.dpReady;
+    ['eDue','eCompDate','eInspDate','eReportDue','eOrderDate'].forEach(function(id){
+      var el2=g(id);if(el2){delete el2.dataset.dpReady;el2._dpBound=false;}
     });
     if(typeof dpInitAll==='function')if(typeof dpInitAll==='function')dpInitAll();
   },80);
@@ -38597,21 +38757,53 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   author: it comes from BLU (public.lots.price_minor, "approved sale price") and arrives
   //   through _bluValToValData. It is deliberately NOT derived from PFMV/PEV/PRCV — those
   //   measure worth, a sale price is what somebody agreed to pay, and BLU's own schema
-  //   records that rule (0043_lot_price_bigint.sql). Until BLU adds the field to the intake
-  //   payload this resolves to '' and the band prints an em dash, which is the honest state:
-  //   the section exists, the figure has not been supplied.
+  //   records that rule (0043_lot_price_bigint.sql). It arrives either from BLU or, since
+  //   v2.355, from the SALES PRICE box on the Valuation screen; an empty box prints an em dash,
+  //   which is the honest state: the section exists, the figure has not been supplied.
+  // §NP-SALES-PRICE-PARSE (v2.356) — that box is FREE TEXT (its own placeholder is
+  //   "e.g. AWG 350,000"), so the report has to decide what the appraiser meant by what they
+  //   typed. The old rule kept only digits and dots and ran parseFloat over the leftovers,
+  //   which silently re-read the way money is written on this island as a different number:
+  //   "350.000" printed AWG 350 and "Afl. 350.000" printed AWG 0 — a figure a thousand times
+  //   too small, on a page a bank reads, with nothing on the report to show it had been
+  //   altered. SIGMA is a READER of this number and never its author, so it no longer guesses.
+  //   A value written unambiguously in the notation the field asks for (an optional currency
+  //   word, US-style grouping, at most two decimals) is formatted exactly as before — every
+  //   figure that prints correctly today is byte-identical. Anything else is printed VERBATIM,
+  //   which is what the Total Construction Development Cost band beside it has always done with
+  //   its own free-text box (esc(_costRaw), no parsing at all). Two consequences worth knowing:
+  //   an em dash here now means one thing only — the box is empty — and the USD line is shown
+  //   only when a number was actually resolved, never derived from the printed string (in Dutch
+  //   _awgStr emits "AWG 350.000", which the old _pUsd(_npSaleStr) read back as 350).
+  var _npSaleNum=0;
   var _npSaleStr=(function(){
     try{
       var _raw=(vd&&vd.presumData&&vd.presumData.projectSalePrice!=null&&vd.presumData.projectSalePrice!=='')
                  ? vd.presumData.projectSalePrice
                  : ((vd&&vd.projectSalePrice!=null)?vd.projectSalePrice:'');
-      if(_raw==='' || _raw===null || _raw===undefined) return '';
-      var _n=parseFloat(String(_raw).replace(/[^0-9.]/g,''));
-      if(isNaN(_n) || _n<=0) return '';
-      return _awgStr(_n);
+      if(_raw===null || _raw===undefined) return '';
+      var _txt=String(_raw).trim();
+      if(_txt==='') return '';
+      // Strip a currency label (AWG / Afl. / Fl. / florin / ƒ) and all spacing. None of
+      //   these can carry a digit, so removing them can never change a figure — at worst the
+      //   remainder stops matching below and the whole entry is printed verbatim instead.
+      var _bare=_txt.replace(/(awg|afl|florins?|fl)\.?/gi,'').replace(/ƒ/g,'').replace(/\s+/g,'');
+      // Unambiguous forms only: 350000 | 350000.50 | 350,000 | 350,000.50 . Dutch grouping
+      //   ("350.000") is deliberately NOT resolved to a number here, because that same string
+      //   is also a legal way to write three hundred and fifty, and a valuation report is not
+      //   the place to choose between the two on the appraiser's behalf.
+      if(/^\d+(\.\d{1,2})?$/.test(_bare) || /^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(_bare)){
+        var _n=parseFloat(_bare.replace(/,/g,''));
+        if(!isNaN(_n) && _n>0){ _npSaleNum=_n; return _awgStr(_n); }
+      }
+      return esc(_txt);
     }catch(_spe){ return ''; }
   })();
-  var _npSaleUsd=_npSaleStr?_pUsd(_npSaleStr):'';
+  //   Math.round() so the USD companion is still taken from the AWG figure AS PRINTED (the old
+  //   _pUsd(_npSaleStr) read the printed string back), keeping a sale price with cents on the
+  //   same dollar it showed before — but taken from the number, so a Dutch report cannot read
+  //   its own "AWG 350.000" back as 350.
+  var _npSaleUsd=(_npSaleNum>0)?toUSD(String(Math.round(_npSaleNum))):'';
   var _npSaleBand=RC._npPresumOnly
     ? ('<div style="margin:8px 0 2px;padding:11px 15px;background:#0f0d0a;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">'
         +'<span style="font-family:Sora,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:'+_GOLD+';">'+_rt('projectSalesPrice')+'</span>'
@@ -45243,7 +45435,12 @@ function _clearAiSummary() {
 
   // Main init — wraps the input, attaches calendar popup
   window.dpInit = function(input, opts) {
-    if(!input||input.dataset.dpReady)return;
+    // §DP-READY-FIX (v2.357) — guard on an internal property, NOT the data-dp-ready
+    //   attribute: a saved-DOM snapshot baked data-dp-ready="1" into the static markup
+    //   of #eInspDate / #inspDate / #aeExpiry, so dpInit bailed and those readonly inputs
+    //   never got their click handler — clicking them did nothing.
+    if(!input||input._dpBound)return;
+    input._dpBound=true;
     input.dataset.dpReady='1';
     opts = opts || {};
     var minYear = opts.minYear || 1990;
@@ -45492,8 +45689,20 @@ function _clearAiSummary() {
   }
 
   // Close on outside click
+  // §DP-NAV-FIX (v2.358) — the ‹ / › arrows, the header label and the month/year
+  //   buttons all call render(), which does pop.innerHTML='' and so DETACHES the very
+  //   node that was clicked. By the time the click bubbled up to document, e.target was
+  //   no longer a descendant of the popup, _dpActive.contains(e.target) was false, and
+  //   this handler closed the calendar on every navigation. Decide containment in the
+  //   CAPTURE phase — before render() runs — and only act on it while bubbling, so the
+  //   input's own stopPropagation() still gives the click-input-again toggle.
+  var _dpInside = false;
   document.addEventListener('click', function(e) {
-    if (_dpActive && !_dpActive.contains(e.target)) dpClose();
+    _dpInside = !!(_dpActive && _dpActive.contains(e.target));
+  }, true);
+  document.addEventListener('click', function(e) {
+    if (_dpActive && !_dpInside) dpClose();
+    _dpInside = false;
   });
 
   // ── dpInitAll: attach to every date field by ID ──────────────────
@@ -51014,7 +51223,7 @@ function switchETab(el,panelId){
   }catch(e){}
   setTimeout(function(){
     ['eInspDate','eReportDue','eCompDate','eDue'].forEach(function(id){
-      var e2=document.getElementById(id);if(e2)delete e2.dataset.dpReady;
+      var e2=document.getElementById(id);if(e2){delete e2.dataset.dpReady;e2._dpBound=false;}
     });if(typeof dpInitAll==='function')dpInitAll();
   },80);
   _editUpdateFtr();if(_editDirty&&editingOrder)_editLocalSave();
