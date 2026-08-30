@@ -7254,7 +7254,13 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
   </div>
   <div class="nav-sec">
     <div class="nav-lbl">Tools</div>
-    <div class="ni" onclick="setView('pro-floorplan');pfpInit()" data-rl="Floor Plan Reconstructor"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span>Floor Plan</div>
+    <!-- §FP-RECON-HIDDEN (v2.364) — the Floor Plan Reconstructor is unfinished and was
+         reachable from the sidebar, so staff could open a module that cannot yet do the
+         job. Hidden rather than deleted: the module code below is untouched, and this
+         is a one-line revert once it is finished. This is the RECONSTRUCTOR only — the
+         report's own Floor Plan section (pT2_floorplan / _fpSecOn), the Floor Plan AI
+         opinion and the required Floor Plan document are all left exactly as they were. -->
+    <div class="ni" style="display:none" onclick="setView('pro-floorplan');pfpInit()" data-rl="Floor Plan Reconstructor"><span class="ni-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span>Floor Plan</div>
   </div>
 
   <!-- ── User Card (bottom) ── -->
@@ -17221,7 +17227,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.363';
+var APP_VERSION = 'v2.364';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17259,6 +17265,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.364',type:'fix',date:'08-29-2026',ts:'08-29-2026 15:00',_static:true,title:'The Floor Plan Reconstructor is hidden until it is finished',desc:'The Floor Plan Reconstructor was listed in the sidebar while it is still unfinished, so it could be opened and would not do the job. It is hidden for now and comes back when it is ready — nothing about it has been deleted. This does NOT affect the floor plan in the appraisal report, the Floor Plan AI opinion, or the Floor Plan document on the Documents screen; those are unchanged.'},
   {v:'v2.363',type:'feature',date:'08-29-2026',ts:'08-29-2026 14:00',_static:true,title:'Special Images can now be given their own name on the report',desc:'The Special Images sheet no longer has to be called “Special Images”. In Inspect Data › Photos there is a new box for the name of the image set — Renderings, Visualizations, Site Progress, whatever the set actually is — and that name is what prints as the heading on the sheet and what appears in the report Index. The name belongs to the job order, so naming one order’s set does not rename anybody else’s. Leave the box empty and the sheet prints “Special Images” as before.'},
   {v:'v2.362',type:'feature',date:'08-29-2026',ts:'08-29-2026 13:00',_static:true,title:'Choosing the inspection time is now a set of buttons, not a typing box',desc:'When you set an inspection date, the time question now shows the working day as tappable half-hour slots from 8:00 AM to 5:30 PM — one tap and the time is set. An “Another time” box sits underneath for anything outside those hours, and a time typed there lights up its matching slot so only one answer is ever showing. The button that leaves the time open is now called “Select Later”: the date is kept and the hour can be set later by editing the item on the Inspection Calendar.'},
   {v:'v2.361',type:'feature',date:'08-29-2026',ts:'08-29-2026 11:00',_static:true,title:'Special Images — a second photo sheet with its own layout, for New Construction reports',desc:'Inspect Data › Photos now has a SPECIAL IMAGES area underneath the usual contact sheet settings. Drop images in there and they print on their own pages at the end of the photo section, with their own columns, rows per page, photo ratio and photo fit — completely separate from the ordinary photos, so the two sheets can look nothing alike. It has its own preview button, and the Index gains a Special Images row. The layout you choose is stored with the order itself, not just in this browser, so it follows the order to another computer. This appears on Type 3 (New Construction) orders only — Type 1 and Type 2 reports are completely unaffected.'},
