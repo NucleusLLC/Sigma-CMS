@@ -17371,7 +17371,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.368';
+var APP_VERSION = 'v2.369';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17409,6 +17409,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.369',type:'fix',date:'08-30-2026',ts:'08-30-2026 18:00',_static:true,title:'Report — the Current Valuation on a Type 3 no longer drops an existing building',desc:'On a New Construction (Type 3) report the Current Valuation printed the LAND and nothing else: parcels only in the component table, an Execution Value computed from the land alone, no Re-Construction Value at all (a ruled line where the figure belongs) and any Value Adjustment the appraiser had entered silently discarded. That layout is right for a bare lot — a parcel with nothing on it is worth its land — and it stays exactly as it is for one. But it was chosen by reading the TEMPLATE NAME, and a name cannot tell you whether anything is standing on the land. Order 2026-105 is a parcel with an existing 84.80 m² house, a roof-covered area, landscaping, a car bay and two fences already entered in its current valuation: the report printed AWG 179,025 where the appraiser had entered AWG 595,414, AWG 143,220 against his AWG 476,331, and left the Re-Construction Value blank where he had entered AWG 458,027. On order 2026-070 the closing Conclusion paragraph stated the current Free Market Value as AWG 173,493 while the table on the same page said AWG 137,700 — one report contradicting itself by AWG 35,793. The Current layout is now chosen from the VALUATION itself: if the appraiser has entered a building or a custom component in the current valuation, something is standing there, so the full as-is figures print — Free Market Value, Execution Value and Re-Construction Value, with adjustments applied, exactly as they already do for a MultiBuilding renovation and for every Type 1 and Type 2 report. A genuinely parcel-only order is untouched and prints byte-for-byte what it printed before, as do Type 1 and Type 2. Across the whole job list only the two orders described above change, and both change because figures the appraiser had entered were not reaching the page. Also corrected: inside the Current section the value-adjustment table was headed “Sub-Total to Projected Free Market Value (As Proposed)” — as-proposed wording above an as-is figure — and now reads “Current Free Market Value (CFMV)”, the same heading Type 1 and Type 2 have always used. No figure changes anywhere as a result of that heading.'},
   {v:'v2.368',type:'feature',date:'08-30-2026',ts:'08-30-2026 09:00',_static:true,title:'Construction Price and Sales Price \u2014 each with its own Show-on-report tick',desc:'The Valuation screen now carries a Show-on-report checkbox beside the Total Construction Development Cost and beside the Sales Price. Ticked, that figure prints on the report; unticked, it does not \u2014 and the two are entirely independent, so a New Construction report can carry the construction cost and withhold the sale price, or the other way round. Both boxes start ticked, and that matters: these two bands already printed before this version, so an order that nobody touches keeps printing exactly what it printed yesterday. The setting is only ever recorded when somebody actually unticks a box, which means no report in the archive changes on its next print. The tick is stored per order alongside the two figures themselves, so it travels with the valuation and survives a reload. The Construction Price tick governs the band wherever it appears \u2014 both on the land-only New Construction layout and on the MultiBuilding one \u2014 rather than only one of the two places it is drawn. Also in this version: the report version stamp in the page header had been left at v2.353 while the application moved on to v2.367, so the app was telling everyone an OLDER build was available and offering to reload them backwards onto it. It now matches the running version.'},
   {v:'v2.367',type:'fix',date:'08-30-2026',ts:'08-30-2026 21:00',_static:true,title:'Dutch reports: the R.O.P.V. section, and every AI generator, now follow the ORDER\u2019s template',desc:'Two halves of the same bug. FIRST, the R.O.P.V. section printed English on a Dutch report while every label around it translated correctly. The labels were never the problem: that paragraph is neither typed by the appraiser nor written by the AI \u2014 the app composes it from the Aruban R.O.P.V. zoning rules when you press \u201cFetch ROPV Data\u201d, in English, and stores it on the order. The report was faithfully printing what it had been given. Composing it in the template\u2019s language at FETCH time would not have been enough, because the text is produced in Inspect Data while the language is a TEMPLATE setting \u2014 two different moments \u2014 and binding an order to a Dutch template AFTER the data was fetched is exactly what happened here. So the fetch now also records the result STRUCTURALLY beside the text (zone, the Dutch register name of that zone, article, rules key, coordinates, address \u2014 about 200 bytes of JSON, no image data), and the report composes the paragraph in its own language at print time. That is right in every ordering: switch the template to Dutch a month later and the section follows. Nothing is ever overwritten unless it can be PROVEN to be machine output \u2014 before a Dutch paragraph is substituted the English is regenerated from the parameters and compared with what is actually stored, and only an exact match allows the swap; if the appraiser appended his own notes those are copied through verbatim, and anything hand-written or hand-edited prints exactly as it stands, in whatever language he wrote it. Orders that predate this release hold an English paragraph and no structured record, so the parameters are recovered from the paragraph itself and then put through the same regenerate-and-compare test \u2014 which means the whole existing archive prints Dutch too, without a re-fetch. The Dutch is Aruban planning terminology taken back to the source: the R.O.P.V. register and its ArcGIS service publish these zones in Dutch (Woongebied met waarden, Bedrijventerrein, Centrum Oranjestad), and the English in the app was a translation OF that, so the report now prints the original wording rather than a translation back out of English. It is descriptive text, not legal text over the appraiser\u2019s signature, so it renders immediately \u2014 the certification and declaration remain English behind rcLangLegalApproved, unchanged. SECOND, and this is why the AI-written opinions came out English too: the six AI generators, the More/Less-Text resize and the R.O.P.V. fetch all asked the GLOBALLY ACTIVE Report Customization what language to write in \u2014 whatever template was last loaded in Settings \u2014 not the template bound to the order in front of you. At report time this never showed, because the report swaps in the order\u2019s template for the duration of the build; at GENERATION time there is no such swap, so an order bound to a Dutch template produced English whenever the Settings template was English, which is the normal case. There is now one resolver, _orderLang(order), which answers with the language of the template ACTUALLY BOUND TO THAT ORDER, using the same resolution path the QuickView language badge uses so badge, generator and report can never disagree. Deliberately NOT by template name: a template called \u201c\u2026NL\u201d is a naming convention, and renaming it would silently change the language of every order bound to it \u2014 the Report Language setting on the template stays the single source of truth. An order with no bound template, or one bound to a template that cannot be read on this device (deleted, or saved elsewhere), falls back to the Settings template, which is both today\u2019s behaviour and what the report itself would do. English is untouched: the language instruction is still the empty string in English, so an English prompt is byte-identical, and the R.O.P.V. print path returns the stored text unchanged unless the report language is Dutch. Twelve report configurations were re-rendered and matched to the byte against v2.366. No page added, split or removed.'},
   {v:'v2.366',type:'feature',date:'08-30-2026',ts:'08-30-2026 18:00',_static:true,title:'Client’s report language on the order, and the ACTUAL report language on QuickView',desc:'Project Data › Client Info gains one field, “Report Language — client’s request”: English, Dutch, Spanish or Papiamento, using the same four codes the website enquiry form already uses (nl/en/es/pap) so the app keeps ONE language vocabulary. It defaults to “Not stated”, never to English — an unanswered question must not look like an answered one. Spanish and Papiamento can be RECORDED (they are real business information) but the report cannot be written in them yet, and both the option text and the QuickView badge say so rather than pretending otherwise. The field records a request. It does not decide anything, and that is the point of the second half of this release. The language a report is actually produced in is a TEMPLATE setting (Report Customization › Layout › Report Language, RC.rcLang, added in v2.354), so it is decided by whichever template the order is bound to — not by the order. An order could therefore say “client wants Dutch” while the bound template was English, and the report would come out in English with nothing anywhere on screen saying so. So the QuickView Report Template strip now carries a language badge that shows the language the report will ACTUALLY print in, resolved from the bound template’s rcLang exactly the way the report resolves it (RC_DEFAULTS merged under the template config, so a template saved before v2.354 with no rcLang key correctly reads as English). It deliberately never echoes the client’s wish — a badge that only repeated the request would read as confirmation while the wrong language went out the door. NL or EN in dark teal with a tick when the template and the client agree; a red “EN ≠ client wants Dutch” when they do not; red again, worded differently, when the client asked for Spanish or Papiamento; neutral black with “no client preference recorded” when nobody has stated one. An order with no bound template renders with whatever Settings template the person generating it has active, which is a weaker guarantee, so the badge adds “from Active Template” instead of quietly presenting it as settled. If the bound template cannot be read at all — deleted, or saved on another device — the badge reads “LANG ? — bound template not found” in grey and claims no language at all; it also asks the database once for that template (the same force-fetch the report itself does) and redraws if it turns up. Hovering any state gives the full explanation, including where to change it. When a Job Order is raised from a website enquiry, the language the client chose on the website (inquiries.locale) now seeds the new field. It was previously shown on the Email Request and copied into the order Notes, and thrown away everywhere else. Storage: the order key clientLang rides in extra_data and is written ONLY when actually set (the same precedent as DRAFT mode, Output Format and the cost discount), so an order that never answers this question produces byte-for-byte the extra_data it produced in v2.365 — proven by re-running the real _toRow serialiser against both versions. No schema migration. Report generation is completely untouched: rcLang on the template remains the single source of truth for the output language, and this release only surfaces it.'},
@@ -18321,7 +18322,12 @@ function _ovlValues(o){
 
   // ── the CURRENT section as THIS order's report actually prints it ──
   var cur;
-  if(type!==3 || _ovlMbLayout()) cur={fmv:sf,cev:se,crv:sr};        // §VAL-CURRENT-FULL (index.html:33631)
+  // §VAL-CUR-BUILT (v2.369) — mirrors the report's own test. A CURRENT build/custom row
+  //   carrying value means something stands on the land today, so the report prints the FULL
+  //   as-is trio (§VAL-CUR-ASIS) and this list has to say the same thing. _ovlRowSum and the
+  //   report's _sumValRows agree on the only question asked of them here — is any row's
+  //   area x rate x pct greater than nothing — so the two tests cannot disagree.
+  if(type!==3 || _ovlMbLayout() || (B.cost+C.cost)>0) cur={fmv:sf,cev:se,crv:sr};   // §VAL-CURRENT-FULL / §VAL-CUR-ASIS
   else cur={fmv:(P.cost>0?P.cost:null),                             // land only — adjustments NOT applied
             cev:(P.cost>0?P.cost*(ex/100):null),
             crv:null};                                              // the report prints no number at all here
@@ -39548,7 +39554,44 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   layout above (which showed parcels only and a blank CRCV). Extend the full-current
   //   layout to MultiBuilding, keeping the Total Construction Development Cost band that the
   //   land-only layout carried, and using current-appropriate CEV/CRCV formulas.
-  if(type!==3 || RC._mbLayout){
+  // §VAL-CUR-BUILT (v2.369) — WHICH Current layout, decided by the DATA and not by the
+  //   template NAME. The land-only layout above is the approved New Construction illustration
+  //   (v2.008): on a parcel with nothing on it yet the current state of the property IS its
+  //   land, so the component table lists parcels only and the Re-Construction card carries a
+  //   ruled line instead of a figure. That idea is sound and is kept. v2.218 had already found
+  //   its limit and carved out MultiBuilding, giving the reason that actually governs: "since a
+  //   MultiBuilding renovation is an EXISTING property, its Current Valuation must show the
+  //   FULL as-is value". The principle is about the PROPERTY — but the test was written against
+  //   the template NAME, and a name cannot answer it. Order 2026-105 is saved on
+  //   "SIGMA_Type3.T1-Parcel+NewHouse", which matches nothing, yet its CURRENT valuation holds
+  //   an existing house (84.80 m² @ 2,550), a roof-covered area, landscaping, a car bay and two
+  //   fences — AWG 416,389 of improvements standing on the ground today. The land-only layout
+  //   dropped every one of them: it printed AWG 179,025 where the appraiser had entered
+  //   AWG 595,414, AWG 143,220 for the CEV against his AWG 476,331, and a blank ruled line
+  //   where he had entered a CRCV of AWG 458,027. The Conclusion generator on that same sheet
+  //   states vd.v1 as the current Free Market Value (§CONCL-PRESUM), so the valuation table and
+  //   the closing paragraph of one report disagreed by AWG 416,389.
+  //   The question the illustration was really asking is "is there anything on this land yet?",
+  //   and the valuation itself answers it: a CURRENT build or custom row carrying value IS the
+  //   appraiser saying something stands there. So that selects the layout now. Adjustments come
+  //   with it — the land-only branch never applied them (2026-070 carries a +18% current
+  //   adjustment that has never reached its page), while v1/v2/v3 here are the recomputed trio,
+  //   sub-total ± adj, exactly as the Valuation screen and the Overview List compute them.
+  //   Row-based on purpose, NOT (subTotalNum - _parcelNum): subTotalNum falls back to a STORED
+  //   vd.subTotal when an order has no component rows at all, and such an order must keep
+  //   printing precisely what it prints today.
+  //   Scope, measured against the live database (62 orders, 12 of them Type 3): 4 Type-3 orders
+  //   are MultiBuilding and already took the full layout; 8 took the land-only one; of those 8
+  //   exactly 2 move — 2026-105 and 2026-070 — and both are orders whose report is today
+  //   dropping figures the appraiser entered. The remaining 6 are genuinely parcel-only and are
+  //   byte-identical. Type 1 and Type 2 cannot reach this line at all: their _vmMode is
+  //   'current', which returned _std far above (§VAL-MODE).
+  var _curBuilt=(_sumValRows(vd.build)+_sumValRows(vd.custom))>0;
+  // §VAL-CUR-ASIS (v2.369) — "print this Current section as an EXISTING property". Every gate
+  //   below that used to read RC._mbLayout reads this instead, and for any order that is not a
+  //   Type 3 it IS RC._mbLayout, unchanged — which is what makes Type 1 / Type 2 provably fixed.
+  var _curAsIs=RC._mbLayout || (type===3 && _curBuilt);
+  if(type!==3 || _curAsIs){
     var _curRows=valRows(vd.parcel,_rt('rowFallbackParcel'))
       +((type>1||RC._mbLayout||(vd.build&&vd.build.length))?valRows(vd.build,_rt('rowFallbackBuilding')):'')
       +valRows(vd.custom,_rt('rowFallbackCustom'));
@@ -39564,12 +39607,25 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       +_t3hero(_rt('currentFreeMarketValue'),(_npB?_npDash:v1),(_npB?'':v1usd))
       +_t3table((_npB?'':_curRows),'Sub-Total (components)',(_npB?_npDash:subTotalStr))
       +'</div>'
-      +(_npB?'':adjBlock())
+      // §VAL-CUR-ADJLBL (v2.369) — adjBlock()'s default finalLabel is v1label, and on a Type 3
+      //   v1label is "Projected Free Market Value (As Proposed)". Inside the CURRENT section
+      //   that heads the adjustment table "Sub-Total to Projected Free Market Value (As
+      //   Proposed)" directly above a card reading "Current Free Market Value × 80%" — the page
+      //   naming an as-proposed figure as the destination of an as-is adjustment. The correct
+      //   label already exists and is already what every Type 1 / Type 2 report prints here,
+      //   because on those v1label IS v1LabelCur; only Type 3 diverges. So Type 3 is pointed at
+      //   the same string and nothing else can move: for any order that is not a Type 3 this
+      //   argument is v1label, which is exactly what the default resolved to.
+      //   Two live orders reach this line with a current adjustment — 2026-070 (newly, via
+      //   §VAL-CUR-ASIS) and 2026-006 (a MultiBuilding order already on this branch, which has
+      //   been printing the as-proposed wording). No FIGURE changes on either; the arithmetic
+      //   inside adjBlock does not read finalLabel.
+      +(_npB?'':adjBlock(undefined,undefined,(type===3?_rt('v1LabelCur'):v1label)))
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:5px;">'
-      +_cmpVal(_rt('valueTag02'),_rt('currentExecutionValueCEV'),(_npB?_npDash:v2),(_npB?'':v2usd),(RC._mbLayout?(_rt('cfmvTimes')+er+'%'):v2formula),'#2d8a52','#f4faf6')
-      +_cmpVal(_rt('valueTag03'),_rt('currentReconstructionValueCRCV'),(_npB?_npDash:v3),(_npB?'':v3usd),(RC._mbLayout?_rt('v3FormulaMb'):v3formula),'#4a6a8a','#f4f7fb')
+      +_cmpVal(_rt('valueTag02'),_rt('currentExecutionValueCEV'),(_npB?_npDash:v2),(_npB?'':v2usd),(_curAsIs?(_rt('cfmvTimes')+er+'%'):v2formula),'#2d8a52','#f4faf6')
+      +_cmpVal(_rt('valueTag03'),_rt('currentReconstructionValueCRCV'),(_npB?_npDash:v3),(_npB?'':v3usd),(_curAsIs?_rt('v3FormulaMb'):v3formula),'#4a6a8a','#f4f7fb')
       +'</div>'
-      +((_costShow && !_npB && RC._mbLayout && _costRaw) ? ('<div style="margin:8px 0 2px;padding:11px 15px;background:#0f0d0a;border-radius:6px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:Sora,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:'+_GOLD+';">'+_rt('totalConstructionDevCost')+'</span><span style="font-family:Cormorant Garamond,serif;font-size:19px;font-weight:700;color:#fff;">'+_costStr+'</span></div>'+(_costUsd?'<div style="text-align:right;font-size:10px;color:#8a7a6a;font-family:IBM Plex Mono,monospace;margin-bottom:10px;">'+_costUsd+'</div>':'')) : '');
+      +((_costShow && !_npB && _curAsIs && _costRaw) ? ('<div style="margin:8px 0 2px;padding:11px 15px;background:#0f0d0a;border-radius:6px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:Sora,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:'+_GOLD+';">'+_rt('totalConstructionDevCost')+'</span><span style="font-family:Cormorant Garamond,serif;font-size:19px;font-weight:700;color:#fff;">'+_costStr+'</span></div>'+(_costUsd?'<div style="text-align:right;font-size:10px;color:#8a7a6a;font-family:IBM Plex Mono,monospace;margin-bottom:10px;">'+_costUsd+'</div>':'')) : '');
   }
   return (_vmMode==='presumable') ? _presum : (_current+_presum);   // §VAL-MODE (v2.029)
   } catch(_t3e){ try{ console.error('[T3-VALPAGE] runtime error — using standard valuation layout:', _t3e); }catch(_x){} return _std; }
