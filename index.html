@@ -15956,10 +15956,62 @@ function _rfDate(d, lang){
 function _rfPages(n, lang){
   return ' ' + ((Number(n) === 1) ? _rt('pageWord', lang) : _rt('pagesWord', lang));
 }
+// ══ §ORDER-LANG (v2.367) — THE LANGUAGE OF THE TEMPLATE BOUND TO **THIS** ORDER ══
+//   THE BUG THIS FIXES. _rcLangSaved() reads appraisalSuite_reportCustom_v1, which is the
+//   GLOBALLY ACTIVE Report Customization — whatever template was last loaded in Settings.
+//   It is NOT the template bound to the order being worked on (order.templateId). At REPORT
+//   time that never mattered, because _rcApplyOrderTpl(oid) swaps RC to the order's template
+//   for the duration of the build and restores it afterwards. At GENERATION time — Inspect
+//   Data, the six AI buttons, the More/Less-Text resize, the R.O.P.V. fetch — no such swap
+//   happens, so every generator asked the WRONG template what language to write in: an order
+//   bound to a Dutch template produced English text whenever the Settings-active template was
+//   English (the normal case). The text was then stored, and the report faithfully printed it.
+//
+//   NOT template-name sniffing. A template called "…NL" is a naming convention, not a
+//   setting; renaming it would silently change the language of every order bound to it. The
+//   setting that already exists (RC.rcLang, §REPORT-NL v2.354) is the single source of truth.
+//
+//   ONE resolution path. This delegates to _qvReportLang() — the resolver the QuickView
+//   language badge already uses (§CLIENT-LANG v2.366) — so the badge, the generators and the
+//   report can never disagree. It reads the template out of the LOCAL template store exactly
+//   the way rctLoad() would (Object.assign({}, RC_DEFAULTS, t.config), and RC_DEFAULTS.rcLang
+//   is 'en', so a template saved before v2.354 with no rcLang key correctly reads English).
+//
+//   FALLBACK, and it is deliberate. If the order has no templateId, _qvReportLang already
+//   returns the global RC language — that IS the report's behaviour for an untemplated order
+//   (§RANK1 REVERTED v2.238: it renders with the current Settings template). If the order
+//   points at a template that cannot be read on this device (deleted — order 2026-105 really
+//   does this — or never synced here), _qvReportLang reports known:false and we fall back to
+//   the same global RC, i.e. exactly today's behaviour. Never throws; always 'en' or 'nl'.
+function _orderLang(o){
+  var ord = null;
+  try {
+    if (o && typeof o === 'object') ord = o;
+    else if (o != null && typeof ORDERS !== 'undefined' && ORDERS)
+      ord = ORDERS.find(function(x){ return x && x.id === o; }) || null;
+  } catch(_e){ ord = null; }
+  try {
+    if (ord && typeof _qvReportLang === 'function') {
+      var r = _qvReportLang(ord);
+      if (r && r.known === true && (r.lang === 'nl' || r.lang === 'en')) return r.lang;
+    }
+  } catch(_e){}
+  try { return (typeof _rcLangSaved === 'function' && _rcLangSaved() === 'nl') ? 'nl' : 'en'; }
+  catch(_e){ return 'en'; }
+}
 // The language instruction appended to every AI prompt. EMPTY in English, so an
 // English prompt is byte-identical to the pre-v2.354 prompt.
-function _aiLangInstruction(){
-  if (_rcLangSaved() !== 'nl') return '';
+// §ORDER-LANG (v2.367) — takes the ORDER (object or id) whose text is being written, and
+//   asks the template bound to THAT order. Called with no argument it behaves exactly as it
+//   did before (global Settings template), so a call site missed anywhere still works.
+function _aiLangInstruction(o){
+  var _L = 'en';
+  try {
+    _L = (o != null && typeof _orderLang === 'function')
+       ? _orderLang(o)
+       : ((typeof _rcLangSaved === 'function' && _rcLangSaved() === 'nl') ? 'nl' : 'en');
+  } catch(_e){ _L = 'en'; }
+  if (_L !== 'nl') return '';
   return '\n\nTAALINSTRUCTIE / LANGUAGE: Schrijf het volledige antwoord UITSLUITEND in het Nederlands. '
        + 'Write the entire response in Dutch (Nederlands) only. Do not write any English and do not add a translation. '
        + 'Use the professional vocabulary of a Dutch-language appraisal report (taxatierapport) as written in Aruba: '
@@ -17319,7 +17371,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.366';
+var APP_VERSION = 'v2.367';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17357,6 +17409,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.367',type:'fix',date:'08-30-2026',ts:'08-30-2026 21:00',_static:true,title:'Dutch reports: the R.O.P.V. section, and every AI generator, now follow the ORDER\u2019s template',desc:'Two halves of the same bug. FIRST, the R.O.P.V. section printed English on a Dutch report while every label around it translated correctly. The labels were never the problem: that paragraph is neither typed by the appraiser nor written by the AI \u2014 the app composes it from the Aruban R.O.P.V. zoning rules when you press \u201cFetch ROPV Data\u201d, in English, and stores it on the order. The report was faithfully printing what it had been given. Composing it in the template\u2019s language at FETCH time would not have been enough, because the text is produced in Inspect Data while the language is a TEMPLATE setting \u2014 two different moments \u2014 and binding an order to a Dutch template AFTER the data was fetched is exactly what happened here. So the fetch now also records the result STRUCTURALLY beside the text (zone, the Dutch register name of that zone, article, rules key, coordinates, address \u2014 about 200 bytes of JSON, no image data), and the report composes the paragraph in its own language at print time. That is right in every ordering: switch the template to Dutch a month later and the section follows. Nothing is ever overwritten unless it can be PROVEN to be machine output \u2014 before a Dutch paragraph is substituted the English is regenerated from the parameters and compared with what is actually stored, and only an exact match allows the swap; if the appraiser appended his own notes those are copied through verbatim, and anything hand-written or hand-edited prints exactly as it stands, in whatever language he wrote it. Orders that predate this release hold an English paragraph and no structured record, so the parameters are recovered from the paragraph itself and then put through the same regenerate-and-compare test \u2014 which means the whole existing archive prints Dutch too, without a re-fetch. The Dutch is Aruban planning terminology taken back to the source: the R.O.P.V. register and its ArcGIS service publish these zones in Dutch (Woongebied met waarden, Bedrijventerrein, Centrum Oranjestad), and the English in the app was a translation OF that, so the report now prints the original wording rather than a translation back out of English. It is descriptive text, not legal text over the appraiser\u2019s signature, so it renders immediately \u2014 the certification and declaration remain English behind rcLangLegalApproved, unchanged. SECOND, and this is why the AI-written opinions came out English too: the six AI generators, the More/Less-Text resize and the R.O.P.V. fetch all asked the GLOBALLY ACTIVE Report Customization what language to write in \u2014 whatever template was last loaded in Settings \u2014 not the template bound to the order in front of you. At report time this never showed, because the report swaps in the order\u2019s template for the duration of the build; at GENERATION time there is no such swap, so an order bound to a Dutch template produced English whenever the Settings template was English, which is the normal case. There is now one resolver, _orderLang(order), which answers with the language of the template ACTUALLY BOUND TO THAT ORDER, using the same resolution path the QuickView language badge uses so badge, generator and report can never disagree. Deliberately NOT by template name: a template called \u201c\u2026NL\u201d is a naming convention, and renaming it would silently change the language of every order bound to it \u2014 the Report Language setting on the template stays the single source of truth. An order with no bound template, or one bound to a template that cannot be read on this device (deleted, or saved elsewhere), falls back to the Settings template, which is both today\u2019s behaviour and what the report itself would do. English is untouched: the language instruction is still the empty string in English, so an English prompt is byte-identical, and the R.O.P.V. print path returns the stored text unchanged unless the report language is Dutch. Twelve report configurations were re-rendered and matched to the byte against v2.366. No page added, split or removed.'},
   {v:'v2.366',type:'feature',date:'08-30-2026',ts:'08-30-2026 18:00',_static:true,title:'Client’s report language on the order, and the ACTUAL report language on QuickView',desc:'Project Data › Client Info gains one field, “Report Language — client’s request”: English, Dutch, Spanish or Papiamento, using the same four codes the website enquiry form already uses (nl/en/es/pap) so the app keeps ONE language vocabulary. It defaults to “Not stated”, never to English — an unanswered question must not look like an answered one. Spanish and Papiamento can be RECORDED (they are real business information) but the report cannot be written in them yet, and both the option text and the QuickView badge say so rather than pretending otherwise. The field records a request. It does not decide anything, and that is the point of the second half of this release. The language a report is actually produced in is a TEMPLATE setting (Report Customization › Layout › Report Language, RC.rcLang, added in v2.354), so it is decided by whichever template the order is bound to — not by the order. An order could therefore say “client wants Dutch” while the bound template was English, and the report would come out in English with nothing anywhere on screen saying so. So the QuickView Report Template strip now carries a language badge that shows the language the report will ACTUALLY print in, resolved from the bound template’s rcLang exactly the way the report resolves it (RC_DEFAULTS merged under the template config, so a template saved before v2.354 with no rcLang key correctly reads as English). It deliberately never echoes the client’s wish — a badge that only repeated the request would read as confirmation while the wrong language went out the door. NL or EN in dark teal with a tick when the template and the client agree; a red “EN ≠ client wants Dutch” when they do not; red again, worded differently, when the client asked for Spanish or Papiamento; neutral black with “no client preference recorded” when nobody has stated one. An order with no bound template renders with whatever Settings template the person generating it has active, which is a weaker guarantee, so the badge adds “from Active Template” instead of quietly presenting it as settled. If the bound template cannot be read at all — deleted, or saved on another device — the badge reads “LANG ? — bound template not found” in grey and claims no language at all; it also asks the database once for that template (the same force-fetch the report itself does) and redraws if it turns up. Hovering any state gives the full explanation, including where to change it. When a Job Order is raised from a website enquiry, the language the client chose on the website (inquiries.locale) now seeds the new field. It was previously shown on the Email Request and copied into the order Notes, and thrown away everywhere else. Storage: the order key clientLang rides in extra_data and is written ONLY when actually set (the same precedent as DRAFT mode, Output Format and the cost discount), so an order that never answers this question produces byte-for-byte the extra_data it produced in v2.365 — proven by re-running the real _toRow serialiser against both versions. No schema migration. Report generation is completely untouched: rcLang on the template remains the single source of truth for the output language, and this release only surfaces it.'},
   {v:'v2.365',type:'fix',date:'08-30-2026',ts:'08-30-2026 12:00',_static:true,title:'Dutch reports: cover, page headings and section titles now translate',desc:'Three things stayed English on a Dutch report. The cover title and the heading in the top right of every page were only being translated when they were written exactly as Appraisal Report - templates that carry it in capitals, which is most of them, slipped through. They now translate whatever the capitalisation, and keep the capitalisation you chose. Type object now reads Type-object. And on any order where you have rearranged the sections yourself, the section headings were still printing in English - Opinion of the Location, Opinion of Floor Plan and the rest - those are now Dutch too. Two things that looked like faults are not: if the written opinions or the location map are missing from a report, that order simply has none saved. English reports are unchanged, checked byte for byte across twelve combinations of order, type and template.'},
   {v:'v2.364',type:'fix',date:'08-29-2026',ts:'08-29-2026 15:00',_static:true,title:'The Floor Plan Reconstructor is hidden until it is finished',desc:'The Floor Plan Reconstructor was listed in the sidebar while it is still unfinished, so it could be opened and would not do the job. It is hidden for now and comes back when it is ready — nothing about it has been deleted. This does NOT affect the floor plan in the appraisal report, the Floor Plan AI opinion, or the Floor Plan document on the Documents screen; those are unchanged.'},
@@ -38161,7 +38214,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     condMatrix:     function(){ var _cs=_secSpace('condMatrix'); return '<div class="sec-h" style="margin-top:'+_cs.mt+';margin-bottom:'+_cs.hmb+';">'+_rt('conditionAssessmentMatrix')+'</div><div class="sec-sub" style="margin-bottom:'+_cs.smb+';">'+_rt('subCondMatrix')+'</div><div style="overflow:hidden;width:100%;">'+((typeof _condMatrixHtml==='function')?_condMatrixHtml():'')+'</div>'; },
     buildingOpinion:function(){ var t=_secS12(['opBuildingText']); var _bs=(order.sectionSpacing&&order.sectionSpacing.buildingOpinion)||'compact'; var _bp=(_bs==='spacious'?'11px 12px':(_bs==='normal'?'6px 8px':'3px 6px')); return _secOpBox(_secT('secTitleBuildingOpinion'),_rt('subBuildingOpinion'), t?'<div class="rep-op">'+_opFmt(t)+'</div>':'<div style="font-size:9px;color:#aaa;font-style:italic;">'+_rt('noBuildingOpinion')+'</div>', RC.rcAccentColor, _bp, 'buildingOpinion'); },
     locationOpinion:function(){ var t=_secS12(['opLocationText','locationOpinion']); return t?_secOpBox(_secT('secTitleLocationOpinion'),_rt('subSecLocationOpinion'),'<div class="rep-op">'+_opFmt(t)+'</div>',null,null,'locationOpinion'):''; },
-    ropv:           function(){ var t=_secS12(['opRopvText']); return t?_secOpBox(_secT('secTitleRopv'),_rt('subSecRopv'),'<div class="rep-op">'+_opFmt(t)+'</div>',null,null,'ropv'):''; },
+    ropv:           function(){ var t=_secS12(['opRopvText']); try{ t=_ropvPrintText(order,t); }catch(e){}   /* §ROPV-NL (v2.367) */ return t?_secOpBox(_secT('secTitleRopv'),_rt('subSecRopv'),'<div class="rep-op">'+_opFmt(t)+'</div>',null,null,'ropv'):''; },
     hoaFees:        function(){ var b=_hoaFeeBody(); return b?_secOpBox(_rt('hoaFeesHeading'),_rt('subHoaFees'),b):''; },   // §HOA (v2.354)
     floorplan:      function(){ if(!_fpBlockCache) return ''; var _fs=_secSpace('floorplan'); return '<div style="margin-top:'+_fs.mt+';'+(_fs.lh?'line-height:'+_fs.lh+';':'')+'">'+_fpBlockCache+'</div>'; },
     location:       function(){ return _locBlockCache||''; },
@@ -38646,6 +38699,10 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   var _opBuilding=(_s12d.opBuildingText||order.opBuildingText||'').trim();
 
   var _opRopv=(_s12d.opRopvText||order.opRopvText||'').trim();
+  // §ROPV-NL (v2.367) — English: returns _opRopv unchanged, byte for byte. Dutch: composes
+  //   the paragraph from the structured record, but ONLY after regenerating the English and
+  //   proving it matches what is stored. Hand-edited text is never touched.
+  try{ _opRopv=_ropvPrintText(order,_opRopv); }catch(e){}
   var _opLocation=(_s12d.opLocationText||order.opLocationText||order.locationOpinion||'').trim();
   var _s10d=(order.inspData&&order.inspData.s10)||{};
   try{var _ls10=localStorage.getItem('insp_'+order.id+'_10');if(_ls10){var _ls10o=JSON.parse(_ls10)||{};
@@ -46008,7 +46065,7 @@ async function genAiInspSummary() {
       body: JSON.stringify({
         model:      'claude-sonnet-4-6',
         max_tokens: 500,
-        messages:   [{ role: 'user', content: promptText + _aiLangInstruction() }]
+        messages:   [{ role: 'user', content: promptText + _aiLangInstruction(_inspOrderId) }]   /* §ORDER-LANG (v2.367) */
       })
     });
 
@@ -55241,7 +55298,7 @@ async function genAiNeighbourhood() {
     var resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':localStorage.getItem('appraisalSuite_anthKey_v1')||'','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt+_aiLangInstruction()}]})
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt+_aiLangInstruction(_inspOrderId)}]})   /* §ORDER-LANG (v2.367) */
     });
     var data=await resp.json();
     if(data.error) throw new Error(data.error.message||'API error');
@@ -55279,7 +55336,7 @@ async function genAiBuildingOpinion() {
   try{
     var inspSum=(document.getElementById('aiSummaryText')||{}).value||'';
     var prompt='You are a certified real estate appraiser in Aruba. Write a professional appraisal paragraph (80-110 words) for the Opinions of the Building, Equipment & Finishes section. Cover: construction quality, interior finishes, equipment condition, overall building standard. Formal language. Paragraph only.\nProperty: '+(order.address||'')+(order.city?', '+order.city:'')+'\nType: '+(order.type||'residential')+(inspSum?'\nInspection findings: '+inspSum.substring(0,300):'');
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt+_aiLangInstruction()}]})});
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt+_aiLangInstruction(_inspOrderId)}]})});   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
     var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
@@ -55438,7 +55495,7 @@ async function genAiConclusion() {
     ].concat(_cnclValueLines(order,vd)).join('\n');
     var seed=(ta.value||'').trim();
     var prompt='You are a certified real estate appraiser in Aruba writing the final "Conclusion / Opinion" of an appraisal report. Write a concise, professional closing paragraph (90-140 words) that synthesises the property, its condition, the location and marketability, and states the appraiser’s overall opinion of value with any key caveats or assumptions. Formal appraisal language. Paragraph only, no headings.'+_cnclValueGuide(order,vd)+(seed?('\n\nIncorporate and refine the appraiser’s draft: '+seed):'')+'\n\nAppraisal facts:\n'+facts;
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt+_aiLangInstruction()}]})});
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt+_aiLangInstruction(_inspOrderId)}]})});   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
     var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
@@ -55479,7 +55536,7 @@ async function genAiRenovationNotes() {
       'Appraiser notes: '+(((order.internalNotes||order.notes||'')+'').trim()||'—')
     ].join('\n');
     var prompt='You are a certified real estate appraiser in Aruba writing the "Renovation Notes & Remarks" section of a Type 3 (renovation / new-construction) appraisal report. Write a professional paragraph (90-140 words) covering the scope and quality of the renovation works, materials and finishes, workmanship, stage of completion, and their impact on value. Formal appraisal language. Paragraph only, no headings.'+(seed?('\n\nIncorporate and refine the appraiser’s draft notes: '+seed):'')+'\n\nProperty facts:\n'+facts;
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt+_aiLangInstruction()}]})});
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt+_aiLangInstruction(_inspOrderId)}]})});   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
     var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
@@ -55527,7 +55584,7 @@ async function genAiLocationOpinion() {
     btn.innerHTML='<span class="ai-spin">⧗</span> Writing…';
     var addr=(order.address||'')+(order.city?', '+order.city:'');
     var prompt='You are a certified real estate appraiser in Aruba. Write a professional appraisal paragraph (90-120 words) for the Opinion of the Location section. Cover: neighbourhood character, amenities, distances to Oranjestad and San Nicolas, beach access, location quality. Formal language. Paragraph only.\nProperty: '+addr+'\nGPS: '+lat.toFixed(5)+', '+lng.toFixed(5)+'\nCity distances: '+cityLines+'\nNearby (1.5km): '+(poiLines.join('; ')||'Limited OSM data.');
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt+_aiLangInstruction()}]})});
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt+_aiLangInstruction(_inspOrderId)}]})});   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
     var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
@@ -55752,7 +55809,7 @@ async function _aiTextResize(k, delta){
     var resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':_key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:Math.min(1500,Math.max(400,newT*3+150)),messages:[{role:'user',content:prompt2+_aiLangInstruction()}]})
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:Math.min(1500,Math.max(400,newT*3+150)),messages:[{role:'user',content:prompt2+_aiLangInstruction(_inspOrderId)}]})   /* §ORDER-LANG (v2.367) */
     });
     var data=await resp.json();
     if(data.error) throw new Error(data.error.message||'API error');
@@ -55863,21 +55920,26 @@ var _ropvCmsRules = {
 //   We NEVER substitute a different zone's rules — if cmsKey is null we print the zone +
 //   article and direct the user to the official ROPV viewer instead of the wrong rules.
 var _ROPV_OFFICIAL_VIEWER = 'https://rho.maps.arcgis.com/apps/webappviewer/index.html?id=38891684b5404974a15860c00a0defd6';
+//   §ROPV-NL (v2.367) — `nl` is the zone's name in the language of the SOURCE. The Aruban
+//   R.O.P.V. register and the ArcGIS service publish these zones in Dutch (Legenda /
+//   aanduiding / Gebiedsnaam); the English strings in this table are a translation someone
+//   made FOR the app. A Dutch report must print the original planning wording, not a
+//   translation back out of English, so the Dutch name is carried verbatim here.
 var _ropvZoneMeta = {
-  'residential areas with values':             { cmsKey:'woongebied met waarden', article:'17.2 / 17.2.1 / 17.2.2' },
-  'residential area with values - borderzone': { cmsKey:null, article:'17 (border / transition area)' },
-  'urban residential areas':                   { cmsKey:null, article:'16' },
-  'centrum oranjestad':                        { cmsKey:null, article:'10' },
-  'havenfront oranjestad - port city':         { cmsKey:null, article:'' },
-  'transformation area':                       { cmsKey:null, article:'' },
-  'airport':                                   { cmsKey:null, article:'' },
-  'industrial estate, barcadera':              { cmsKey:null, article:'22' },
-  'rural areas - lg1':                         { cmsKey:null, article:'' },
-  'rural areas - lg2':                         { cmsKey:null, article:'' },
-  'rural areas - lg3':                         { cmsKey:null, article:'' },
-  'nature reserve':                            { cmsKey:null, article:'' },
-  'nature & landscape':                        { cmsKey:null, article:'' },
-  'transition areas':                          { cmsKey:null, article:'' }
+  'residential areas with values':             { cmsKey:'woongebied met waarden', article:'17.2 / 17.2.1 / 17.2.2', nl:'Woongebied met waarden' },
+  'residential area with values - borderzone': { cmsKey:null, article:'17 (border / transition area)', nl:'Woongebied met waarden \u2014 randzone', nlArticle:'17 (rand- / overgangsgebied)' },
+  'urban residential areas':                   { cmsKey:null, article:'16', nl:'Stedelijk woongebied' },
+  'centrum oranjestad':                        { cmsKey:null, article:'10', nl:'Centrum Oranjestad' },
+  'havenfront oranjestad - port city':         { cmsKey:null, article:'', nl:'Havenfront Oranjestad \u2014 havenstad' },
+  'transformation area':                       { cmsKey:null, article:'', nl:'Transformatiegebied' },
+  'airport':                                   { cmsKey:null, article:'', nl:'Luchthaven' },
+  'industrial estate, barcadera':              { cmsKey:null, article:'22', nl:'Bedrijventerrein Barcadera' },
+  'rural areas - lg1':                         { cmsKey:null, article:'', nl:'Landelijk gebied \u2014 LG1' },
+  'rural areas - lg2':                         { cmsKey:null, article:'', nl:'Landelijk gebied \u2014 LG2' },
+  'rural areas - lg3':                         { cmsKey:null, article:'', nl:'Landelijk gebied \u2014 LG3' },
+  'nature reserve':                            { cmsKey:null, article:'', nl:'Natuurreservaat' },
+  'nature & landscape':                        { cmsKey:null, article:'', nl:'Natuur en landschap' },
+  'transition areas':                          { cmsKey:null, article:'', nl:'Overgangsgebieden' }
 };
 function _ropvMetaForLabel(label){
   return _ropvZoneMeta[(label||'').trim().toLowerCase()] || null;
@@ -55951,6 +56013,250 @@ function _ropvFormatOutput(order, lat, lng, zoneLabel, article, cms) {
   return lines.join('\n');
 }
 
+// ══ §ROPV-NL (v2.367) — THE R.O.P.V. PARAGRAPH IN DUTCH ═════════════════════════════════
+//   THE PROBLEM. Every printed LABEL around this section already translates (ropvHeading,
+//   subRopv, subSecRopv, secTitleRopv, noRopvData all exist in REPORT_STRINGS.nl). The BODY
+//   did not, because it is neither typed by the appraiser nor written by the AI: it is
+//   COMPOSED by _ropvFormatOutput() at fetch time, in English, and stored on the order as
+//   opRopvText. The report then faithfully printed the English it was given.
+//
+//   WHY IT IS FORMATTED AT RENDER TIME, NOT AT FETCH TIME. The text is produced in Inspect
+//   Data; the report language is a TEMPLATE setting (RC.rcLang). Those are two different
+//   moments, and the owner has just demonstrated the ordering that breaks the simple fix —
+//   fetch the data, THEN bind the order to a Dutch template. Composing at fetch time would
+//   have frozen English into the order. So the fetch now also stores the RESULT STRUCTURALLY
+//   (opRopvMeta: zone, Dutch zone name, article, rules key, coordinates, address) and the
+//   report composes the paragraph in the report's own language. Regenerating it costs
+//   nothing: this is deterministic app output, not authored prose.
+//
+//   NO DATA LOSS — THE TWO GUARANTEES.
+//     1. English is untouched. _ropvPrintText returns the stored string unchanged unless the
+//        active report language is Dutch, so an English report cannot move by a byte. The
+//        English composer _ropvFormatOutput below is not modified at all.
+//     2. Nothing is ever overwritten unless it can be PROVEN to be machine output. Before a
+//        Dutch paragraph is substituted, the English is REGENERATED from the parameters and
+//        compared to what is actually stored. Only an exact match (or an exact prefix, when
+//        the appraiser appended notes of his own — those are copied through verbatim) allows
+//        the swap. Anything hand-edited, hand-written or unrecognised prints exactly as it
+//        is stored, in whatever language it was written.
+//
+//   ORDERS THAT PREDATE THIS RELEASE still work. They hold an English paragraph and no
+//   opRopvMeta, so _ropvParseEn recovers the parameters from the three header lines of the
+//   stored text and the rules key is found by trying each candidate and regenerating. The
+//   regenerate-and-compare test above is what makes that safe: a text that does not
+//   reproduce byte-for-byte is left alone.
+//
+//   THE DUTCH IS A DRAFT. It is Aruban planning-law terminology and it is descriptive, not
+//   legal text over the appraiser's signature (that is REPORT_LEGAL_NL, still gated behind
+//   rcLangLegalApproved). It renders immediately, but the wording is submitted for review.
+var _ropvCmsRulesNL = {
+  'woongebied met waarden': {
+    label: 'Woongebied met waarden',
+    permitted_uses: [
+      'wonen in woningen en woonappartementen',
+      'sociale, educatieve en medische voorzieningen',
+      'zorg-, culturele en welzijnsvoorzieningen',
+      'behoud, herstel en ontwikkeling van landschappelijke, cultuurhistorische, archeologische, ecologische en geologische waarden',
+      'aanleg, behoud en herstel van watersystemen',
+      'openbare ruimte, waaronder wegen en woonerven',
+      'parkeervoorzieningen',
+      'groenvoorzieningen, speelvoorzieningen en parken',
+      'nutsvoorzieningen',
+      'energieopwekking door middel van zonnepanelen',
+      'agrarische activiteiten',
+      'verblijfsrecreatie in vakantiewoningen, appartementencomplexen en hotels'
+    ],
+    main_road_additional_uses: [
+      'detailhandel','dienstverlening','kantoren','restaurants, bars en caf\u00e9s',
+      'dagrecreatie','sport, fitness en vrije tijd','kleinschalige bedrijvigheid'
+    ],
+    main_road_building_rules: {
+      max_height_standard: '12 m', max_floors_standard: 3,
+      max_height_exception_1: '16 m / 4 bouwlagen bij een positief advies van de Welstandscommissie',
+      max_height_exception_2: '22,5 m / 6 bouwlagen langs de Watty Vos Boulevard indien stedenbouwkundig aanvaardbaar en bij een positief advies van de Welstandscommissie',
+      roof_hood_extra_height: 'Maximaal 2 m boven de toegestane bouwhoogte',
+      max_building_percentage: '60%'
+    },
+    transition_area_rules: {
+      allowed_if: 'de aanwezige waarden niet worden aangetast en de bufferfunctie tot uitdrukking komt',
+      max_height_standard: '7,5 m', max_floors_standard: 2,
+      max_height_exception: '16 m / 4 bouwlagen indien stedenbouwkundig aanvaardbaar en bij een positief advies van de Welstandscommissie',
+      roof_hood_extra_height: 'Maximaal 2 m boven de toegestane bouwhoogte',
+      max_building_percentage: '60%'
+    }
+  },
+  'woongebied': {
+    label: 'Woongebied',
+    permitted_uses: [
+      'wonen in woningen en woonappartementen',
+      'sociale, educatieve en medische voorzieningen',
+      'zorg-, culturele en welzijnsvoorzieningen',
+      'openbare ruimte, waaronder wegen en woonerven',
+      'parkeervoorzieningen','groenvoorzieningen, speelvoorzieningen en parken',
+      'nutsvoorzieningen','energieopwekking door middel van zonnepanelen'
+    ],
+    main_road_additional_uses: [],
+    main_road_building_rules: {
+      max_height_standard: '9 m', max_floors_standard: 2,
+      roof_hood_extra_height: 'Maximaal 2 m boven de toegestane bouwhoogte',
+      max_building_percentage: '60%'
+    },
+    transition_area_rules: {}
+  }
+};
+// Which key of _ropvCmsRules is this rules object? (identity, not a name guess)
+function _ropvCmsKeyOf(cms){
+  try { var ks = Object.keys(_ropvCmsRules);
+        for (var i=0;i<ks.length;i++) if (_ropvCmsRules[ks[i]] === cms) return ks[i]; } catch(_e){}
+  return null;
+}
+// lat/lng ride through JSON, which cannot carry NaN — "not pinned" is stored as null. Read
+// it back as NaN so isFinite() behaves exactly as it does in _ropvFormatOutput (isFinite(null)
+// is TRUE in JavaScript, which would print 0.000000°N for an unpinned property).
+function _ropvNum(v){ return (v === null || v === undefined || v === '') ? NaN : Number(v); }
+// The zone name in Dutch: the value the service supplies, else the register name for the
+// chosen zone, else the Dutch name of the rules actually applied. Never invented.
+function _ropvZoneNl(p){
+  if (p && p.zoneNl) return p.zoneNl;
+  try { var m = _ropvMetaForLabel(p && p.zone); if (m && m.nl) return m.nl; } catch(_e){}
+  if (p && p.cmsKey && _ropvCmsRulesNL[p.cmsKey]) return _ropvCmsRulesNL[p.cmsKey].label;
+  return (p && p.zone) || '';
+}
+// Regenerate the ENGLISH paragraph from stored parameters, through the UNMODIFIED English
+// composer. This is the proof step: only text that reproduces exactly is machine output.
+function _ropvComposeEn(p){
+  var cms = (p && p.cmsKey) ? (_ropvCmsRules[p.cmsKey] || null) : null;
+  return _ropvFormatOutput({ address:(p && p.addr) || '', city:'' },
+                           _ropvNum(p && p.lat), _ropvNum(p && p.lng),
+                           (p && p.zone) || '', (p && p.article) || '', cms);
+}
+// The Dutch paragraph. Line-for-line the same shape as _ropvFormatOutput so the section
+// keeps the same height profile — the ROPV box is on page 5 under the _pgList contract.
+function _ropvComposeNl(p){
+  var cms  = (p && p.cmsKey) ? (_ropvCmsRulesNL[p.cmsKey] || null) : null;
+  var lat  = _ropvNum(p && p.lat), lng = _ropvNum(p && p.lng);
+  var coordLine = (isFinite(lat) && isFinite(lng))
+    ? 'Co\u00f6rdinaten: ' + lat.toFixed(6) + '\u00b0N, ' + Math.abs(lng).toFixed(6) + '\u00b0W'
+    : 'Co\u00f6rdinaten: niet vastgelegd';
+  var article = (p && p.article) || '';
+  var lines = [
+    'Object: ' + ((p && p.addr) || ''),
+    coordLine,
+    'Bestemming: ' + _ropvZoneNl(p) + (article ? ' | Artikel: ' + article : ''),
+    ''
+  ];
+  if (!cms) {
+    // Two lines, exactly as the English block has two \u2014 the R.O.P.V. box sits on page 5
+    //   under the _pgList contract and a third hard line would grow it for every unmapped zone.
+    lines.push('Het gedetailleerde toegestane gebruik en de bebouwingsvoorschriften voor deze bestemming');
+    lines.push('zijn niet opgenomen in de lokale R.O.P.V.-database \u2014 raadpleeg de offici\u00eble R.O.P.V.-viewer:');
+    lines.push(_ROPV_OFFICIAL_VIEWER);
+    return lines.join('\n');
+  }
+  lines.push('Bestemmingsregeling:');
+  lines.push(cms.label); lines.push('');
+  lines.push('Toegestaan gebruik:');
+  lines.push(cms.permitted_uses.join(', ') + '.'); lines.push('');
+  var mrau = cms.main_road_additional_uses;
+  if (mrau && mrau.length) {
+    lines.push('Uitsluitend langs hoofdwegen:');
+    lines.push(mrau.join(', ') + '.'); lines.push('');
+  }
+  var mrr = cms.main_road_building_rules;
+  if (mrr && mrr.max_height_standard) {
+    lines.push('Bebouwingsvoorschriften langs hoofdwegen:');
+    lines.push(mrr.max_height_standard + ' / ' + mrr.max_floors_standard + ' bouwlagen standaard.');
+    if (mrr.max_height_exception_1) lines.push(mrr.max_height_exception_1 + '.');
+    if (mrr.max_height_exception_2) lines.push(mrr.max_height_exception_2 + '.');
+    if (mrr.max_building_percentage) lines.push('Maximaal bebouwingspercentage: ' + mrr.max_building_percentage + '.');
+    if (mrr.roof_hood_extra_height)  lines.push(mrr.roof_hood_extra_height + '.');
+    lines.push('');
+  }
+  var tar = cms.transition_area_rules;
+  if (tar && tar.max_height_standard) {
+    lines.push('Overgangsgebied:');
+    if (tar.allowed_if) lines.push('Voorwaarden: ' + tar.allowed_if + '.');
+    lines.push(tar.max_height_standard + ' / ' + tar.max_floors_standard + ' bouwlagen standaard.');
+    if (tar.max_height_exception) lines.push(tar.max_height_exception + '.');
+    if (tar.max_building_percentage) lines.push('Maximaal bebouwingspercentage: ' + tar.max_building_percentage + '.');
+    if (tar.roof_hood_extra_height)  lines.push(tar.roof_hood_extra_height + '.');
+    lines.push('');
+  }
+  while (lines.length && lines[lines.length-1] === '') lines.pop();
+  return lines.join('\n');
+}
+// Recover the composition parameters from an English paragraph stored BEFORE this release
+// (no opRopvMeta). Only the three deterministic header lines are read; everything else is
+// re-derived and then PROVEN by regeneration. Returns null on the slightest deviation.
+function _ropvParseEn(txt){
+  try {
+    var L = String(txt == null ? '' : txt).split('\r\n').join('\n').split('\n');
+    if (L.length < 3) return null;
+    var P='Property: ', C='Coordinates: ', Z='Zone: ', A=' | Article: ';
+    if (L[0].indexOf(P)!==0 || L[1].indexOf(C)!==0 || L[2].indexOf(Z)!==0) return null;
+    var lat = null, lng = null;
+    var cs = L[1].slice(C.length);
+    if (cs !== 'not pinned') {
+      var m = cs.match(/^(-?\d+\.\d{6})\u00b0N, (-?\d+\.\d{6})\u00b0W$/);
+      if (!m) return null;
+      lat = Number(m[1]); lng = -Math.abs(Number(m[2]));   // only |lng| is ever printed
+    }
+    var zl = L[2].slice(Z.length), zone = zl, article = '', ai = zl.indexOf(A);
+    if (ai >= 0) { zone = zl.slice(0, ai); article = zl.slice(ai + A.length); }
+    return { v:1, addr:L[0].slice(P.length), lat:lat, lng:lng, zone:zone, article:article, cmsKey:null, zoneNl:'' };
+  } catch(_e){ return null; }
+}
+// The structured record written by fetchRopvData, read back the way every other s12 value is
+// read at report time (localStorage wins over the in-memory mirror — §INSP-PRESERVE keeps it
+// alive across section saves the same way it keeps s11fpDetail alive).
+function _ropvMetaRead(order){
+  try {
+    var raw = '';
+    try { var d = (order && order.inspData && order.inspData.s12) || {}; raw = d.opRopvMeta || ''; } catch(_e){}
+    try { var ls = localStorage.getItem('insp_' + (order && order.id) + '_12');
+          if (ls) { var o = JSON.parse(ls) || {}; if (o.opRopvMeta) raw = o.opRopvMeta; } } catch(_e){}
+    if (!raw) raw = (order && order.opRopvMeta) || '';
+    if (!raw) return null;
+    var p = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+    return (p && typeof p === 'object') ? p : null;
+  } catch(_e){ return null; }
+}
+// Find the parameters that PROVABLY produce the stored text. Structured record first; failing
+// that, parse the header and try each rules candidate. Returns { p, en } or null.
+function _ropvResolveParams(order, stored){
+  function ok(p){
+    var en; try { en = _ropvComposeEn(p); } catch(_e){ return null; }
+    return (en && (stored === en || stored.indexOf(en) === 0)) ? { p:p, en:en } : null;
+  }
+  var meta = _ropvMetaRead(order), hit = null;
+  if (meta) { hit = ok(meta); if (hit) return hit; }
+  var base = _ropvParseEn(stored);
+  if (!base) return null;
+  if (meta && meta.zoneNl) base.zoneNl = meta.zoneNl;
+  var keys = [null].concat(Object.keys(_ropvCmsRules));
+  for (var i = 0; i < keys.length; i++) {
+    base.cmsKey = keys[i];
+    hit = ok({ v:1, addr:base.addr, lat:base.lat, lng:base.lng, zone:base.zone,
+               article:base.article, cmsKey:keys[i], zoneNl:base.zoneNl });
+    if (hit) return hit;
+  }
+  return null;
+}
+// THE ONE ENTRY POINT the report calls. English → the stored string, byte for byte.
+function _ropvPrintText(order, stored){
+  var s = String(stored == null ? '' : stored);
+  try {
+    if (typeof _rtLang !== 'function' || _rtLang() !== 'nl') return s;
+    if (!s.split(' ').join('').split('\n').join('').split('\t').join('')) return s;
+    var r = _ropvResolveParams(order, s);
+    if (!r) return s;                       // authored, edited or unrecognised → verbatim
+    return _ropvComposeNl(r.p) + s.slice(r.en.length);   // appended notes copied through
+  } catch(_e){ return s; }
+}
+try { window._ropvPrintText = _ropvPrintText; window._ropvComposeNl = _ropvComposeNl;
+      window._ropvComposeEn = _ropvComposeEn; window._ropvResolveParams = _ropvResolveParams;
+      window._orderLang = _orderLang; } catch(_e){}
+
 function fetchRopvData() {
   var btn = document.getElementById('opRopvBtn');
   var sta = document.getElementById('opRopvStatus');
@@ -56000,6 +56306,25 @@ function fetchRopvData() {
     // ── Generate output ─────────────────────────────────────────────────────
     var output = _ropvFormatOutput(order, lat, lng, zoneLabel, article, cms);
 
+    // §ROPV-NL (v2.367) — store the RESULT STRUCTURALLY beside the English text so the
+    //   report can compose this paragraph in the report's own language, whichever template
+    //   the order is bound to and whenever it was bound. A JSON STRING, not an object, so
+    //   it stays a flat s12 value like every other key; §INSP-PRESERVE carries it through
+    //   later section saves exactly as it carries s11fpDetail. It is ~200 bytes and holds
+    //   no image data — nothing here can bloat insp_data (§DOC-SERVER-STRIP).
+    var _ropvMetaJson = '';
+    try {
+      var _cmsKey = cms ? _ropvCmsKeyOf(cms) : null, _zNl = '';
+      try { var _zm = _ropvMetaForLabel(zoneLabel); if (_zm && _zm.nl) _zNl = _zm.nl; } catch(e){}
+      if (!_zNl && _cmsKey && _ropvCmsRulesNL[_cmsKey]) _zNl = _ropvCmsRulesNL[_cmsKey].label;
+      _ropvMetaJson = JSON.stringify({
+        v: 1,
+        addr: (order.address||'') + (order.city ? ', '+order.city : ''),
+        lat: (isFinite(lat) ? lat : null), lng: (isFinite(lng) ? lng : null),
+        zone: zoneLabel || '', zoneNl: _zNl, article: article || '', cmsKey: _cmsKey
+      });
+    } catch(e){ _ropvMetaJson = ''; }
+
     if (ta) {
       ta.value = output;
       ta.dispatchEvent(new Event('input', { bubbles: true }));
@@ -56012,17 +56337,24 @@ function fetchRopvData() {
       if(!ORDERS[idx].inspData) ORDERS[idx].inspData={};
       if(!ORDERS[idx].inspData.s12) ORDERS[idx].inspData.s12={};
       ORDERS[idx].inspData.s12.opRopvText = output;
+      if(_ropvMetaJson){ ORDERS[idx].opRopvMeta = _ropvMetaJson; ORDERS[idx].inspData.s12.opRopvMeta = _ropvMetaJson; }   // §ROPV-NL (v2.367)
       try{
         var _s12r={};
         try{var _rawr=localStorage.getItem('insp_'+_inspOrderId+'_12');if(_rawr)_s12r=JSON.parse(_rawr);}catch(e){}
         _s12r.opRopvText=output;
+        if(_ropvMetaJson) _s12r.opRopvMeta=_ropvMetaJson;   // §ROPV-NL (v2.367)
         localStorage.setItem('insp_'+_inspOrderId+'_12',JSON.stringify(_s12r));
       }catch(e){}
       try { persistOrders(_inspOrderId); } catch(e) {}
     }
 
     if (sta) { sta.style.color='#39ff6e';
-      sta.textContent='✓ ' + zoneLabel + (article ? ' — Article ' + article : ''); }
+      // §ORDER-LANG (v2.367) — say which language this section will PRINT in, resolved from
+      //   the template bound to THIS order (not the Settings-active one). The stored text is
+      //   the English machine output either way; the report composes the Dutch (§ROPV-NL).
+      var _rlang = 'en'; try { _rlang = _orderLang(_inspOrderId); } catch(e){}
+      sta.textContent='✓ ' + zoneLabel + (article ? ' — Article ' + article : '')
+        + (_rlang === 'nl' ? ' · prints in Dutch (template language)' : ''); }
     btn.innerHTML = '<span>✨</span> Refresh ROPV';
 
   } catch(err) {
