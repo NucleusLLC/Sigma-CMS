@@ -14984,6 +14984,20 @@ var REPORT_STRINGS = {
     subLocationProperty:'Property location · GPS coordinates · site context',
     subLocationOpinion:'Appraiser&apos;s opinion of the real estate &amp; location',
     subRopv:'Regulations on property values · zoning · spatial planning applicable to this real estate',
+    // §REPORT-NL-SECDRIVER (v2.365) — the §SECTION-ORDER driver (_SEC_RENDER) renders the SAME
+    //   movable sections as the inline path but had its own hard-coded English titles and
+    //   sub-titles, so an order with a custom section layout printed English headings inside a
+    //   Dutch report. These five keys hold the driver's OWN sub-titles verbatim (they differ
+    //   from subRenovationNotes / subLocationOpinion / subRopv above, which belong to the inline
+    //   path — both wordings are in production and neither may change in English).
+    subSecRenovNotes:'Renovation scope · works · materials &amp; finishes · impact on value',
+    subSecLocationOpinion:'Neighbourhood · amenities · access · location quality',
+    subSecRopv:'Zoning · permitted use · spatial planning',
+    subSecRoi:'Return on investment · percentage split',
+    // §REPORT-NL-COVER (v2.365) — the words printed as the COVER TITLE and in the top-right of
+    //   every page header. Kept separate from coverTitle (which names the document in <title>
+    //   and in the Index sub-line) because those two sites read as running text.
+    coverHeading:'Appraisal Report',
     subSignoff:'Certification of appraisal · appraiser declaration · signature',
     subAttachedDocs:'Supporting legal and technical documents submitted with this appraisal order',
     subAttachedDocument:'Attached document',
@@ -15364,7 +15378,7 @@ var REPORT_STRINGS = {
   nl: {
     client:'Opdrachtgever',
     propertyAddress:'Adres van het object',
-    propertyType:'Type object',
+    propertyType:'Type-object',
     reportDate:'Rapportdatum',
     reportNumber:'Rapportnummer',
     reportType:'Soort rapport',
@@ -15413,6 +15427,13 @@ var REPORT_STRINGS = {
     subLocationProperty:'Ligging van het object · GPS-coördinaten · omgeving',
     subLocationOpinion:'Oordeel van de taxateur over het onroerend goed &amp; de ligging',
     subRopv:'Voorschriften inzake waarde · bestemming · ruimtelijke ordening van toepassing op dit onroerend goed',
+    // §REPORT-NL-SECDRIVER (v2.365) — see the English block for why these are separate keys.
+    subSecRenovNotes:'Omvang renovatie · werkzaamheden · materialen &amp; afwerking · invloed op de waarde',
+    subSecLocationOpinion:'Buurt · voorzieningen · bereikbaarheid · kwaliteit van de ligging',
+    subSecRopv:'Bestemming · toegestaan gebruik · ruimtelijke ordening',
+    subSecRoi:'Rendement op investering · procentuele verdeling',
+    // §REPORT-NL-COVER (v2.365) — cover title + page-header wording, as requested by the owner.
+    coverHeading:'Taxatie Rapport',
     subSignoff:'Verklaring van de taxatie · verklaring van de taxateur · handtekening',
     subAttachedDocs:'Ondersteunende juridische en technische documenten behorend bij deze taxatieopdracht',
     subAttachedDocument:'Bijgevoegd document',
@@ -15816,6 +15837,36 @@ function _rt(key, lang){
 function _rcLangSaved(){
   try { var c = JSON.parse(localStorage.getItem('appraisalSuite_reportCustom_v1')||'{}')||{};
         return (c.rcLang === 'nl') ? 'nl' : 'en'; } catch(e){ return 'en'; }
+}
+// §REPORT-NL-COVER (v2.365) — "is this string just the stock words 'Appraisal Report'?"
+//   The cover title (RC.rcCoverTitleText) and the page-header text (RC.rcHeaderText) are
+//   FREE-TYPED template fields, so the stock wording reaches the report in whatever case and
+//   spacing the owner typed — "APPRAISAL REPORT" on every live template here. Only a string
+//   that is these two words and nothing else is treated as translatable; anything the owner
+//   actually wrote ("Valuation Report for ABC Bank") is his, in both languages.
+function _isStockReportTitle(s){
+  return /^\s*appraisal\s+report\s*$/i.test(String(s == null ? '' : s));
+}
+// Return `to` in the same case shape as `from`: ALL CAPS in, ALL CAPS out; all lower in, all
+//   lower out; anything else (Title Case, mixed) is left exactly as the string table wrote it.
+//   This is what keeps a translated cover looking like the cover the owner designed.
+function _matchCase(from, to){
+  var f = String(from == null ? '' : from), t = String(to == null ? '' : to);
+  if (f && f === f.toUpperCase() && f !== f.toLowerCase()) return t.toUpperCase();
+  if (f && f === f.toLowerCase() && f !== f.toUpperCase()) return t.toLowerCase();
+  return t;
+}
+
+// §REPORT-NL-SECDRIVER (v2.365) — JSON.stringify, but with every non-ASCII character written
+//   as a \uXXXX escape. Used for the object literals that are BAKED INTO the little scripts the
+//   report document carries (§SEC-DEDUP-INLINE / §SEC-DISABLE). Two reasons it matters: the
+//   English emission stays byte-for-byte what the hand-written literal was (it wrote "—",
+//   not a raw em dash), and a Dutch title carrying ë / ï can never depend on the report
+//   document's charset being read correctly before the script parses.
+function _jsonAsciiEsc(o){
+  return JSON.stringify(o).replace(/[\u0080-\uFFFF]/g, function(c){
+    return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4);
+  });
 }
 
 // ── §REPORT-NL formatters ────────────────────────────────────────────────────
@@ -17227,7 +17278,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.364';
+var APP_VERSION = 'v2.365';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17265,6 +17316,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.365',type:'fix',date:'08-30-2026',ts:'08-30-2026 12:00',_static:true,title:'Dutch reports: cover, page headings and section titles now translate',desc:'Three things stayed English on a Dutch report. The cover title and the heading in the top right of every page were only being translated when they were written exactly as Appraisal Report - templates that carry it in capitals, which is most of them, slipped through. They now translate whatever the capitalisation, and keep the capitalisation you chose. Type object now reads Type-object. And on any order where you have rearranged the sections yourself, the section headings were still printing in English - Opinion of the Location, Opinion of Floor Plan and the rest - those are now Dutch too. Two things that looked like faults are not: if the written opinions or the location map are missing from a report, that order simply has none saved. English reports are unchanged, checked byte for byte across twelve combinations of order, type and template.'},
   {v:'v2.364',type:'fix',date:'08-29-2026',ts:'08-29-2026 15:00',_static:true,title:'The Floor Plan Reconstructor is hidden until it is finished',desc:'The Floor Plan Reconstructor was listed in the sidebar while it is still unfinished, so it could be opened and would not do the job. It is hidden for now and comes back when it is ready — nothing about it has been deleted. This does NOT affect the floor plan in the appraisal report, the Floor Plan AI opinion, or the Floor Plan document on the Documents screen; those are unchanged.'},
   {v:'v2.363',type:'feature',date:'08-29-2026',ts:'08-29-2026 14:00',_static:true,title:'Special Images can now be given their own name on the report',desc:'The Special Images sheet no longer has to be called “Special Images”. In Inspect Data › Photos there is a new box for the name of the image set — Renderings, Visualizations, Site Progress, whatever the set actually is — and that name is what prints as the heading on the sheet and what appears in the report Index. The name belongs to the job order, so naming one order’s set does not rename anybody else’s. Leave the box empty and the sheet prints “Special Images” as before.'},
   {v:'v2.362',type:'feature',date:'08-29-2026',ts:'08-29-2026 13:00',_static:true,title:'Choosing the inspection time is now a set of buttons, not a typing box',desc:'When you set an inspection date, the time question now shows the working day as tappable half-hour slots from 8:00 AM to 5:30 PM — one tap and the time is set. An “Another time” box sits underneath for anything outside those hours, and a time typed there lights up its matching slot so only one answer is ever showing. The button that leaves the time open is now called “Select Later”: the date is kept and the hour can be set later by editing the item on the Inspection Calendar.'},
@@ -36440,7 +36492,15 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   English default, so a Dutch report would print "Appraisal Report" on its front cover.
     //   Localise it ONLY when it is exactly that untouched default; a title the owner actually
     //   typed is left alone in both languages.
-    if (_RLANG === 'nl' && tTxt === 'Appraisal Report') tTxt = _rt('coverTitle');
+    //   v2.365 — the exact-match test only caught the literal "Appraisal Report". Every real
+    //   template on this install stores the words the owner typed into the Cover Designer, and
+    //   the live ones carry "APPRAISAL REPORT" in capitals — which sailed straight past the
+    //   test and printed English on the front of a Dutch report. Compare CASE-INSENSITIVELY on
+    //   collapsed whitespace, and give the Dutch back in the SAME case shape, so an ALL-CAPS
+    //   cover stays ALL-CAPS (the cover design is the owner's, only the language changes).
+    //   A cover title that is anything other than these two words is still left completely
+    //   alone in both languages.
+    if (_RLANG === 'nl' && _isStockReportTitle(tTxt)) tTxt = _matchCase(tTxt, _rt('coverHeading'));
     // §COVER-TITLE-FONT (v2.118) — parse "Family Weight" (e.g. "Raleway Regular") into a REAL
     //   web font-family + numeric weight. Using the literal "Raleway Regular" as a font-family
     //   name only renders on machines that happen to have that exact font installed locally;
@@ -36552,7 +36612,15 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       }
     } catch(e) {}
     // Header text on the right; falls back to the per-page subtitle if rcHeaderText is empty
-    var _hdrTxt = (RC && RC.rcHeaderText) ? esc(RC.rcHeaderText) : '';
+    // §REPORT-NL-COVER (v2.365) — the top-right of EVERY page header. rcHeaderText is a
+    //   free-typed template field and the live templates hold "APPRAISAL REPORT", so a Dutch
+    //   report shouted English on all twelve pages. Same rule as the cover title: translate it
+    //   ONLY when it is the stock two words, and hand the Dutch back in the same case shape.
+    //   When rcHeaderText is empty this whole block is inert and the header falls through to
+    //   (sub||typeName), which was already localised. English is untouched either way.
+    var _hdrRaw = (RC && RC.rcHeaderText) ? String(RC.rcHeaderText) : '';
+    if (_RLANG === 'nl' && _isStockReportTitle(_hdrRaw)) _hdrRaw = _matchCase(_hdrRaw, _rt('coverHeading'));
+    var _hdrTxt = _hdrRaw ? esc(_hdrRaw) : '';
     // Appraisal number block (top-of-page) — location, font size, color all configurable
     var _numPlace = (RC && RC.rcHdrNumPlacement) ? RC.rcHdrNumPlacement : 'Top Right';
     var _numSize  = (RC && RC.rcHdrNumSize != null) ? RC.rcHdrNumSize : 9;
@@ -37622,8 +37690,13 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     if(title.indexOf('R.O.P.V.')===0)              return 'ropv';
     return '';
   }
-  function _secOpBox(title, sub, body, accent, _ignoredPad){
-    var sp=_secSpace(_secBoxId(title));
+  // §REPORT-NL-SECDRIVER (v2.365) — _idHint. _secBoxId() recovers the section id by matching
+  //   the ENGLISH title prefix, which is why the driver's titles could not simply be
+  //   translated: a Dutch heading resolves to '' and the section silently loses its saved
+  //   Tight/Normal/Loose spacing. Callers that already know their id now say so. Passing the
+  //   id a title used to resolve to is a no-op, so English output is unchanged.
+  function _secOpBox(title, sub, body, accent, _ignoredPad, _idHint){
+    var sp=_secSpace(_idHint || _secBoxId(title));
     if(sp.lh) body=String(body).replace('class="rep-op"','class="rep-op" style="line-height:'+sp.lh+';"');
     return '<div class="sec-h" style="margin-top:'+sp.mt+';margin-bottom:'+sp.hmb+';">'+title+'</div>'
       + (sub?'<div class="sec-sub" style="margin-bottom:'+sp.smb+';">'+sub+'</div>':'')
@@ -37890,15 +37963,21 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     } catch(e){}
     if(ch.svg) body += '<div style="display:flex;gap:20px;align-items:center;margin-top:10px;flex-wrap:wrap;">'
                      + '<div>'+ch.svg+'</div><div>'+ch.legend+'</div></div>';
-    return _secOpBox('R.O.I.','Return on investment · percentage split', body);
+    return _secOpBox(_secT('secTitleRoi'),_rt('subSecRoi'), body);
   }
+  // §REPORT-NL-SECDRIVER (v2.365) — a section TITLE goes into HTML, so the '&' in two of them
+  //   ("Renovation Notes & Remarks", "Opinions of Building, Equipment & Finishes") has to be
+  //   escaped. The string table holds the raw '&' because §SEC-DISABLE and §SEC-DEDUP compare
+  //   against textContent, which is unescaped. In English every one of these keys is byte-for-
+  //   byte the literal that used to be inlined here, so the English report does not move.
+  function _secT(k){ return String(_rt(k)).replace(/&/g,'&amp;'); }
   var _SEC_RENDER = {
-    fpOpinion:      function(){ var t=_secFpTxt(); return _secOpBox('Opinion of Floor Plan','Spatial layout · circulation · functional efficiency', t?'<div class="rep-op">'+_opFmt(t)+'</div>':'<div style="font-size:10px;color:#aaa;font-style:italic;">'+_rt('noFloorPlanOpinion')+'</div>'); },
-    renovNotes:     function(){ var t=_secS12(['renovNotes']); return t?_secOpBox('Renovation Notes &amp; Remarks','Renovation scope · works · materials &amp; finishes · impact on value','<div class="rep-op">'+_opFmt(t)+'</div>'):''; },
+    fpOpinion:      function(){ var t=_secFpTxt(); return _secOpBox(_secT('secTitleFpOpinion'),_rt('subFloorPlanOpinion'), t?'<div class="rep-op">'+_opFmt(t)+'</div>':'<div style="font-size:10px;color:#aaa;font-style:italic;">'+_rt('noFloorPlanOpinion')+'</div>',null,null,'fpOpinion'); },
+    renovNotes:     function(){ var t=_secS12(['renovNotes']); return t?_secOpBox(_secT('secTitleRenovNotes'),_rt('subSecRenovNotes'),'<div class="rep-op">'+_opFmt(t)+'</div>',null,null,'renovNotes'):''; },
     condMatrix:     function(){ var _cs=_secSpace('condMatrix'); return '<div class="sec-h" style="margin-top:'+_cs.mt+';margin-bottom:'+_cs.hmb+';">'+_rt('conditionAssessmentMatrix')+'</div><div class="sec-sub" style="margin-bottom:'+_cs.smb+';">'+_rt('subCondMatrix')+'</div><div style="overflow:hidden;width:100%;">'+((typeof _condMatrixHtml==='function')?_condMatrixHtml():'')+'</div>'; },
-    buildingOpinion:function(){ var t=_secS12(['opBuildingText']); var _bs=(order.sectionSpacing&&order.sectionSpacing.buildingOpinion)||'compact'; var _bp=(_bs==='spacious'?'11px 12px':(_bs==='normal'?'6px 8px':'3px 6px')); return _secOpBox('Opinions of Building, Equipment &amp; Finishes','Based on on-site inspection data · materials · equipment · condition assessments', t?'<div class="rep-op">'+_opFmt(t)+'</div>':'<div style="font-size:9px;color:#aaa;font-style:italic;">'+_rt('noBuildingOpinion')+'</div>', RC.rcAccentColor, _bp); },
-    locationOpinion:function(){ var t=_secS12(['opLocationText','locationOpinion']); return t?_secOpBox('Opinion of the Location','Neighbourhood · amenities · access · location quality','<div class="rep-op">'+_opFmt(t)+'</div>'):''; },
-    ropv:           function(){ var t=_secS12(['opRopvText']); return t?_secOpBox('R.O.P.V. — Spatial Planning Regulations','Zoning · permitted use · spatial planning','<div class="rep-op">'+_opFmt(t)+'</div>'):''; },
+    buildingOpinion:function(){ var t=_secS12(['opBuildingText']); var _bs=(order.sectionSpacing&&order.sectionSpacing.buildingOpinion)||'compact'; var _bp=(_bs==='spacious'?'11px 12px':(_bs==='normal'?'6px 8px':'3px 6px')); return _secOpBox(_secT('secTitleBuildingOpinion'),_rt('subBuildingOpinion'), t?'<div class="rep-op">'+_opFmt(t)+'</div>':'<div style="font-size:9px;color:#aaa;font-style:italic;">'+_rt('noBuildingOpinion')+'</div>', RC.rcAccentColor, _bp, 'buildingOpinion'); },
+    locationOpinion:function(){ var t=_secS12(['opLocationText','locationOpinion']); return t?_secOpBox(_secT('secTitleLocationOpinion'),_rt('subSecLocationOpinion'),'<div class="rep-op">'+_opFmt(t)+'</div>',null,null,'locationOpinion'):''; },
+    ropv:           function(){ var t=_secS12(['opRopvText']); return t?_secOpBox(_secT('secTitleRopv'),_rt('subSecRopv'),'<div class="rep-op">'+_opFmt(t)+'</div>',null,null,'ropv'):''; },
     hoaFees:        function(){ var b=_hoaFeeBody(); return b?_secOpBox(_rt('hoaFeesHeading'),_rt('subHoaFees'),b):''; },   // §HOA (v2.354)
     floorplan:      function(){ if(!_fpBlockCache) return ''; var _fs=_secSpace('floorplan'); return '<div style="margin-top:'+_fs.mt+';'+(_fs.lh?'line-height:'+_fs.lh+';':'')+'">'+_fpBlockCache+'</div>'; },
     location:       function(){ return _locBlockCache||''; },
@@ -39168,7 +39247,23 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   same dollar it showed before — but taken from the number, so a Dutch report cannot read
   //   its own "AWG 350.000" back as 350.
   var _npSaleUsd=(_npSaleNum>0)?toUSD(String(Math.round(_npSaleNum))):'';
-  var _npSaleBand=RC._npPresumOnly
+  // §NP-SALES-PRICE-ANYTPL — the SALES PRICE box is the FIRST field of the shared Presumable
+  //   section (#vmPresumSection, index.html:12987-13001): it is offered on EVERY order the
+  //   valuation chooser puts in Presumable / Both mode — which is every Type-3 order by
+  //   default — and _valCaptureP2 saves it for all of them (index.html:31515). Only the BAND
+  //   was gated on RC._npPresumOnly, i.e. on the template being named MultiBuilding +
+  //   MultiParcel + NewProject (index.html:35477). On any other presumable template —
+  //   "SIGMA_Type3.T1-Parcel+NewHouse" among them — an appraiser could type the approved sale
+  //   price into the Presumable Valuation screen, save it, generate the report, and the figure
+  //   appeared NOWHERE, with nothing on the page to say it had been dropped. A field the app
+  //   accepts must reach the section it was typed into.
+  //   The gate is widened, never narrowed, and only by a condition on the DATA itself:
+  //     · NewProject template            → prints exactly as before, em dash and all.
+  //     · Other template, price EMPTY    → _npSaleStr is '' → no band → byte-identical.
+  //     · Other template, price ENTERED  → the band prints. That is the defect being fixed.
+  //   Type 1 / Type 2 cannot move: their _vmMode is 'current', so the whole §T3-VALPAGE block
+  //   has already returned _std long before this line (index.html:38973).
+  var _npSaleBand=(RC._npPresumOnly || _npSaleStr)
     ? ('<div style="margin:8px 0 2px;padding:11px 15px;background:#0f0d0a;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">'
         +'<span style="font-family:Sora,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:'+_GOLD+';">'+_rt('projectSalesPrice')+'</span>'
         +'<span style="font-family:Cormorant Garamond,serif;font-size:19px;font-weight:700;color:#fff;">'+(_npSaleStr||'—')+'</span>'
@@ -40031,7 +40126,12 @@ try {
 //   duplicate(s) (header + content up to the next section header). No-op when nothing repeats.
 try {
   var _ddScript = '<scr'+'ipt>(function(){try{'
-    + 'var T={"Floorplan Info":1,"Opinion of Floor Plan":1,"Location & Property":1,"Condition Assessment Matrix":1,"R.O.P.V. \\u2014 Spatial Planning Regulations":1,"Opinion of the Location":1,"Renovation Notes & Remarks":1,"Opinions of Building, Equipment & Finishes":1};'
+    // §REPORT-NL-SECDRIVER (v2.365) — this title map was a hard-coded English literal, so on a
+    //   Dutch report it matched nothing and the embedded de-duplicator was silently inert. It is
+    //   now built from the SAME _rt keys the headers themselves render from, so it matches in
+    //   either language; in English _rt returns exactly the eight literals that were here before,
+    //   in the same order, so the emitted script is byte-identical.
+    + 'var T='+_jsonAsciiEsc((function(){var _m={};[_rt('secTitleFloorplan'),_rt('secTitleFpOpinion'),_rt('secTitleLocation'),_rt('secTitleCondMatrix'),_rt('secTitleRopv'),_rt('secTitleLocationOpinion'),_rt('secTitleRenovNotes'),_rt('secTitleBuildingOpinion')].forEach(function(t){_m[t]=1;});return _m;})())+';'
     + 'var by={};[].forEach.call(document.querySelectorAll(".sec-h"),function(h){var t=(h.textContent||"").replace(/\\s+/g," ").trim();if(T[t])(by[t]=by[t]||[]).push(h);});'
     + 'Object.keys(by).forEach(function(t){var a=by[t];if(a.length<2)return;for(var i=0;i<a.length-1;i++){var h=a[i],n=h.nextSibling;while(n&&!(n.nodeType===1&&n.classList&&n.classList.contains("sec-h"))){var nx=n.nextSibling;try{n.parentNode.removeChild(n);}catch(e){}n=nx;}try{h.parentNode.removeChild(h);}catch(e){}}console.log("[sec-dedup] removed "+(a.length-1)+" duplicate \\""+t+"\\"");});'
     + '}catch(e){}})();</scr'+'ipt>';
