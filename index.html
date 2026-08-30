@@ -11001,6 +11001,73 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
         </div>
       </div>
 
+      <!-- §SPECIAL-IMAGES (v2.361) — a SECOND contact sheet with its own layout, for
+           Type 3 (New Construction) reports only. Deliberately a SEPARATE collection and
+           NOT a 9th zone: photoCaptureAll() and _flatPhotos() walk zone0-zone7, so a
+           "zone8" would be swept into the ordinary contact sheet — the precise leak this
+           feature exists to prevent. The whole block is hidden unless the open order is
+           Type 3, so a Type 1/2 order shows nothing new and renders nothing new. -->
+      <div id="siBlock" style="display:none;margin-top:1.25rem;padding:14px 16px;background:var(--surface,#1e1e20);border:1px solid var(--gold,#c8922a);border-radius:8px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold,#c8922a);margin-bottom:4px;">&#128444; SPECIAL IMAGES</div>
+        <div style="font-size:11px;color:var(--muted,#8a7a6a);margin-bottom:12px;">A second contact sheet with its own layout, printed after the ordinary photo pages. Type 3 (New Construction) reports only.</div>
+
+        <div class="pzone" id="pzone-special" ondragover="event.preventDefault()" ondrop="photoDropZone(event,this)">
+          <div class="pzone-hint">
+            <input type="file" accept="image/*" multiple="" onchange="photoAddFiles(this.files,this.closest('.pzone'))">
+            <div class="pico">&#128444;</div>
+            <p>Click or drag the special images here</p>
+            <small>JPG, PNG, HEIC, WEBP &mdash; any size, auto-resized</small>
+          </div>
+          <div class="pthumbs" id="pthumbs-special"></div>
+          <div class="pzone-count" id="pcount-special"></div>
+          <label class="pzone-add-more" id="pmore-special" style="display:none">
+            + Add more images<input type="file" accept="image/*" multiple="" onchange="photoAddFiles(this.files,this.closest('.pzone'))">
+          </label>
+        </div>
+
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted,#8a7a6a);margin:14px 0 10px;">&#128203; Special Images Sheet Configuration</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div>
+            <label style="font-size:11px;display:block;margin-bottom:4px;color:var(--ink);">Columns</label>
+            <select id="siColsSel" onchange="siConfigSave()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface-2,#2a2a2c);color:var(--ink,#fff);">
+              <option value="1">1 Column</option>
+              <option value="2" selected>2 Columns</option>
+              <option value="3">3 Columns</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;display:block;margin-bottom:4px;color:var(--ink);">Rows per page</label>
+            <select id="siRowsSel" onchange="siConfigSave()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface-2,#2a2a2c);color:var(--ink,#fff);">
+              <option value="1">1 Row</option>
+              <option value="2" selected>2 Rows</option>
+              <option value="3">3 Rows</option>
+              <option value="4">4 Rows</option>
+              <option value="5">5 Rows</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;display:block;margin-bottom:4px;color:var(--ink);">Photo Ratio</label>
+            <select id="siOrientSel" onchange="siConfigSave()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface-2,#2a2a2c);color:var(--ink,#fff);">
+              <option value="landscape" selected>Landscape 16:9</option>
+              <option value="portrait">Standard 4:3</option>
+              <option value="square">Square 1:1</option>
+              <option value="classic">Classic 3:2</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;display:block;margin-bottom:4px;color:var(--ink);">Photo Fit</label>
+            <select id="siPhotoSizeSel" onchange="siConfigSave()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface-2,#2a2a2c);color:var(--ink,#fff);">
+              <option value="fill">Fill (crop)</option>
+              <option value="contain" selected>Fit (no crop)</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button onclick="openSpecialSheetPreview()" style="background:#c8922a;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;">Preview Special Images</button>
+          <span id="siPageCount" style="font-size:11px;color:var(--muted,#8a7a6a);"></span>
+        </div>
+      </div>
+
     </div>
 
     <!-- ⑫  Documents -->
@@ -11201,6 +11268,35 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
             </div>
           </div>
           <textarea id="renovNotesText" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="Renovation scope · works completed · materials &amp; finishes · workmanship · stage of completion · impact on value…" data-key="renovNotes"></textarea>
+        </div>
+
+        <!-- §HOA (v2.354) — HOA Fees. A plain sibling .fg inside isec-12 ("13. Opinions"), so
+             _inspCapture / _inspApplySection pick the three fields up by data-key with no save
+             or restore code of its own. OFF by default (see _orderSecEnabled): the tick below
+             is what puts the section on the report. -->
+        <div class="fg" id="hoaFeesSection" style="grid-column:1/-1;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">F</span>HOA Fees</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkHoa" onchange="_secInputToggle('hoaFees',this)" style="margin:0;">Show on report</label>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+            <div style="flex:1 1 180px;min-width:150px;">
+              <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px;">Dues amount (AWG)</label>
+              <input type="text" id="hoaFeeAmount" data-key="hoaFeeAmount" inputmode="decimal" placeholder="e.g. 450" style="border-left:3px solid var(--gold);">
+            </div>
+            <div style="flex:1 1 180px;min-width:150px;">
+              <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px;">Period</label>
+              <select id="hoaFeePeriod" data-key="hoaFeePeriod">
+                <option value="">—</option>
+                <option value="per month">per month</option>
+                <option value="per quarter">per quarter</option>
+                <option value="per year">per year</option>
+              </select>
+            </div>
+          </div>
+          <textarea id="hoaFeeNote" data-key="hoaFeeNote" style="height:100px;resize:vertical;border-left:3px solid var(--gold);" placeholder="What the dues cover — maintenance, insurance, utilities, reserves, management — and anything the association's rules impose on an owner..."></textarea>
         </div>
 
         <!-- §ANALYTICS (v2.255) / §CONDO-GATE (v2.311) — Condominium Analytics research notes. Shown by _secInputSync whenever the section is AVAILABLE: on a condominium / apartment / resort under any appraisal type, and on every New Construction (Type 3) order. The condo price table itself comes from the Σ Analytics › Condominium Analytics card. -->
@@ -14849,6 +14945,9 @@ var REPORT_STRINGS = {
     locationAndProperty:'Location &amp; Property',
     opinionOfTheLocation:'Opinion of the Location',
     ropvHeading:'R.O.P.V. — Spatial Planning Regulations',
+    hoaFeesHeading:'HOA Fees',
+    subHoaFees:'Homeowners association · dues and what the contribution covers',
+    hoaDuesLabel:'Association dues',
     conclusionOpinion:'Conclusion / Opinion',
     appraiserSignOff:'Appraiser Sign-Off',
     attachedDocuments:'Attached Documents',
@@ -15275,6 +15374,9 @@ var REPORT_STRINGS = {
     locationAndProperty:'Ligging &amp; object',
     opinionOfTheLocation:'Beoordeling van de ligging',
     ropvHeading:'R.O.P.V. — ruimtelijke ordeningsvoorschriften',
+    hoaFeesHeading:'VvE-bijdragen',
+    subHoaFees:'Vereniging van eigenaars · bijdragen en waarvoor de bijdrage dient',
+    hoaDuesLabel:'VvE-bijdrage',
     conclusionOpinion:'Conclusie / oordeel',
     appraiserSignOff:'Ondertekening taxateur',
     attachedDocuments:'Bijgevoegde documenten',
@@ -17109,7 +17211,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.359';
+var APP_VERSION = 'v2.362';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17147,6 +17249,9 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.362',type:'feature',date:'08-29-2026',ts:'08-29-2026 13:00',_static:true,title:'Choosing the inspection time is now a set of buttons, not a typing box',desc:'When you set an inspection date, the time question now shows the working day as tappable half-hour slots from 8:00 AM to 5:30 PM — one tap and the time is set. An “Another time” box sits underneath for anything outside those hours, and a time typed there lights up its matching slot so only one answer is ever showing. The button that leaves the time open is now called “Select Later”: the date is kept and the hour can be set later by editing the item on the Inspection Calendar.'},
+  {v:'v2.361',type:'feature',date:'08-29-2026',ts:'08-29-2026 11:00',_static:true,title:'Special Images — a second photo sheet with its own layout, for New Construction reports',desc:'Inspect Data › Photos now has a SPECIAL IMAGES area underneath the usual contact sheet settings. Drop images in there and they print on their own pages at the end of the photo section, with their own columns, rows per page, photo ratio and photo fit — completely separate from the ordinary photos, so the two sheets can look nothing alike. It has its own preview button, and the Index gains a Special Images row. The layout you choose is stored with the order itself, not just in this browser, so it follows the order to another computer. This appears on Type 3 (New Construction) orders only — Type 1 and Type 2 reports are completely unaffected.'},
+  {v:'v2.360',type:'feature',date:'08-29-2026',ts:'08-29-2026 11:00',_static:true,title:'Setting an inspection date now asks for the time straight away',desc:'On a job order, the moment you pick the Inspection Date under Project Data you are asked what time has been requested. If the hour has not been agreed yet, choose “Define later” — the date is kept, no time is recorded, and you can set the hour afterwards by opening the item on the Inspection Calendar. Until now a date set here reached the Calendar with no time at all and was drawn in the 8am slot, which read as an 8 o’clock appointment nobody had agreed to. Changing the date asks again, already filled in with the time you had, because the time usually moves with the day. A time set this way is saved exactly like one set on the Calendar itself and shows there immediately.'},
   {v:'v2.359',type:'feature',date:'08-29-2026',ts:'08-29-2026 10:00',_static:true,title:'You can now add or change the discount from the Edit invoice screen',desc:'If an invoice was raised without a discount, the only way to add one was the “% Discount” button on a Finance row — the Edit invoice screen had no discount at all, so an invoice opened from the order’s Billing tab could not be given one. Edit invoice now has a Discount section: none, a fixed amount or a percentage, with a reason kept in the invoice history. The figure on screen shows the subtotal, the discount and the resulting total before you save, and the total quoted in the confirmation now includes the discount instead of the pre-discount figure. The discount itself is still written by the database, which clamps it, recalculates the total and the included tax and re-applies payments — exactly as the Finance button does.'},
   {v:'v2.358',type:'fix',date:'08-29-2026',ts:'08-29-2026 09:30',_static:true,title:'Date picker — the month arrows no longer close the calendar',desc:'In any date field, clicking ‹ or › to change month, clicking the month/year heading, or picking a month or a year shut the calendar instead of navigating. Redrawing the calendar replaced the button under the pointer, and the app then read the click as a click outside the calendar and closed it. Navigation now works in every view; picking a day, Today and Clear still close it as before.'},
   {v:'v2.357',type:'fix',date:'08-29-2026',ts:'08-29-2026 09:00',_static:true,title:'Project Data — the Inspection Date field opens its calendar again',desc:'On a new order, Project Data › General, clicking Inspection Date did nothing. The field is read-only and opens a calendar on click, but a stale marker baked into the page markup made the app believe the calendar had already been wired up, so the click handler was never attached. Same fault fixed on the Inspection form’s Inspection Date and on Appraiser License Expiry.'},
@@ -18822,12 +18927,17 @@ function openInsp(order){
   document.querySelectorAll('.isec input[type="text"]').forEach(i=>{if(i.id!=='inspName'&&i.id!=='inspDate')i.value='';});
   document.querySelectorAll('.cb').forEach(b=>b.className='cb');
   photoClearAll();  // clear all uploaded photo thumbnails
+  // §SPECIAL-IMAGES (v2.361) — the special zone is cleared and re-gated on EVERY open.
+  //   Skipping the clear would leave the previous order's images on screen for a Type 3
+  //   order that has none of its own, and the next capture would file them under it.
+  try{ specialPhotoClear(); siApplyTypeGate(order); }catch(e){}
   docClearIncluded();  // uncheck all document include boxes
   var opEl2 = document.getElementById('inspOpinion'); if(opEl2) opEl2.value='';
   document.querySelectorAll('.doc-file-list').forEach(l=>l.innerHTML='');
   document.querySelectorAll('.doc-drop').forEach(d=>{d.classList.remove('has-file');const p=d.querySelector('p');if(p)p.textContent='Click to upload PDF';});
   document.querySelectorAll('.doc-status').forEach(s=>{if(s.classList.contains('uploaded')){s.className='doc-status missing';if(!s.id.startsWith('req'))s.textContent='Not uploaded';}});
   if(typeof csLoadConfig==='function') csLoadConfig();
+  try{ if(typeof siLoadConfig==='function') siLoadConfig(order); }catch(e){}
   // Restore any previously saved inspection data
   _inspRestore(order.id);
   // §LAZY-INSP (v1.944) — insp_data is no longer pulled for every order on login.
@@ -19083,6 +19193,17 @@ function photoUpdateCount(zone) {
     if (hint)  hint.style.display  = '';       // show drop zone again
     if (pmore) pmore.style.display = 'none';
   }
+  // §SPECIAL-IMAGES (v2.361) — the special zone rides photoAddFiles/photoDropZone
+  //   unchanged, so this is the one place every add and every delete passes through.
+  //   Persisting here is what makes a dropped image survive without waiting for the
+  //   user to leave the section. photoUpdateTotal() below still counts zone0-7 only,
+  //   so the header total is unchanged for every order.
+  try{
+    if (zone && zone.id === 'pzone-special'){
+      if (typeof _siPersist === 'function') _siPersist({ photos: specialPhotoCapture() });
+      if (typeof siUpdatePageCount === 'function') siUpdatePageCount();
+    }
+  }catch(e){}
   photoUpdateTotal();
 }
 
@@ -19367,6 +19488,100 @@ function photoClearAll() {
   photoUpdateTotal();
 }
 
+// ── §SPECIAL-IMAGES (v2.361) — capture / restore for the special collection ───
+//   Uploading reuses photoAddFiles / photoDropZone / photoUpdateCount unchanged:
+//   those are generic over a .pzone element, so the special zone inherits the same
+//   compression pipeline (§PHOTO-QUALITY-MEDIUM) and the same save-after-compress
+//   ordering (§PHOTO-SAVE-AFTER-COMPRESS) for free. Only capture and restore need
+//   their own copy, because photoCaptureAll walks pzone-0..7 by id and must keep
+//   doing exactly that — the special images are NOT part of the ordinary sheet.
+function specialPhotoCapture(){
+  var zone = document.getElementById('pzone-special');
+  if (!zone) return [];
+  var out = [];
+  zone.querySelectorAll('.pthumb').forEach(function(thumb){
+    var rec = { name: thumb.dataset.photoName || '', data: thumb.dataset.photoData || '' };
+    // §PHOTO-STORAGE (v1.994) — keep the bucket reference across captures, or every
+    //   save would re-upload the same image.
+    if (thumb.dataset.photoStoragePath) rec.storagePath = thumb.dataset.photoStoragePath;
+    out.push(rec);
+  });
+  return out;
+}
+// §PHOTO-ORDER-SAFETY (v2.155) — same guard as _photoCaptureForOrder: the special
+//   zone's DOM always shows whichever order is open in Inspect Data, so reading it
+//   for a different order would file one order's images under another. undefined
+//   means "DOM untrusted", which callers treat as "leave the saved record alone".
+function _specialCaptureForOrder(oid){
+  try{
+    if (typeof _inspOrderId === 'undefined' || !_inspOrderId || !oid || _inspOrderId !== oid) return undefined;
+    return specialPhotoCapture();
+  }catch(e){ return undefined; }
+}
+// Resolve an order's special images from whichever source is trustworthy: the live
+//   DOM when that order is the one open, otherwise its own saved record.
+function _siPhotosForOrder(oid){
+  if (!oid) return [];
+  var live = _specialCaptureForOrder(oid);
+  if (live && live.length) return live;
+  var rec = (_siOrderRec(oid).photos) || [];
+  if (!rec.length && live) return live;
+  return rec.filter(function(p){ return p && (p.data || p.storagePath); });
+}
+function specialPhotoRestore(list){
+  var zone = document.getElementById('pzone-special'); if (!zone) return;
+  var thumbs = zone.querySelector('.pthumbs'); if (!thumbs) return;
+  thumbs.innerHTML = '';
+  (list || []).forEach(function(p){
+    // §PHOTO-STORAGE (v1.994) — keep Storage-only stubs so a not-yet-rehydrated image
+    //   is not silently dropped from the UI and then lost on the next capture.
+    if (!p || (!p.data && !p.storagePath)) return;
+    var thumb = document.createElement('div');
+    thumb.className = 'pthumb';
+    thumb.dataset.photoName = p.name || '';
+    if (p.data) thumb.dataset.photoData = p.data;
+    if (p.storagePath) thumb.dataset.photoStoragePath = p.storagePath;
+    var img = document.createElement('img');
+    if (p.data) img.src = p.data;
+    img.alt = p.name || '';
+    var del = document.createElement('button');
+    del.className = 'pthumb-del';
+    del.textContent = '✕';
+    del.title = 'Remove image';
+    del.onclick = function(ev){
+      ev.stopPropagation();
+      thumb.remove();
+      photoUpdateCount(zone);
+      _siPersist({ photos: specialPhotoCapture() });
+      siUpdatePageCount();
+    };
+    var nm = document.createElement('div');
+    nm.className = 'pthumb-name';
+    nm.textContent = p.name || '';
+    thumb.appendChild(img); thumb.appendChild(del); thumb.appendChild(nm);
+    thumbs.appendChild(thumb);
+  });
+  photoUpdateCount(zone);
+  siUpdatePageCount();
+}
+function specialPhotoClear(){
+  var zone = document.getElementById('pzone-special'); if (!zone) return;
+  var thumbs = zone.querySelector('.pthumbs'); if (thumbs) thumbs.innerHTML = '';
+  var c = zone.querySelector('.pzone-count'); if (c) c.textContent = '';
+  var hint = zone.querySelector('.pzone-hint'); if (hint) hint.style.display = '';
+  var more = zone.querySelector('.pzone-add-more'); if (more) more.style.display = 'none';
+  zone.classList.remove('has-photos');
+}
+// §SPECIAL-IMAGES (v2.361) — the UI half of the Type-3 gate. A Type 1/2 order must not
+//   even see the block: an upload slot that quietly never prints is worse than no slot.
+//   The report half of the gate is independent (see the renderer), so hiding this cannot
+//   be the only thing standing between a Type 2 order and a special-images page.
+function siApplyTypeGate(order){
+  var el = document.getElementById('siBlock'); if (!el) return;
+  var t = (order && order.apprType) || 0;
+  el.style.display = (Number(t) === 3) ? '' : 'none';
+}
+
 
 
 
@@ -19540,6 +19755,8 @@ async function _photoEnsureAllUploaded(orderIdx){
         try { var m = key.match(/^zone(\d+)_(\d+)$/);
           if (m){ var zEl = document.getElementById('pzone-'+m[1]); if (zEl){ var th = zEl.querySelectorAll('.pthumb')[parseInt(m[2],10)]; if (th) th.dataset.photoStoragePath = path; } }
           else if (key === 'cover'){ var ct = document.querySelector('#pthumbs-cover .pthumb'); if (ct) ct.dataset.photoStoragePath = path; }
+          else { var ms = key.match(/^special_(\d+)$/);   // §SPECIAL-IMAGES (v2.361)
+            if (ms){ var sEl = document.getElementById('pzone-special'); if (sEl){ var sth = sEl.querySelectorAll('.pthumb')[parseInt(ms[1],10)]; if (sth) sth.dataset.photoStoragePath = path; } } }
         } catch(e){}
       }
     } catch(e) { _photoFail++; _photoFailMsg = (e && e.message) || String(e); try{ console.error('[photo upload] FAILED', key, _photoFailMsg); }catch(_x){} }
@@ -19556,11 +19773,19 @@ async function _photoEnsureAllUploaded(orderIdx){
     });
   }
   if (s10._coverPhoto && s10._coverPhoto.data && !s10._coverPhoto.storagePath) jobs.push(function(){ return _up(s10._coverPhoto, 'cover'); });
+  // §SPECIAL-IMAGES (v2.361) — same bucket, same per-order path shape (photos/<oid>/…),
+  //   so §PHOTO-ORDER-SAFETY's foreign-order path check keeps working on them too.
+  if (s10._specialPhotos){
+    (s10._specialPhotos || []).forEach(function(rec, si){
+      if (rec && rec.data && !rec.storagePath) jobs.push(function(){ return _up(rec, 'special_' + si); });
+    });
+  }
   if (!jobs.length) return;                       // nothing to upload — no requests
   try { await _runLimited(jobs, 4); } catch(e){}
   if (changed){
     try { var k='insp_'+oid+'_10', o={}; try{ o=JSON.parse(localStorage.getItem(k)||'{}')||{}; }catch(e){ o={}; }
       o._photos = s10._photos; if (s10._coverPhoto) o._coverPhoto = s10._coverPhoto; o._ts = Date.now();
+      if (s10._specialPhotos) o._specialPhotos = s10._specialPhotos;   // §SPECIAL-IMAGES (v2.361)
       _lsSet(k, JSON.stringify(o));
     } catch(e){}
   }
@@ -19613,12 +19838,18 @@ function _photoRehydrateInspect(oid){
     var s10 = ord.inspData.s10, photos = s10._photos || {}, cover = s10._coverPhoto || null, jobs = [], any = false;
     Object.keys(photos).forEach(function(z){ (photos[z]||[]).forEach(function(p){ if (p && p.storagePath && !p.data){ any = true; jobs.push(function(){ return _photoFetchData(p.storagePath).then(function(u){ if(u) p.data = u; }); }); } }); });
     if (cover && cover.storagePath && !cover.data){ any = true; jobs.push(function(){ return _photoFetchData(cover.storagePath).then(function(u){ if(u) cover.data = u; }); }); }
+    // §SPECIAL-IMAGES (v2.361) — Storage-only special images need the same background
+    //   rehydrate, or reopening the order on another device shows empty tiles.
+    var special = s10._specialPhotos || null;
+    if (special) special.forEach(function(p){ if (p && p.storagePath && !p.data){ any = true; jobs.push(function(){ return _photoFetchData(p.storagePath).then(function(u){ if(u) p.data = u; }); }); } });
     if (!any) return;
     _runLimited(jobs, 4).then(function(){
       try { var k='insp_'+oid+'_10', o={}; try{ o=JSON.parse(localStorage.getItem(k)||'{}')||{}; }catch(e){ o={}; }
-        o._photos = photos; if (cover) o._coverPhoto = cover; o._ts = Date.now(); _lsSet(k, JSON.stringify(o)); } catch(e){}
+        o._photos = photos; if (cover) o._coverPhoto = cover; if (special) o._specialPhotos = special; o._ts = Date.now(); _lsSet(k, JSON.stringify(o)); } catch(e){}
       // Repaint if still on this order's Photos section (photoRestoreAll clears first → no dupes).
       try { if (_inspOrderId === oid && typeof photoRestoreAll === 'function'){ var sec = document.getElementById('isec-10'); if (sec){ photoRestoreAll(photos); /* §COVER-SAFETY (v2.211) — always (re)paint the cover for the open order, even when it has none, so a prior order's thumbnail can't linger in the DOM */ if (typeof coverPhotoRestore === 'function') coverPhotoRestore(cover||null); } } } catch(e){}
+      // §SPECIAL-IMAGES (v2.361) — repaint the special zone too once its bytes land.
+      try { if (_inspOrderId === oid && special && typeof specialPhotoRestore === 'function') specialPhotoRestore(special); } catch(e){}
     }).catch(function(){});
   } catch(e){}
 }
@@ -20238,6 +20469,15 @@ function _inspCapture(secIdx) {
       var _prevCp = _prevOrd && _prevOrd.inspData && _prevOrd.inspData.s10 && _prevOrd.inspData.s10._coverPhoto;
       if (_prevCp) d._coverPhoto = _prevCp;
     }
+    // §SPECIAL-IMAGES (v2.361) — capture the special collection through the same
+    //   order-gated helper the zone photos use. undefined = the DOM belongs to another
+    //   order, so the order's already-saved images are preserved rather than wiped.
+    try{
+      var _sp = (typeof _specialCaptureForOrder === 'function') ? _specialCaptureForOrder(_inspOrderId) : undefined;
+      if (_sp !== undefined) d._specialPhotos = _sp;
+      var _spCfg = (typeof _siReadActiveConfig === 'function') ? _siReadActiveConfig() : null;
+      if (_spCfg) d._specialCfg = { rcSICols:_spCfg.cols, rcSIRows:_spCfg.rows, rcSIOrient:_spCfg.orient, rcSIPhotoSize:_spCfg.fit };
+    }catch(e){}
   }
 
   // Documents section (isec-11) — capture which docs are checked for report
@@ -20383,6 +20623,16 @@ function _inspApplySection(secIdx, d) {
     if (typeof _photoRehydrateInspect === 'function') _photoRehydrateInspect(typeof _inspOrderId !== 'undefined' ? _inspOrderId : '');
     // §RENAME (v1.991) — apply saved custom photo-zone header labels.
     if (typeof zoneLabelsApply === 'function') zoneLabelsApply(typeof _inspOrderId !== 'undefined' ? _inspOrderId : '');
+    // §SPECIAL-IMAGES (v2.361) — restore the special collection and its layout, and
+    //   re-apply the Type-3 gate: _inspRestore also runs when the lazy insp_data blob
+    //   lands AFTER openInsp, by which point the gate set on open may predate the
+    //   apprType this order actually has.
+    try{
+      if (typeof specialPhotoRestore === 'function') specialPhotoRestore(d._specialPhotos || []);
+      var _ordSI = (typeof ORDERS !== 'undefined') ? ORDERS.find(function(o){ return o.id === _inspOrderId; }) : null;
+      if (typeof siApplyTypeGate === 'function') siApplyTypeGate(_ordSI);
+      if (typeof siLoadConfig === 'function') siLoadConfig(_ordSI);
+    }catch(e){}
   }
 
   // Documents section (isec-11) — restore include checkboxes + file UI
@@ -20483,6 +20733,19 @@ function _inspStripPhotos(inspData) {
       });
     });
     clean.s10._photos = stripped;
+  }
+  // §SPECIAL-IMAGES (v2.361) — the special collection gets the SAME byte discipline as
+  //   the zone photos. This is not optional: base64 image bytes riding inside
+  //   orders.insp_data are what took the production database down on 2026-07-16
+  //   (§DOC-SERVER-STRIP). Once an image is in the Storage bucket, send the reference
+  //   only. §NO-LOSS (v2.054) still applies — an image with no storagePath has nowhere
+  //   else to live yet, so its bytes travel until the bucket upload succeeds.
+  if (clean.s10 && clean.s10._specialPhotos) {
+    clean.s10._specialPhotos = (clean.s10._specialPhotos || []).filter(Boolean).map(function(ph){
+      if (ph.storagePath) return {name:ph.name||'',label:ph.label||'',storagePath:ph.storagePath};
+      if (!ph.data)       return {name:ph.name||'',label:ph.label||'',_local:true};
+      return {name:ph.name||'',label:ph.label||'',data:ph.data};
+    });
   }
   // §COVER-PHOTO-SLOT (v1.907) — same server-side bytes cap applies to the
   //   dedicated cover photo. If it's small enough, send bytes; otherwise send
@@ -35830,6 +36093,32 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   unchanged; further pages get 'p9_2', 'p9_3', … purely so _pg() can resolve a number.
   function _csPageId(i){ return i===0 ? 'p8' : (i===1 ? 'p9' : 'p9_'+i); }
 
+  // §SPECIAL-IMAGES (v2.361) — precheck for the second, Type-3-only contact sheet, run
+  //   HERE for the same reason §CS-PRECHECK is: _pgList needs one slot per physical page
+  //   BEFORE it is built, or every page after the special sheet is numbered wrong and the
+  //   footers read '?'. For a Type 1/2 order — or a Type 3 order with no special images —
+  //   _siPagesPre stays 0, nothing is pushed, and the page list is byte-identical.
+  var _siIsT3    = (Number(order && order.apprType) === 3);
+  var _siPhotos  = [];
+  var _siPagesPre = 0;
+  var _siActive  = { cols:2, rows:2, orient:'landscape', fit:'contain' };
+  try {
+    if (_siIsT3){
+      if (typeof _siReadActiveConfig === 'function') _siActive = _siReadActiveConfig(order);
+      var _siRaw = (typeof _siPhotosForOrder === 'function') ? _siPhotosForOrder(order.id) : [];
+      // §PHOTO-ORDER-SAFETY (v2.156) — drop anything whose Storage path names a different
+      //   order before it can reach the page.
+      _siPhotos = (_siRaw || []).filter(function(pp){
+        if (!pp || !pp.data) return false;
+        if (typeof _assetForeignToOrder === 'function' && _assetForeignToOrder(pp, order.id)) return false;
+        return true;
+      });
+      var _siPerPre = (_siActive.cols * _siActive.rows) || 0;
+      _siPagesPre = (_siPerPre > 0) ? Math.ceil(_siPhotos.length / _siPerPre) : 0;
+    }
+  } catch(_siPreErr){ console.warn('[SPECIAL-IMAGES] precheck failed:', _siPreErr); _siPagesPre = 0; }
+  function _siPageId(i){ return 'psi' + i; }
+
   // ── §TPL-VARIANT (v1.853) — Layout-variant page-sequence selector ─────────────
   //  RC.rcTemplateVariant: 'T1' (default, current layout) or 'T2' (extended 14-page
   //  layout — adds dedicated Floorplan, Siteplan, Cadaster Inzage pages; reshuffles
@@ -35942,6 +36231,9 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false && RC.rcPagePhotos2!==false){
       for(var _csiT2=1; _csiT2<_csPagesPre; _csiT2++) _pgList.push(_csPageId(_csiT2));          // 11+
     }
+    // §SPECIAL-IMAGES (v2.361) — the special sheet follows the ordinary photo pages.
+    //   Zero iterations unless the order is Type 3 AND has special images.
+    for(var _siT2=0; _siT2<_siPagesPre; _siT2++) _pgList.push(_siPageId(_siT2));
     // §T2-AFTER-DOCS (v1.882) — pT2_floorplan, pT2_siteplan, and the cadaster
     //   page are intentionally NOT pushed to _pgList here. They render AFTER the
     //   attached-document sub-pages (whose count isn't known until the doc loop
@@ -35973,6 +36265,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false && RC.rcPagePhotos2!==false){
       for(var _csiT1=1; _csiT1<_csPagesPre; _csiT1++) _pgList.push(_csPageId(_csiT1));
     }
+    // §SPECIAL-IMAGES (v2.361) — same placement as the T2 branch above.
+    for(var _siT1=0; _siT1<_siPagesPre; _siT1++) _pgList.push(_siPageId(_siT1));
   }
   // §DEDPG (v1.882) — page-number tracker for the "after-attached-docs" pages
   //   whose actual page index can only be known once the doc loop completes.
@@ -36886,6 +37180,15 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
           desc:_rt('descOfficialCadastral') + _cadPgsT1 + _rfPages(_cadPgsT1)});
       }
     }
+    // §SPECIAL-IMAGES (v2.361) — one consolidated Index row, exactly as §CS-TOC (v1.880)
+    //   gives the ordinary contact sheet one row regardless of page count. Pushed, not
+    //   spliced into the literal above, so a non-Type-3 order's _tocEntries array is the
+    //   same array it has always been.
+    if (_siPagesPre > 0) {
+      _tocEntries.push({ n:'', id:_siPageId(0), title:'Special Images',
+        pg:_pg(_siPageId(0)),
+        desc:('Additional project images · consists of ' + _siPagesPre + _rfPages(_siPagesPre)) });
+    }
     // §SEC-ADDPAGE — Index rows for user-added overflow pages that carry sections, inserted right
     //   after Valuation (p6) so the numbering reads in order. Skip a page that only holds the moved
     //   Sign-Off (it already has its own row), to avoid a duplicate Index entry.
@@ -37303,6 +37606,31 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       + (sub?'<div class="sec-sub" style="margin-bottom:'+sp.smb+';">'+sub+'</div>':'')
       + '<div style="border:1px solid #d4c9b0;border-left:3px solid '+(accent||RC.rcAccentColor)+';padding:'+sp.pad+';">'+body+'</div>';
   }
+  // §HOA (v2.354) — the HOA Fees body: the dues figure over the appraiser's note.
+  //   BOTH parts are optional and an empty body renders NOTHING, exactly as R.O.P.V.
+  //   and Renovation Notes already do — an order that ticks the section on but types
+  //   nothing must not put a bare heading on a client document.
+  //   The amount is printed in AWG because every other figure on this report is; a
+  //   value that will not parse as a positive number is treated as absent rather than
+  //   printed raw, so a stray character can never reach the page as a fee.
+  function _hoaFeeBody(){
+    var _amtRaw=_secS12(['hoaFeeAmount']), _per=_secS12(['hoaFeePeriod']), _note=_secS12(['hoaFeeNote']);
+    var _esc=function(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var _n=parseFloat(String(_amtRaw).replace(/[^0-9.]/g,''));
+    var _amt=(_amtRaw&&!isNaN(_n)&&_n>0)
+      ? ('AWG '+_n.toLocaleString(undefined,{minimumFractionDigits:(_n%1?2:0),maximumFractionDigits:2}))
+      : '';
+    var _out='';
+    if(_amt){
+      _out+='<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;border:1px solid #d4c9b0;border-left:3px solid '+RC.rcAccentColor+';padding:5px 8px;margin-bottom:'+(_note?'6px':'0')+';">'
+        +'<span style="font-family:Sora,sans-serif;font-size:10.5px;font-weight:700;color:#1a2535;">'+_rt('hoaDuesLabel')+'</span>'
+        +'<span style="font-family:IBM Plex Mono,monospace;font-size:12px;font-weight:700;color:#0f0d0a;white-space:nowrap;">'+_amt
+        +(_per?' <span style="font-weight:500;color:#6a5a48;">'+_esc(_per)+'</span>':'')+'</span>'
+        +'</div>';
+    }
+    if(_note) _out+='<div class="rep-op">'+_opFmt(_note)+'</div>';
+    return _out;
+  }
   function _secS12(keys){ var d=(order.inspData&&order.inspData.s12)||{};
     try{var _l=localStorage.getItem('insp_'+order.id+'_12');if(_l)Object.assign(d,JSON.parse(_l));}catch(e){}
     for(var i=0;i<keys.length;i++){ var v=((d[keys[i]]||order[keys[i]]||'')+'').trim(); if(v) return v; } return ''; }
@@ -37548,6 +37876,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     buildingOpinion:function(){ var t=_secS12(['opBuildingText']); var _bs=(order.sectionSpacing&&order.sectionSpacing.buildingOpinion)||'compact'; var _bp=(_bs==='spacious'?'11px 12px':(_bs==='normal'?'6px 8px':'3px 6px')); return _secOpBox('Opinions of Building, Equipment &amp; Finishes','Based on on-site inspection data · materials · equipment · condition assessments', t?'<div class="rep-op">'+_opFmt(t)+'</div>':'<div style="font-size:9px;color:#aaa;font-style:italic;">'+_rt('noBuildingOpinion')+'</div>', RC.rcAccentColor, _bp); },
     locationOpinion:function(){ var t=_secS12(['opLocationText','locationOpinion']); return t?_secOpBox('Opinion of the Location','Neighbourhood · amenities · access · location quality','<div class="rep-op">'+_opFmt(t)+'</div>'):''; },
     ropv:           function(){ var t=_secS12(['opRopvText']); return t?_secOpBox('R.O.P.V. — Spatial Planning Regulations','Zoning · permitted use · spatial planning','<div class="rep-op">'+_opFmt(t)+'</div>'):''; },
+    hoaFees:        function(){ var b=_hoaFeeBody(); return b?_secOpBox(_rt('hoaFeesHeading'),_rt('subHoaFees'),b):''; },   // §HOA (v2.354)
     floorplan:      function(){ if(!_fpBlockCache) return ''; var _fs=_secSpace('floorplan'); return '<div style="margin-top:'+_fs.mt+';'+(_fs.lh?'line-height:'+_fs.lh+';':'')+'">'+_fpBlockCache+'</div>'; },
     location:       function(){ return _locBlockCache||''; },
     inspDetails:    function(){ return _inspBlockCache||''; },
@@ -38366,6 +38695,18 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
        ?'<div class="rep-op">'+_opFmt(_opRopv)+'</div>'
        :'<div style="font-size:10px;color:#aaa;font-style:italic;">'+_rt('noRopvData')+'</div>')
     +'</div>'))
+
+    /* §HOA (v2.354) — HOA Fees closes the Opinions run on page 5 for orders with no
+       custom layout (a custom one places it through _SEC_RENDER.hoaFees instead). Two
+       gates, both of which must pass: the order ticked Show-on-report, and something
+       was actually entered. Either one failing emits the empty string, so every order
+       that predates this section prints byte-identically. */
+    + (_secCustom ? '' : (_orderSecEnabled(order,'hoaFees') ? (function(){
+        var _hb=_hoaFeeBody(); if(!_hb) return '';
+        return '<div class="sec-h" style="margin-top:14px;">'+_rt('hoaFeesHeading')+'</div>'
+          +'<div class="sec-sub" style="margin-bottom:3px;">'+_rt('subHoaFees')+'</div>'
+          +_hb;
+      })() : ''))
 
     +'</div>'+pgFtr('p5')+'</div></div>';
   if(_secPgLive('p5')) html += _p5Html;   // §SEC-RMPAGE — a removed / section-less page 5 never emits a blank sheet
@@ -39193,6 +39534,62 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       var _csSlice = _allPh.slice(_csPg*_csPerPage, (_csPg+1)*_csPerPage);
       if(_csPg>0 && !_csSlice.length) break;
       html += _buildCSPage(_csSlice, _csPg, _totalCSPages, _allPh.length, _csPageId(_csPg));
+    }
+  }
+
+  // ── §SPECIAL-IMAGES (v2.361) — SPECIAL IMAGES SHEET (Type 3 only) ───────────
+  //   Deliberately OUTSIDE the rcPagePhotos1 block above: the page slots were pushed
+  //   into _pgList on _siPagesPre alone, so gating the render on a different condition
+  //   than the push would leave a numbered slot with no page behind it and shift every
+  //   footer after it. It reads its own layout through _siReadActiveConfig(order) — the
+  //   ordinary sheet's cols/rows/ratio/fit never reach this grid, which is the whole
+  //   point of the feature. Its own margins and page height are recomputed rather than
+  //   borrowed from the CS block, because those vars only exist when rcPagePhotos1 is on.
+  if (_siPagesPre > 0) {
+    var _siFit  = (_siActive.fit === 'contain') ? 'contain' : 'cover';
+    var _siARm  = {'landscape':'16/9','portrait':'4/3','square':'1/1','classic':'3/2'};
+    var _siPer  = _siActive.cols * _siActive.rows;
+    var _siML=RC.rcMarginLeft||18, _siMR=RC.rcMarginRight||18;
+    var _siMT=RC.rcMarginTop||20,  _siMB=RC.rcMarginBottom||8;
+    // §CS-FOOTER-CLEAR (v2.063) — same fixed page box + reserved footer band as the
+    //   ordinary contact sheet, so a full grid can never run under the footer.
+    var _siPageH = (RC.rcPageSize==='Letter') ? 279.4 : 297;
+    var _siFootReserve = Math.max((_siMB||8) + 14, 22);
+    for (var _siPg = 0; _siPg < _siPagesPre; _siPg++) {
+      var _siSlice = _siPhotos.slice(_siPg*_siPer, (_siPg+1)*_siPer);
+      if (!_siSlice.length) break;
+      var _siG = '<div style="display:grid;grid-template-columns:repeat('+_siActive.cols+',1fr);'
+        + 'grid-template-rows:repeat('+_siActive.rows+',1fr);gap:4px;flex:1;width:100%;min-height:0;">';
+      for (var _sc = 0; _sc < _siPer; _sc++) {
+        var _sp2 = _siSlice[_sc];
+        if (_sp2) {
+          _siG += '<div style="display:flex;flex-direction:column;overflow:hidden;border-radius:3px;border:1px solid #d4c9b0;min-height:0;min-width:0;">'
+            + '<div style="flex:1;position:relative;overflow:hidden;min-height:0;">'
+            + '<img src="'+(_sp2.data||'')+'" style="position:absolute;inset:0;width:100%;height:100%;'
+            + 'object-fit:'+_siFit+';object-position:center;display:block;">'
+            + '</div>'
+            + '<div style="flex:0 0 auto;font-size:7px;color:#8a7a6a;padding:2px 4px;font-family:monospace;'
+            + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#faf6ef;">'
+            + esc(_sp2.label||_sp2.name||('Image '+(_siPg*_siPer+_sc+1)))
+            + '</div></div>';
+        } else {
+          _siG += '<div style="background:#f5f0e8;border-radius:3px;border:1px dashed #d4c9b0;min-height:0;min-width:0;"></div>';
+        }
+      }
+      _siG += '</div>';
+      html += '<div class="page">'
+        + '<div style="box-sizing:border-box;height:'+_siPageH+'mm;overflow:hidden;padding:'+_siMT+'mm '+_siMR+'mm '+_siFootReserve+'mm '+_siML+'mm;display:flex;flex-direction:column;">'
+        + '<div class="sec-h"><span>Special Images</span></div>'
+        + '<div class="sec-sub">Page '+(_siPg+1)+' of '+_siPagesPre
+        + ' &nbsp;·&nbsp; '+((_siPg*_siPer)+1)+'-'+Math.min((_siPg+1)*_siPer,_siPhotos.length)+' of '+_siPhotos.length+' images</div>'
+        + _siG
+        + '<div style="position:absolute;bottom:12mm;left:'+_siML+'mm;right:'+_siMR+'mm;padding-top:4px;'
+        + ((RC&&RC.rcFooterLine!==false)?('border-top:'+((RC&&RC.rcFooterLineThickness!=null)?RC.rcFooterLineThickness:1)+'px solid '+((RC&&RC.rcFooterLineColor)?RC.rcFooterLineColor:'#d4c9b0')+';'):'')
+        + 'display:flex;justify-content:space-between;font-size:7px;color:#aaa;font-family:monospace;">'
+        + '<span>'+esc(order.id)+' · '+esc(RC.rcFooterText||'')+'  ·  '+_siActive.cols+' × '+_siActive.rows+'</span>'
+        + '</div>'
+        + pgNum(parseInt(_pg(_siPageId(_siPg)),10))
+        + '</div></div>';
     }
   }
 
@@ -45714,7 +46111,10 @@ function _clearAiSummary() {
       { id:'moCompDate',   opts:{} },
       { id:'eOrderDate',   opts:{} },
       { id:'eDue',         opts:{} },
-      { id:'eInspDate',    opts:{} },
+      // §INSP-TIME-PROMPT (v2.360) — picking the date is the moment the time is known,
+      //   so the picker asks for it there. Only THIS field: #inspDate on the Inspect Data
+      //   sign-off records when an inspection already happened and has no hour to agree.
+      { id:'eInspDate',    opts:{ onSelect:function(d){ try{ if(typeof _inspTimeAsk==='function') _inspTimeAsk(d); }catch(e){} } } },
       { id:'eReportDue',   opts:{} },
       { id:'inspDate',     opts:{} },
       { id:'acExpiry',     opts:{ minYear:2024, maxYear:2040 } },
@@ -50395,6 +50795,176 @@ function csLoadConfig() {
 }
 
 
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  §SPECIAL-IMAGES (v2.361) — the second, Type-3-only contact sheet        ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+//   Its own key, its own reader, its own capture/restore. Nothing here writes to
+//   CS_KEY or to s10._photos: the two sheets have to be able to disagree about
+//   cols/rows/ratio/fit, which is the entire point of the feature. §CS-READ-ACTIVE
+//   (v1.889) exists because four callers each picked the CS layout their own way
+//   and drifted apart; this mirrors its shape exactly so the same class of bug
+//   cannot start over here.
+var SIMG_KEY = 'appraisalSuite_siConfig_v1';
+var SI_DEFAULTS = { cols:2, rows:2, orient:'landscape', fit:'contain' };
+
+// §SPECIAL-IMAGES (v2.361) — the per-order record. localStorage is only a fast path;
+//   the DURABLE home is the order's insp_data (s10._specialCfg / s10._specialPhotos),
+//   which is what makes the layout follow the order to another browser or device
+//   instead of living in one machine's localStorage the way the CS config does.
+function _siOrderRec(oid){
+  var out = {};
+  try {
+    var ord = (typeof ORDERS !== 'undefined') ? ORDERS.find(function(o){ return o.id === oid; }) : null;
+    var d = (ord && ord.inspData && ord.inspData.s10) || {};
+    if (d._specialCfg)    out.cfg    = d._specialCfg;
+    if (d._specialPhotos) out.photos = d._specialPhotos;
+  } catch(e){}
+  try {
+    var ls = JSON.parse(localStorage.getItem('insp_' + oid + '_10') || '{}') || {};
+    if (ls._specialCfg)    out.cfg    = ls._specialCfg;
+    if (ls._specialPhotos) out.photos = ls._specialPhotos;
+  } catch(e){}
+  return out;
+}
+
+// §SPECIAL-IMAGES (v2.361) — SINGLE source of truth for the special-sheet layout, in
+//   the same priority order §CS-READ-ACTIVE uses, with the per-order DB record ahead
+//   of everything because that is the copy that travels. Takes the order it is being
+//   asked about: the report renders an order that is NOT necessarily the one open in
+//   Inspect Data, and reading the open order's layout there would print the wrong grid.
+function _siReadActiveConfig(order){
+  var oid = order ? order.id : ((typeof _inspOrderId !== 'undefined' && _inspOrderId) || (typeof currentOrderId === 'function' ? currentOrderId() : ''));
+  var rec = oid ? (_siOrderRec(oid).cfg || {}) : {};
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SIMG_KEY) || '{}') || {}; } catch(e){}
+  var cs = document.getElementById('siColsSel');
+  var rs = document.getElementById('siRowsSel');
+  var os = document.getElementById('siOrientSel');
+  var ps = document.getElementById('siPhotoSizeSel');
+  return {
+    cols:   parseInt(rec.rcSICols)   || parseInt(saved.rcSICols)   || parseInt(cs && cs.value) || SI_DEFAULTS.cols,
+    rows:   parseInt(rec.rcSIRows)   || parseInt(saved.rcSIRows)   || parseInt(rs && rs.value) || SI_DEFAULTS.rows,
+    orient: rec.rcSIOrient           || saved.rcSIOrient           || (os && os.value)         || SI_DEFAULTS.orient,
+    fit:    rec.rcSIPhotoSize        || saved.rcSIPhotoSize        || (ps && ps.value)         || SI_DEFAULTS.fit
+  };
+}
+
+// §SPECIAL-IMAGES (v2.361) — write the layout to BOTH homes on every change. Writing
+//   only localStorage would reproduce the CS config's weakness (a layout that exists on
+//   one machine only); writing only the DB would lose the setting for a user who changes
+//   it before the order has ever been saved.
+function siConfigSave(){
+  var c = document.getElementById('siColsSel');
+  var r = document.getElementById('siRowsSel');
+  var o = document.getElementById('siOrientSel');
+  var f = document.getElementById('siPhotoSizeSel');
+  var cfg = {
+    rcSICols:      parseInt(c && c.value) || SI_DEFAULTS.cols,
+    rcSIRows:      parseInt(r && r.value) || SI_DEFAULTS.rows,
+    rcSIOrient:    (o && o.value) || SI_DEFAULTS.orient,
+    rcSIPhotoSize: (f && f.value) || SI_DEFAULTS.fit
+  };
+  try { localStorage.setItem(SIMG_KEY, JSON.stringify(cfg)); } catch(e){}
+  _siPersist({ cfg: cfg });
+  siUpdatePageCount();
+}
+
+// §SPECIAL-IMAGES (v2.361) — one choke point for every write into the order's record,
+//   so the in-memory mirror, the localStorage section record and the debounced Supabase
+//   save can never hold three different answers. Mirrors what the Photos section already
+//   does for _photos / _coverPhoto.
+function _siPersist(patch){
+  var oid = (typeof _inspOrderId !== 'undefined' && _inspOrderId) || '';
+  if (!oid) return;
+  try {
+    var ord = (typeof ORDERS !== 'undefined') ? ORDERS.find(function(o){ return o.id === oid; }) : null;
+    if (ord){
+      if (!ord.inspData) ord.inspData = {};
+      if (!ord.inspData.s10) ord.inspData.s10 = {};
+      if (patch.cfg)    ord.inspData.s10._specialCfg    = patch.cfg;
+      if (patch.photos) ord.inspData.s10._specialPhotos = patch.photos;
+    }
+  } catch(e){}
+  try {
+    var k = 'insp_' + oid + '_10', d = {};
+    try { d = JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch(e){ d = {}; }
+    if (patch.cfg)    d._specialCfg    = patch.cfg;
+    if (patch.photos) d._specialPhotos = patch.photos;
+    d._ts = Date.now();
+    if (typeof _lsSet === 'function') _lsSet(k, JSON.stringify(d));
+    else localStorage.setItem(k, JSON.stringify(d));
+  } catch(e){}
+  try { if (typeof _inspOnChange === 'function') _inspOnChange(); } catch(e){}
+}
+
+// Push the resolved layout back onto the four selects, so what is on screen and what
+//   the report will use are the same thing. Mirrors csLoadConfig().
+function siLoadConfig(order){
+  var a = _siReadActiveConfig(order);
+  var c = document.getElementById('siColsSel');
+  var r = document.getElementById('siRowsSel');
+  var o = document.getElementById('siOrientSel');
+  var f = document.getElementById('siPhotoSizeSel');
+  if (c) c.value = String(a.cols);
+  if (r) r.value = String(a.rows);
+  if (o) o.value = a.orient;
+  if (f) f.value = a.fit;
+  siUpdatePageCount();
+}
+
+// §SPECIAL-IMAGES (v2.361) — its own preview, mirroring openContactSheetPreview, so the
+//   layout can be checked without generating the whole report. Reads the SAME
+//   _siReadActiveConfig the report reads, so preview and print can never disagree —
+//   the drift §CS-READ-ACTIVE was created to stop.
+function openSpecialSheetPreview(){
+  var oid = (typeof currentOrderId === 'function' ? currentOrderId() : '') || (typeof _inspOrderId !== 'undefined' ? _inspOrderId : '');
+  if (!oid) { alert('Please open an order first.'); return; }
+  var ord = (typeof ORDERS !== 'undefined') ? ORDERS.find(function(o){ return o.id === oid; }) : null;
+  if (Number(ord && ord.apprType) !== 3) { alert('Special Images print on Type 3 (New Construction) reports only.'); return; }
+  var a = _siReadActiveConfig(ord);
+  var all = _siPhotosForOrder(oid).filter(function(p){ return p && p.data; });
+  if (!all.length) { alert('No special images yet. Add them in Inspect Data, Photos, Special Images.'); return; }
+  var per = (a.cols * a.rows) || 1;
+  var arMap = {'landscape':'16/9','portrait':'4/3','square':'1/1','classic':'3/2'};
+  var fit = (a.fit === 'contain') ? 'contain' : 'cover';
+  var pages = [];
+  for (var i = 0; i < all.length; i += per) pages.push(all.slice(i, i + per));
+  var body = '';
+  pages.forEach(function(pg, pi){
+    var g = '<div class="grid">';
+    for (var c = 0; c < per; c++){
+      var ph = pg[c];
+      g += ph
+        ? ('<div class="cell"><div class="imgwrap"><img src="' + ph.data + '"></div><div class="cap">' + ((ph.label || ph.name || '') + '') + '</div></div>')
+        : '<div class="cell empty"></div>';
+    }
+    g += '</div>';
+    body += '<div class="sheet"><h2>Special Images</h2><div class="sub">Page ' + (pi+1) + ' of ' + pages.length + ' &middot; ' + a.cols + ' x ' + a.rows + ' &middot; ' + a.orient + ' &middot; ' + a.fit + '</div>' + g + '</div>';
+  });
+  var css = 'body{background:#555;margin:0;padding:14px;font-family:system-ui,sans-serif;}'
+    + '.sheet{width:210mm;height:297mm;background:#fff;margin:0 auto 14px;padding:18mm;box-sizing:border-box;display:flex;flex-direction:column;}'
+    + 'h2{font-size:15px;margin:0 0 2px;} .sub{font-size:10px;color:#8a7a6a;margin-bottom:8px;}'
+    + '.grid{display:grid;grid-template-columns:repeat(' + a.cols + ',1fr);grid-template-rows:repeat(' + a.rows + ',1fr);gap:4px;flex:1;min-height:0;}'
+    + '.cell{display:flex;flex-direction:column;border:1px solid #d4c9b0;border-radius:3px;overflow:hidden;min-height:0;min-width:0;}'
+    + '.cell.empty{background:#f5f0e8;border-style:dashed;}'
+    + '.imgwrap{flex:1;position:relative;overflow:hidden;min-height:0;}'
+    + '.imgwrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:' + fit + ';object-position:center;aspect-ratio:' + (arMap[a.orient] || '4/3') + ';}'
+    + '.cap{flex:0 0 auto;font-size:7px;color:#8a7a6a;padding:2px 4px;font-family:monospace;background:#faf6ef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}';
+  var w = window.open('', '_blank');
+  if (!w) { alert('The preview was blocked by the browser popup blocker.'); return; }
+  w.document.write('<!doctype html><html><head><title>Special Images - ' + oid + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
+  w.document.close();
+}
+
+function siUpdatePageCount(){
+  var el = document.getElementById('siPageCount'); if (!el) return;
+  var a = _siReadActiveConfig();
+  var per = (a.cols * a.rows) || 1;
+  var n = _siPhotosForOrder((typeof _inspOrderId !== 'undefined' && _inspOrderId) || '').length;
+  el.textContent = n ? (n + ' image' + (n===1?'':'s') + ' - ' + Math.ceil(n/per) + ' page' + (Math.ceil(n/per)===1?'':'s') + ' at ' + a.cols + ' x ' + a.rows) : '';
+}
+
+
 function rcSave(notify) {
   document.querySelectorAll('#pref-report-custom .rc-tgl-cb').forEach(function(cb){
     var tr=document.getElementById(cb.id+"Track");
@@ -51939,6 +52509,184 @@ function calNewInspSave(){
   try{ if(typeof calRender==='function') calRender(); }catch(e){}
 }
 window.calNewInspection=calNewInspection; window.calNewInspSave=calNewInspSave;
+
+// ── §INSP-TIME-PROMPT (v2.360) — ask for the time the moment a date is picked ──
+//   An inspection date set from Project Data used to land on the Calendar with no
+//   time at all, so it fell into the 8am catch-all slot in calRender() and read as a
+//   real 8 o'clock appointment that nobody had agreed to. The date is the moment the
+//   time is actually known, so it is asked for THERE rather than left to be noticed
+//   later on a calendar that was already showing a wrong hour.
+//   "Select Later" is a first-class answer, not a cancel: the date is kept, the time
+//   is deliberately left empty, and the Calendar item can be edited when the hour is
+//   agreed. Written through the SAME fields and the SAME save as qvScheduleSave()
+//   (§QV-SCHEDULE v2.162) — inspDate/inspTime on the order, persistOrders() for the
+//   durable write, calRender() to refresh — so a time set here and a time set on the
+//   Calendar are indistinguishable afterwards.
+function _inspTimeAsk(dateStr){
+  // dpInit calls onSelect('') for Clear. Clearing a date is not a scheduling event,
+  //   and prompting for the time of an inspection that no longer has a day would be
+  //   nonsense, so it is the one selection that must NOT open this.
+  if(!dateStr) return;
+  var ord = (typeof editingOrder !== 'undefined' && editingOrder) ? editingOrder : null;
+  if(!ord) return;
+
+  function _e(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  var ov = document.getElementById('inspTimeOverlay'); if(ov) ov.remove();
+
+  ov = document.createElement('div'); ov.id='inspTimeOverlay';
+  // Above the Project Data modal it is raised from, or it would open behind it.
+  ov.style.cssText='position:fixed;inset:0;z-index:2147483000;background:rgba(8,9,12,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  var fld='width:100%;padding:9px 11px;border:1.5px solid var(--border,#e0d8c8);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface,#fff);color:var(--ink,#0f0d0a);box-sizing:border-box;';
+  var lbl='font-size:11.5px;font-weight:700;color:var(--ink,#0f0d0a);display:block;margin-bottom:5px;';
+  var propLine=_e(ord.id)+(ord.address?(' — '+_e(ord.address)):'')+(ord.city?(', '+_e(ord.city)):'');
+
+  ov.innerHTML='<div style="background:var(--paper,#fff);border-radius:14px;max-width:430px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;">'
+    +'<div style="padding:16px 20px;border-bottom:1px solid var(--border,#e0d8c8);">'
+      +'<div style="font-family:Sora,sans-serif;font-weight:800;font-size:16px;color:var(--ink,#0f0d0a);">⏰ Time of inspection</div>'
+      +'<div style="font-size:12px;color:var(--slate-lt,#6b6257);margin-top:3px;">'+propLine+'</div>'
+    +'</div>'
+    +'<div style="padding:18px 20px;">'
+      +'<div style="font-size:12.5px;color:var(--ink,#0f0d0a);line-height:1.6;margin-bottom:13px;">Inspection set for <b>'+_e(dateStr)+'</b>. What time has been requested?</div>'
+      +'<label style="'+lbl+'">Requested time</label>'
+      +'<div id="inspTimeGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:11px;">'+_inspTimeSlots(ord.inspTime||'')+'</div>'
+      +'<label style="'+lbl+'">Another time</label>'
+      +'<input type="time" id="inspTimeVal" value="'+_e(ord.inspTime||'')+'" style="'+fld+'" oninput="_inspTimeSyncGrid()">'
+      +'<div style="font-size:11px;color:var(--slate-lt,#6b6257);margin-top:9px;line-height:1.55;">If the hour has not been agreed yet, choose <b>Select Later</b> — the date is kept and you can set the time by editing the item on the Inspection Calendar.</div>'
+      +'<div id="inspTimeMsg" style="font-size:11px;color:#b4231f;margin-top:8px;min-height:14px;"></div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border,#e0d8c8);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">'
+      +'<button class="btn-out" id="inspTimeLaterBtn" onclick="_inspTimeLater()">Select Later</button>'
+      +'<button class="btn-pri" id="inspTimeSaveBtn" onclick="_inspTimeSave()">Set time</button>'
+    +'</div>'
+  +'</div>';
+
+  // Escape and a click on the backdrop both mean "not now" rather than "undo": the
+  //   date has already been written to the field by the picker, so there is nothing
+  //   to cancel back to. Both therefore take the Define-later path, which says out
+  //   loud that no time was set instead of closing silently.
+  ov.onclick=function(e){ if(e.target===ov) _inspTimeLater(); };
+  ov._inspKey=function(e){
+    if(e.key==='Escape'){ e.preventDefault(); _inspTimeLater(); }
+  };
+  document.addEventListener('keydown', ov._inspKey, true);
+
+  ov._inspDate = dateStr;
+  ov._inspOid  = ord.id;
+  document.body.appendChild(ov);
+
+  var t=document.getElementById('inspTimeVal');
+  if(t){
+    t.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); _inspTimeSave(); } };
+    setTimeout(function(){ try{ t.focus(); }catch(e){} },80);
+  }
+}
+
+// §INSP-TIME-VISUAL (v2.362) — a bare <input type="time"> is a typing task, and on a
+//   touch screen it is a spinner nobody wants to fight at the end of picking a date.
+//   Inspections are booked on the half hour inside a working day, so the common answers
+//   are offered as one tap each and the free input stays underneath for anything else.
+//   The two are kept in step by _inspTimeSyncGrid(), so there is exactly ONE answer on
+//   screen at any moment — a highlighted slot that disagreed with the box underneath it
+//   would leave the user unsure which one Set time was about to write.
+var INSP_TIME_SLOTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
+                       '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
+                       '16:00','16:30','17:00','17:30'];
+function _inspTimeLabel(hhmm){
+  var m=String(hhmm||'').match(/^(\d{1,2}):(\d{2})/); if(!m) return String(hhmm||'');
+  var h=parseInt(m[1],10), ap=(h<12?'AM':'PM'), h12=(h%12)||12;
+  return h12+':'+m[2]+' '+ap;
+}
+function _inspTimeSlots(sel){
+  var on='background:var(--au,#c49740);border-color:var(--au,#c49740);color:#fff;font-weight:800;';
+  var off='background:var(--surface,#fff);border-color:var(--border,#e0d8c8);color:var(--ink,#0f0d0a);font-weight:600;';
+  return INSP_TIME_SLOTS.map(function(t){
+    var is=(String(sel||'').slice(0,5)===t);
+    return '<button type="button" class="insp-slot" data-t="'+t+'" onclick="_inspTimePick(this)" '
+         + 'style="padding:8px 4px;border:1.5px solid;border-radius:8px;font-family:inherit;font-size:12px;cursor:pointer;'+(is?on:off)+'">'
+         + _inspTimeLabel(t)+'</button>';
+  }).join('');
+}
+// A slot tap fills the free input too, so Set time has one place to read from.
+function _inspTimePick(t){
+  // Takes the button, not a quoted string: building an inline onclick that carries a
+  //   quoted argument means nesting quotes inside an HTML attribute inside a JS string,
+  //   which is exactly the kind of escaping that silently degrades and breaks the file.
+  if(t && t.getAttribute) t = t.getAttribute('data-t');
+  var el=document.getElementById('inspTimeVal'); if(el) el.value=t;
+  _inspTimeSyncGrid();
+  var m=document.getElementById('inspTimeMsg'); if(m) m.textContent='';
+}
+// Typing a time that happens to be a slot lights that slot; anything else clears them all.
+function _inspTimeSyncGrid(){
+  var el=document.getElementById('inspTimeVal'); var cur=el?String(el.value||'').slice(0,5):'';
+  var g=document.getElementById('inspTimeGrid'); if(!g) return;
+  var btns=g.querySelectorAll('.insp-slot');
+  for(var i=0;i<btns.length;i++){
+    var is=(btns[i].getAttribute('data-t')===cur);
+    btns[i].style.background  = is?'var(--au,#c49740)':'var(--surface,#fff)';
+    btns[i].style.borderColor = is?'var(--au,#c49740)':'var(--border,#e0d8c8)';
+    btns[i].style.color       = is?'#fff':'var(--ink,#0f0d0a)';
+    btns[i].style.fontWeight  = is?'800':'600';
+  }
+}
+
+function _inspTimeClose(){
+  var ov=document.getElementById('inspTimeOverlay');
+  if(!ov) return null;
+  try{ document.removeEventListener('keydown', ov._inspKey, true); }catch(e){}
+  var info={ date:ov._inspDate||'', oid:ov._inspOid||'' };
+  ov.remove();
+  return info;
+}
+
+// §INSP-TIME-PROMPT (v2.360) — the durable write. Deliberately the same three steps
+//   qvScheduleSave() takes, in the same order: the order object first, persistOrders()
+//   for the server, then the views. Doing it any other way would leave a time that the
+//   Calendar shows but the database has never heard of.
+function _inspTimeCommit(oid, dateStr, time){
+  var ord=null;
+  try{ ord=(typeof ORDERS!=='undefined'&&ORDERS)?ORDERS.find(function(o){return o.id===oid;}):null; }catch(e){}
+  if(!ord && typeof editingOrder!=='undefined' && editingOrder && editingOrder.id===oid) ord=editingOrder;
+  if(!ord) return false;
+  ord.inspDate = dateStr || ord.inspDate || '';
+  ord.inspTime = time || '';
+  try{ if(typeof persistOrders==='function') persistOrders(oid); }catch(e){}
+  try{ if(typeof calRender==='function') calRender(); }catch(e){}
+  try{ if(typeof filterOrders==='function') filterOrders(); else if(typeof renderOrders==='function') renderOrders(); }catch(e){}
+  // The Project Data form is what the user is looking at; keep its local snapshot in
+  //   step so closing the modal cannot roll the date back to the pre-pick value.
+  try{ if(typeof _editLocalSave==='function' && typeof editingOrder!=='undefined' && editingOrder) _editLocalSave(); }catch(e){}
+  return true;
+}
+
+function _inspTimeSave(){
+  var t=document.getElementById('inspTimeVal');
+  var time=t?String(t.value||'').trim():'';
+  if(!time){
+    // An empty box is not an answer. Select Later is, and it is one button away.
+    var m=document.getElementById('inspTimeMsg');
+    if(m) m.textContent='Pick a time above, or choose Select Later.';
+    return;
+  }
+  var info=_inspTimeClose(); if(!info) return;
+  _inspTimeCommit(info.oid, info.date, time);
+  try{ if(typeof _editToast==='function') _editToast('✓ Inspection '+info.date+' at '+time); }catch(e){}
+  try{ if(typeof appLog==='function') appLog('ACTION','ORDER','Inspection time set on '+info.oid+' — '+info.date+' '+time); }catch(e){}
+}
+
+function _inspTimeLater(){
+  var info=_inspTimeClose(); if(!info) return;
+  // The time is cleared, not left as it was: a time carried over from a DIFFERENT date
+  //   is worse than no time, because it looks agreed. The toast says so out loud so a
+  //   previously-set hour cannot disappear quietly.
+  _inspTimeCommit(info.oid, info.date, '');
+  try{ if(typeof _editToast==='function') _editToast('✓ Inspection '+info.date+' — no time yet. Set it on the Inspection Calendar.'); }catch(e){}
+  try{ if(typeof appLog==='function') appLog('ACTION','ORDER','Inspection date set on '+info.oid+' — '+info.date+', time deferred'); }catch(e){}
+}
+
+window._inspTimeAsk=_inspTimeAsk; window._inspTimeSave=_inspTimeSave; window._inspTimeLater=_inspTimeLater;
+window._inspTimePick=_inspTimePick; window._inspTimeSyncGrid=_inspTimeSyncGrid; window._inspTimeSlots=_inspTimeSlots; window._inspTimeLabel=_inspTimeLabel;
 
 // §QV-SCHEDULE (v2.162) — "Schedule Inspection" from QuickView. Sets the order's
 // inspDate/inspTime/inspAssignee (the SAME fields the Calendar reads via calGetEvents),
