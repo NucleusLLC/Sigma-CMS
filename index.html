@@ -11025,6 +11025,16 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
           </label>
         </div>
 
+        <!-- §SI-TITLE (v2.363) — what this sheet is CALLED on the report. Type 3 jobs
+             carry different kinds of extra imagery (renderings, visualisations, site
+             progress), and printing them all under one generic heading made the report
+             say less than the appraiser knew. Blank = the default heading. -->
+        <div style="margin:14px 0 4px;">
+          <label style="font-size:11px;display:block;margin-bottom:4px;color:var(--ink);">Name of this image set <span style="color:var(--muted,#8a7a6a);font-weight:400;">— printed as the heading on the report</span></label>
+          <input type="text" id="siTitleInput" oninput="siConfigSave()" maxlength="60" placeholder="Special Images" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface-2,#2a2a2c);color:var(--ink);box-sizing:border-box;">
+          <div style="font-size:10px;color:var(--muted,#8a7a6a);margin-top:4px;">e.g. Renderings, Visualizations, Site Progress. Leave empty to print &ldquo;Special Images&rdquo;.</div>
+        </div>
+
         <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted,#8a7a6a);margin:14px 0 10px;">&#128203; Special Images Sheet Configuration</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
           <div>
@@ -17211,7 +17221,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.362';
+var APP_VERSION = 'v2.363';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17249,6 +17259,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.363',type:'feature',date:'08-29-2026',ts:'08-29-2026 14:00',_static:true,title:'Special Images can now be given their own name on the report',desc:'The Special Images sheet no longer has to be called “Special Images”. In Inspect Data › Photos there is a new box for the name of the image set — Renderings, Visualizations, Site Progress, whatever the set actually is — and that name is what prints as the heading on the sheet and what appears in the report Index. The name belongs to the job order, so naming one order’s set does not rename anybody else’s. Leave the box empty and the sheet prints “Special Images” as before.'},
   {v:'v2.362',type:'feature',date:'08-29-2026',ts:'08-29-2026 13:00',_static:true,title:'Choosing the inspection time is now a set of buttons, not a typing box',desc:'When you set an inspection date, the time question now shows the working day as tappable half-hour slots from 8:00 AM to 5:30 PM — one tap and the time is set. An “Another time” box sits underneath for anything outside those hours, and a time typed there lights up its matching slot so only one answer is ever showing. The button that leaves the time open is now called “Select Later”: the date is kept and the hour can be set later by editing the item on the Inspection Calendar.'},
   {v:'v2.361',type:'feature',date:'08-29-2026',ts:'08-29-2026 11:00',_static:true,title:'Special Images — a second photo sheet with its own layout, for New Construction reports',desc:'Inspect Data › Photos now has a SPECIAL IMAGES area underneath the usual contact sheet settings. Drop images in there and they print on their own pages at the end of the photo section, with their own columns, rows per page, photo ratio and photo fit — completely separate from the ordinary photos, so the two sheets can look nothing alike. It has its own preview button, and the Index gains a Special Images row. The layout you choose is stored with the order itself, not just in this browser, so it follows the order to another computer. This appears on Type 3 (New Construction) orders only — Type 1 and Type 2 reports are completely unaffected.'},
   {v:'v2.360',type:'feature',date:'08-29-2026',ts:'08-29-2026 11:00',_static:true,title:'Setting an inspection date now asks for the time straight away',desc:'On a job order, the moment you pick the Inspection Date under Project Data you are asked what time has been requested. If the hour has not been agreed yet, choose “Define later” — the date is kept, no time is recorded, and you can set the hour afterwards by opening the item on the Inspection Calendar. Until now a date set here reached the Calendar with no time at all and was drawn in the 8am slot, which read as an 8 o’clock appointment nobody had agreed to. Changing the date asks again, already filled in with the time you had, because the time usually moves with the day. A time set this way is saved exactly like one set on the Calendar itself and shows there immediately.'},
@@ -37185,7 +37196,12 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   spliced into the literal above, so a non-Type-3 order's _tocEntries array is the
     //   same array it has always been.
     if (_siPagesPre > 0) {
-      _tocEntries.push({ n:'', id:_siPageId(0), title:'Special Images',
+      // §SI-TITLE (v2.363) — the Index must call the sheet what the sheet calls itself,
+      //   or the reader is sent to a page that does not carry the name they looked up.
+      //   Escaped HERE rather than in the shared row builder: every other te.title is an
+      //   _rt() key or a literal, and escaping them all could change output that has been
+      //   stable for versions. This is the only row carrying free text a user typed.
+      _tocEntries.push({ n:'', id:_siPageId(0), title:_siEscTitle(_siTitleOf(_siActive)),
         pg:_pg(_siPageId(0)),
         desc:('Additional project images · consists of ' + _siPagesPre + _rfPages(_siPagesPre)) });
     }
@@ -39579,7 +39595,9 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       _siG += '</div>';
       html += '<div class="page">'
         + '<div style="box-sizing:border-box;height:'+_siPageH+'mm;overflow:hidden;padding:'+_siMT+'mm '+_siMR+'mm '+_siFootReserve+'mm '+_siML+'mm;display:flex;flex-direction:column;">'
-        + '<div class="sec-h"><span>Special Images</span></div>'
+        // §SI-TITLE (v2.363) — the order's own name for this set, escaped: it is free text
+        //   typed by a user and goes straight into the report markup.
+        + '<div class="sec-h"><span>'+esc(_siTitleOf(_siActive))+'</span></div>'
         + '<div class="sec-sub">Page '+(_siPg+1)+' of '+_siPagesPre
         + ' &nbsp;·&nbsp; '+((_siPg*_siPer)+1)+'-'+Math.min((_siPg+1)*_siPer,_siPhotos.length)+' of '+_siPhotos.length+' images</div>'
         + _siG
@@ -50805,7 +50823,22 @@ function csLoadConfig() {
 //   and drifted apart; this mirrors its shape exactly so the same class of bug
 //   cannot start over here.
 var SIMG_KEY = 'appraisalSuite_siConfig_v1';
-var SI_DEFAULTS = { cols:2, rows:2, orient:'landscape', fit:'contain' };
+var SI_DEFAULTS = { cols:2, rows:2, orient:'landscape', fit:'contain', title:'Special Images' };
+// §SI-TITLE (v2.363) — the heading this sheet prints under. Kept in the SAME per-order
+//   record as the layout, so a sheet called "Renderings" on one order cannot rename the
+//   sheet on every other order the way a bare localStorage setting would.
+function _siTitleOf(a){
+  var t = String((a && a.title) || '').trim();
+  return t || SI_DEFAULTS.title;
+}
+// §SI-TITLE (v2.363) — the image-set name is the only free text a user types that reaches
+//   the report's markup, the report's Index and a document.write() preview window. One
+//   escaper, exported, so no call site has to remember to write its own.
+function _siEscTitle(t){
+  return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // §SPECIAL-IMAGES (v2.361) — the per-order record. localStorage is only a fast path;
 //   the DURABLE home is the order's insp_data (s10._specialCfg / s10._specialPhotos),
@@ -50841,11 +50874,18 @@ function _siReadActiveConfig(order){
   var rs = document.getElementById('siRowsSel');
   var os = document.getElementById('siOrientSel');
   var ps = document.getElementById('siPhotoSizeSel');
+  var ts = document.getElementById('siTitleInput');
   return {
     cols:   parseInt(rec.rcSICols)   || parseInt(saved.rcSICols)   || parseInt(cs && cs.value) || SI_DEFAULTS.cols,
     rows:   parseInt(rec.rcSIRows)   || parseInt(saved.rcSIRows)   || parseInt(rs && rs.value) || SI_DEFAULTS.rows,
     orient: rec.rcSIOrient           || saved.rcSIOrient           || (os && os.value)         || SI_DEFAULTS.orient,
-    fit:    rec.rcSIPhotoSize        || saved.rcSIPhotoSize        || (ps && ps.value)         || SI_DEFAULTS.fit
+    fit:    rec.rcSIPhotoSize        || saved.rcSIPhotoSize        || (ps && ps.value)         || SI_DEFAULTS.fit,
+    // §SI-TITLE (v2.363) — the per-order name. A blank is a real answer ("use the
+    //   default"), so it must not fall through to a stale localStorage title; only an
+    //   ABSENT key does. Hence the hasOwnProperty test rather than a || chain.
+    title:  (rec.hasOwnProperty('rcSITitle') ? rec.rcSITitle
+           : (saved.hasOwnProperty('rcSITitle') ? saved.rcSITitle
+           : ((ts && ts.value) || SI_DEFAULTS.title)))
   };
 }
 
@@ -50858,11 +50898,15 @@ function siConfigSave(){
   var r = document.getElementById('siRowsSel');
   var o = document.getElementById('siOrientSel');
   var f = document.getElementById('siPhotoSizeSel');
+  var t = document.getElementById('siTitleInput');
   var cfg = {
     rcSICols:      parseInt(c && c.value) || SI_DEFAULTS.cols,
     rcSIRows:      parseInt(r && r.value) || SI_DEFAULTS.rows,
     rcSIOrient:    (o && o.value) || SI_DEFAULTS.orient,
-    rcSIPhotoSize: (f && f.value) || SI_DEFAULTS.fit
+    rcSIPhotoSize: (f && f.value) || SI_DEFAULTS.fit,
+    // §SI-TITLE (v2.363) — stored trimmed and verbatim, including empty. Emptying the box
+    //   is how a user asks for the default heading back, so it is written, not skipped.
+    rcSITitle:     String((t && t.value) || '').trim()
   };
   try { localStorage.setItem(SIMG_KEY, JSON.stringify(cfg)); } catch(e){}
   _siPersist({ cfg: cfg });
@@ -50909,6 +50953,11 @@ function siLoadConfig(order){
   if (r) r.value = String(a.rows);
   if (o) o.value = a.orient;
   if (f) f.value = a.fit;
+  // §SI-TITLE (v2.363) — the box shows the order's own name, or is left empty when the
+  //   order has none. Pre-filling it with the default word would turn "no name chosen"
+  //   into a name the user never typed, and the next save would store it as one.
+  var t = document.getElementById('siTitleInput');
+  if (t) t.value = (a.title === SI_DEFAULTS.title) ? '' : String(a.title || '');
   siUpdatePageCount();
 }
 
@@ -50922,6 +50971,10 @@ function openSpecialSheetPreview(){
   var ord = (typeof ORDERS !== 'undefined') ? ORDERS.find(function(o){ return o.id === oid; }) : null;
   if (Number(ord && ord.apprType) !== 3) { alert('Special Images print on Type 3 (New Construction) reports only.'); return; }
   var a = _siReadActiveConfig(ord);
+  // §SI-TITLE (v2.363) — escaped once here and reused, so the preview cannot be the one
+  //   place a typed name reaches markup raw. The preview window is written with
+  //   document.write, which would execute anything a title smuggled in.
+  var _siEscT = _siEscTitle(_siTitleOf(a));
   var all = _siPhotosForOrder(oid).filter(function(p){ return p && p.data; });
   if (!all.length) { alert('No special images yet. Add them in Inspect Data, Photos, Special Images.'); return; }
   var per = (a.cols * a.rows) || 1;
@@ -50939,7 +50992,7 @@ function openSpecialSheetPreview(){
         : '<div class="cell empty"></div>';
     }
     g += '</div>';
-    body += '<div class="sheet"><h2>Special Images</h2><div class="sub">Page ' + (pi+1) + ' of ' + pages.length + ' &middot; ' + a.cols + ' x ' + a.rows + ' &middot; ' + a.orient + ' &middot; ' + a.fit + '</div>' + g + '</div>';
+    body += '<div class="sheet"><h2>' + _siEscT + '</h2><div class="sub">Page ' + (pi+1) + ' of ' + pages.length + ' &middot; ' + a.cols + ' x ' + a.rows + ' &middot; ' + a.orient + ' &middot; ' + a.fit + '</div>' + g + '</div>';
   });
   var css = 'body{background:#555;margin:0;padding:14px;font-family:system-ui,sans-serif;}'
     + '.sheet{width:210mm;height:297mm;background:#fff;margin:0 auto 14px;padding:18mm;box-sizing:border-box;display:flex;flex-direction:column;}'
@@ -50952,7 +51005,7 @@ function openSpecialSheetPreview(){
     + '.cap{flex:0 0 auto;font-size:7px;color:#8a7a6a;padding:2px 4px;font-family:monospace;background:#faf6ef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}';
   var w = window.open('', '_blank');
   if (!w) { alert('The preview was blocked by the browser popup blocker.'); return; }
-  w.document.write('<!doctype html><html><head><title>Special Images - ' + oid + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
+  w.document.write('<!doctype html><html><head><title>' + _siEscT + ' - ' + oid + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
   w.document.close();
 }
 
