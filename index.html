@@ -356,9 +356,26 @@ html,body{background:#080a0f;margin:0;padding:0;}
 .qv-tpl-strip .qv-tpl-badge.t1 { background:#1e40af; }
 .qv-tpl-strip .qv-tpl-badge.t2 { background:#7c3aed; }
 .qv-tpl-strip .qv-tpl-meta { font-size:10.5px; color:var(--muted,#78716c); font-family:'IBM Plex Mono',monospace; }
+/* §CLIENT-LANG (v2.366) — the ACTUAL report language, resolved from the bound template's
+   rcLang and shown next to the template badge. Default (no class) = the template language
+   and the client's stated preference agree, or no preference was recorded.
+   .warn = they DISAGREE, or the client asked for a language the report cannot be produced
+   in — this is the whole point of the badge, so it has to be impossible to miss.
+   .unk  = the bound template could not be read, so the language is NOT known and must
+   never be claimed. */
+.qv-tpl-strip .qv-lang-badge { display:inline-flex; align-items:center; gap:7px; padding:3px 10px; border-radius:4px;
+  font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.06em;
+  background:#0f766e; color:#fff; white-space:nowrap; }
+.qv-tpl-strip .qv-lang-badge .qv-lang-code { font-size:12px; letter-spacing:.1em; }
+.qv-tpl-strip .qv-lang-badge .qv-lang-note { font-weight:600; letter-spacing:.02em; opacity:.94; }
+.qv-tpl-strip .qv-lang-badge.warn { background:#b91c1c; box-shadow:0 0 0 2px rgba(185,28,28,.25); }
+.qv-tpl-strip .qv-lang-badge.info { background:#0f0d0a; }
+.qv-tpl-strip .qv-lang-badge.unk  { background:#78716c; }
+.qv-tpl-strip .qv-lang-badge[hidden] { display:none; }
 @media (max-width:560px){
   .qv-tpl-strip { margin:0 8px 10px; padding:7px 10px; gap:6px; }
   .qv-tpl-strip .qv-tpl-label { display:none; }
+  .qv-tpl-strip .qv-lang-badge { white-space:normal; }   /* §CLIENT-LANG (v2.366) — the warning must wrap, never be clipped */
 }
 
 .qv-specs { display:grid; grid-template-columns:repeat(5,1fr); border:1px solid rgba(14,12,10,.10); border-radius:10px; overflow:hidden; margin-bottom:20px; background:rgba(10,8,6,0);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
@@ -12451,6 +12468,24 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
     <div class="efg"><label>State / Province</label><input type="text" id="eStateZip" placeholder="Aruba"></div>
     <div class="efg" style="grid-column:1/-1"><label>Where did you hear from us?</label>
       <input type="text" id="eHearFrom" placeholder="e.g. Referral, Google, Walk-in…"></div>
+    <!-- §CLIENT-LANG (v2.366) — the language the CLIENT asked the report to be in. This
+         field RECORDS a request; it does not choose the output language. The report's
+         language is a TEMPLATE setting (Report Customization › Layout › Report Language,
+         RC.rcLang), so the QuickView badge resolves the bound template and warns whenever
+         the two disagree. English and Dutch can actually be produced; Spanish and
+         Papiamento can only be RECORDED — they are real business information, but the
+         report cannot be written in them yet, and the badge says so.
+         Default is deliberately BLANK: an unanswered question must not look answered. -->
+    <div class="efg" style="grid-column:1/-1"><label>Report Language &mdash; client&rsquo;s request</label>
+      <select id="eClientLang">
+        <option value="">&mdash; Not stated &mdash;</option>
+        <option value="en">English</option>
+        <option value="nl">Dutch</option>
+        <option value="es">Spanish &mdash; cannot be produced yet</option>
+        <option value="pap">Papiamento &mdash; cannot be produced yet</option>
+      </select>
+      <div style="font-size:10px;color:var(--muted);margin-top:3px;">What the client asked for. The report itself prints in whatever language the bound report template is set to &mdash; QuickView shows the actual one and warns if they differ.</div>
+    </div>
   </div>
 </div><div class="epanel" id="eParcel">
   <div class="egrid eg2">
@@ -13159,6 +13194,12 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
       <option value="">— Use Active Template —</option>
     </select>
     <span class="qv-tpl-badge" id="qvTplBadge" hidden></span>
+    <!-- §CLIENT-LANG (v2.366) — the language the REPORT will actually print in. That is a
+         TEMPLATE setting (RC.rcLang, §REPORT-NL v2.354), never an order setting, so it is
+         resolved from the template this order is bound to — and flagged loudly when it
+         disagrees with the language the client asked for (Project Data › Client Info ›
+         "Report Language — client's request"). -->
+    <span class="qv-lang-badge" id="qvLangBadge" hidden></span>
     <span class="qv-tpl-meta" id="qvTplMeta"></span>
   </div>
 
@@ -17278,7 +17319,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.365';
+var APP_VERSION = 'v2.366';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17316,6 +17357,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.366',type:'feature',date:'08-30-2026',ts:'08-30-2026 18:00',_static:true,title:'Client’s report language on the order, and the ACTUAL report language on QuickView',desc:'Project Data › Client Info gains one field, “Report Language — client’s request”: English, Dutch, Spanish or Papiamento, using the same four codes the website enquiry form already uses (nl/en/es/pap) so the app keeps ONE language vocabulary. It defaults to “Not stated”, never to English — an unanswered question must not look like an answered one. Spanish and Papiamento can be RECORDED (they are real business information) but the report cannot be written in them yet, and both the option text and the QuickView badge say so rather than pretending otherwise. The field records a request. It does not decide anything, and that is the point of the second half of this release. The language a report is actually produced in is a TEMPLATE setting (Report Customization › Layout › Report Language, RC.rcLang, added in v2.354), so it is decided by whichever template the order is bound to — not by the order. An order could therefore say “client wants Dutch” while the bound template was English, and the report would come out in English with nothing anywhere on screen saying so. So the QuickView Report Template strip now carries a language badge that shows the language the report will ACTUALLY print in, resolved from the bound template’s rcLang exactly the way the report resolves it (RC_DEFAULTS merged under the template config, so a template saved before v2.354 with no rcLang key correctly reads as English). It deliberately never echoes the client’s wish — a badge that only repeated the request would read as confirmation while the wrong language went out the door. NL or EN in dark teal with a tick when the template and the client agree; a red “EN ≠ client wants Dutch” when they do not; red again, worded differently, when the client asked for Spanish or Papiamento; neutral black with “no client preference recorded” when nobody has stated one. An order with no bound template renders with whatever Settings template the person generating it has active, which is a weaker guarantee, so the badge adds “from Active Template” instead of quietly presenting it as settled. If the bound template cannot be read at all — deleted, or saved on another device — the badge reads “LANG ? — bound template not found” in grey and claims no language at all; it also asks the database once for that template (the same force-fetch the report itself does) and redraws if it turns up. Hovering any state gives the full explanation, including where to change it. When a Job Order is raised from a website enquiry, the language the client chose on the website (inquiries.locale) now seeds the new field. It was previously shown on the Email Request and copied into the order Notes, and thrown away everywhere else. Storage: the order key clientLang rides in extra_data and is written ONLY when actually set (the same precedent as DRAFT mode, Output Format and the cost discount), so an order that never answers this question produces byte-for-byte the extra_data it produced in v2.365 — proven by re-running the real _toRow serialiser against both versions. No schema migration. Report generation is completely untouched: rcLang on the template remains the single source of truth for the output language, and this release only surfaces it.'},
   {v:'v2.365',type:'fix',date:'08-30-2026',ts:'08-30-2026 12:00',_static:true,title:'Dutch reports: cover, page headings and section titles now translate',desc:'Three things stayed English on a Dutch report. The cover title and the heading in the top right of every page were only being translated when they were written exactly as Appraisal Report - templates that carry it in capitals, which is most of them, slipped through. They now translate whatever the capitalisation, and keep the capitalisation you chose. Type object now reads Type-object. And on any order where you have rearranged the sections yourself, the section headings were still printing in English - Opinion of the Location, Opinion of Floor Plan and the rest - those are now Dutch too. Two things that looked like faults are not: if the written opinions or the location map are missing from a report, that order simply has none saved. English reports are unchanged, checked byte for byte across twelve combinations of order, type and template.'},
   {v:'v2.364',type:'fix',date:'08-29-2026',ts:'08-29-2026 15:00',_static:true,title:'The Floor Plan Reconstructor is hidden until it is finished',desc:'The Floor Plan Reconstructor was listed in the sidebar while it is still unfinished, so it could be opened and would not do the job. It is hidden for now and comes back when it is ready — nothing about it has been deleted. This does NOT affect the floor plan in the appraisal report, the Floor Plan AI opinion, or the Floor Plan document on the Documents screen; those are unchanged.'},
   {v:'v2.363',type:'feature',date:'08-29-2026',ts:'08-29-2026 14:00',_static:true,title:'Special Images can now be given their own name on the report',desc:'The Special Images sheet no longer has to be called “Special Images”. In Inspect Data › Photos there is a new box for the name of the image set — Renderings, Visualizations, Site Progress, whatever the set actually is — and that name is what prints as the heading on the sheet and what appears in the report Index. The name belongs to the job order, so naming one order’s set does not rename anybody else’s. Leave the box empty and the sheet prints “Special Images” as before.'},
@@ -23421,6 +23463,17 @@ async function _submitOrderImpl() {
     photo:    'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=112&h=92&fit=crop&auto=format',
     photoBig: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=480&fit=crop&auto=format'
   };
+
+  // §CLIENT-LANG (v2.366) — a website enquiry ALREADY states which language the client
+  //   wants (inquiries.locale, shown on the Email Request as "Language"), and it was being
+  //   thrown away: it reached the Notes text and nothing else. Seed the order field from it
+  //   here, BEFORE the first persist, so a Dutch-speaking enquirer arrives on the Job Order
+  //   already recorded as wanting a Dutch report. Only the four ER_LOCALE codes are
+  //   accepted; anything else leaves the field unset rather than inventing an answer.
+  try {
+    var _erLoc = String((window._erPrefill && window._erPrefill.locale) || '').toLowerCase();
+    if (['nl','en','es','pap'].indexOf(_erLoc) >= 0) newOrder.clientLang = _erLoc;
+  } catch(e){ console.warn('[email-requests] client-language carry-over failed', e); }
 
   // §BLU-VALUATION (v2.351) — carry BLU's presumable valuation into the order, so
   //   the appraiser opens a populated Valuation screen instead of a blank one. Set
@@ -30088,7 +30141,7 @@ var EDIT_LS_KEY      = 'editDraft_';
 var EDIT_SB_TIMEOUT  = 8000;
 
 // All field IDs in the edit modal
-var EDIT_FIELD_IDS=['eId','eStatus','eOrderDate','eDue','eInspDate','eAppraiser','eClientFirst','eClientLast','eClientWork','eClientCell','eEmail','eClientAddr','eCity','eZip','eCountry','eStateZip','eHearFrom','ePropCategory','ePropCategoryOther','eAddress','ePropType','eLotSize','eRopvZone','eLegal','eAPN','eOwner','ePurpose','eFinInst','eFee','eFeeStatus','ePmBase','ePmRate','eDiscType','eDiscVal','eFlag','eFlagOther','eLoanAmt','eBuildType','eGLA','eYearBuilt','eBeds','eBaths','eFencingShared','eFencingOwned','eFlooring','eParking','eBldgNote1','eCompDate','eBuilder','eInternalNotes','eRevision','eAssignNotes','eComps'];
+var EDIT_FIELD_IDS=['eId','eStatus','eOrderDate','eDue','eInspDate','eAppraiser','eClientFirst','eClientLast','eClientWork','eClientCell','eEmail','eClientAddr','eCity','eZip','eCountry','eStateZip','eHearFrom','eClientLang','ePropCategory','ePropCategoryOther','eAddress','ePropType','eLotSize','eRopvZone','eLegal','eAPN','eOwner','ePurpose','eFinInst','eFee','eFeeStatus','ePmBase','ePmRate','eDiscType','eDiscVal','eFlag','eFlagOther','eLoanAmt','eBuildType','eGLA','eYearBuilt','eBeds','eBaths','eFencingShared','eFencingOwned','eFlooring','eParking','eBldgNote1','eCompDate','eBuilder','eInternalNotes','eRevision','eAssignNotes','eComps'];
 
 
 
@@ -30244,6 +30297,11 @@ function _editApplyToOrder(idx,snap){
   o.country     = snap.eCountry    || o.country    ||'';
   o.zip         = snap.eZip        || o.zip        ||'';
   o.hearFrom    = snap.eHearFrom   || o.hearFrom   ||'';
+  // §CLIENT-LANG (v2.366) — the language the CLIENT asked for. Written the §FLAG-OTHER
+  //   way: key ABSENT ⇢ keep what the order has (an old draft snapshot that predates this
+  //   field can never wipe it); key PRESENT AND EMPTY ⇢ clear, so setting the field back
+  //   to "Not stated" actually sticks.
+  o.clientLang  = (snap.eClientLang != null ? snap.eClientLang : (o.clientLang || ''));
   // Parcel
   o.address     = snap.eAddress    || o.address;
   o.propType    = snap.ePropType   || o.propType   ||'';
@@ -30703,6 +30761,12 @@ function openEdit(order) {
   sv('eCountry', order.country  || '');
   sv('eStateZip',order.stateZip || (_cp[1]||'').trim());
   sv('eHearFrom',order.hearFrom || '');
+  // §CLIENT-LANG (v2.366) — set EXPLICITLY, not through ss(): ss() returns early on an
+  //   empty value, which would leave the PREVIOUS order's language sitting in the box and
+  //   let it be saved onto this one. An unset field must read "Not stated", always.
+  try { var _ecl = g('eClientLang');
+        if (_ecl) _ecl.value = (['nl','en','es','pap'].indexOf(order.clientLang) >= 0) ? order.clientLang : '';
+  } catch(_cle){}
 
   // ── Appraisal Parcel Info ─────────────────────────────────────────────────
   sv('eAddress',  order.address  || '');
@@ -33170,6 +33234,7 @@ function qvPopulateTemplates(order) {
   });
   sel.innerHTML = opts;
   qvUpdateTplBadge(order, arr);
+  try { qvUpdateLangBadge(order, arr); qvLangProbe(order); } catch(_cle){}   // §CLIENT-LANG (v2.366)
 }
 function qvUpdateTplBadge(order, arr) {
   var badge = document.getElementById('qvTplBadge');
@@ -33195,6 +33260,124 @@ function qvUpdateTplBadge(order, arr) {
   meta.innerHTML = '<span style="color:#0f766e;font-weight:800;font-size:12px;">✓ ' + (nm || 'Template selected') + '</span>'
     + '<span style="color:var(--muted,#8a7a6a);">' + extra + '</span>';
 }
+
+// ══ §CLIENT-LANG (v2.366) — WHAT THE CLIENT ASKED FOR vs WHAT WILL ACTUALLY PRINT ══
+//   These are two different things and they can disagree silently:
+//     · order.clientLang — the language the CLIENT wants the report in. An ORDER field
+//       (Project Data › Client Info). It records a business fact; it decides nothing.
+//     · RC.rcLang        — the language the report is actually produced in. That is a
+//       REPORT CUSTOMIZATION setting (§REPORT-NL v2.354), so it belongs to the TEMPLATE
+//       the order is bound to (order.templateId), not to the order.
+//   So an order can say "client wants Dutch" while the bound template is English, and the
+//   report prints ENGLISH with nothing on screen saying so. This badge exists to make that
+//   impossible to miss. It NEVER echoes the client's wish — a badge that only repeated the
+//   request would read as confirmation while the wrong language went out the door. It
+//   shows the RESOLVED TEMPLATE LANGUAGE, and turns red when the two disagree.
+//   The vocabulary is ER_LOCALE's (nl/en/es/pap) so the app keeps ONE set of language
+//   codes. Only en and nl can actually be produced (REPORT_STRINGS); es and pap are
+//   recordable business information and are always flagged as not-yet-available.
+var CLIENT_LANG_CODES = ['nl','en','es','pap'];
+function _clientLangName(code){
+  try { if (typeof ER_LOCALE !== 'undefined' && ER_LOCALE && ER_LOCALE[code]) return ER_LOCALE[code]; } catch(_e){}
+  return '';
+}
+// Resolve the language the report WILL be printed in for this order.
+//   → { lang:'en'|'nl'|'', code:'EN'|'NL'|'?', known:bool, src:'tpl'|'active' }
+//   known:false ⇢ the order is bound to a template that cannot be read on this device
+//   (deleted — order 2026-105 does exactly this — or simply not synced here). The badge
+//   then SAYS so instead of claiming a language it has not verified.
+function _qvReportLang(order, arr){
+  var tplId = (order && order.templateId) || '';
+  if (!tplId) {
+    // No per-order template ⇢ the report is built from the CURRENT Settings template
+    // (§RANK1 REVERTED v2.238), whose language is the saved RC config on THIS device.
+    var gl = 'en';
+    try { if (typeof _rcLangSaved === 'function') gl = _rcLangSaved(); } catch(_e){}
+    gl = (gl === 'nl') ? 'nl' : 'en';
+    return { lang:gl, code:gl.toUpperCase(), known:true, src:'active' };
+  }
+  var t = null;
+  try {
+    var list = arr || ((typeof rctLoadStore === 'function') ? (rctLoadStore() || []) : []);
+    t = list.filter(function(x){ return x && x.id === tplId; })[0] || null;
+  } catch(_e){}
+  if (!t) return { lang:'', code:'?', known:false, src:'tpl' };
+  // rctLoad() builds the render config as Object.assign({}, RC_DEFAULTS, t.config), and
+  // RC_DEFAULTS.rcLang is 'en' — so a template saved before v2.354, carrying no rcLang key
+  // at all, genuinely prints English. Reading it the same way keeps badge and report agreed.
+  var L = (t.config && t.config.rcLang === 'nl') ? 'nl' : 'en';
+  return { lang:L, code:L.toUpperCase(), known:true, src:'tpl' };
+}
+function qvUpdateLangBadge(order, arr){
+  var el = document.getElementById('qvLangBadge');
+  if (!el) return;
+  var esc = function(v){ return (window._xs ? _xs(v) : String(v == null ? '' : v)); };
+  var want = (order && order.clientLang) || '';
+  if (CLIENT_LANG_CODES.indexOf(want) < 0) want = '';
+  var wantName = _clientLangName(want) || want;
+  var r = _qvReportLang(order, arr);
+  var actualName = (r.lang === 'nl') ? 'Dutch' : 'English';
+  var cls = 'qv-lang-badge', code = r.code, note = '', tip = '';
+
+  if (!r.known) {
+    cls += ' unk';
+    code = 'LANG ?';
+    note = 'report language unknown — bound template not found';
+    tip  = 'This order is bound to a report template that is not on this device (deleted, or saved elsewhere), so the language the report would print in cannot be read.'
+         + (want ? (' The client asked for ' + wantName + '.') : '');
+  } else if (!want) {
+    cls += ' info';   // neutral: nothing has been confirmed, because nobody has stated a preference
+    note = 'report language \u2014 no client preference recorded';
+    tip  = 'The report will print in ' + actualName + ' — that is what '
+         + (r.src === 'active' ? 'the Active Template' : 'this order\u2019s report template') + ' is set to. '
+         + 'No client language recorded yet: Project Data › Client Info › Report Language.';
+  } else if (want === r.lang) {
+    note = '✓ client wants ' + wantName;
+    tip  = 'Agreed: the bound template prints ' + wantName + ', which is what the client asked for.';
+  } else if (want === 'nl' || want === 'en') {
+    cls += ' warn';
+    note = '≠ client wants ' + wantName;
+    tip  = 'MISMATCH — this report will print in ' + actualName + ', not ' + wantName + '. The output language is set on the TEMPLATE (Report Customization › Layout › Report Language), not on the order, so changing the client field will not change the report. Bind this order to a ' + wantName + ' template, or correct the client field.';
+  } else {
+    // es / pap — a real request, recorded honestly, that the report cannot yet satisfy.
+    cls += ' warn';
+    note = '≠ client wants ' + wantName + ' — not available';
+    tip  = 'The client asked for ' + wantName + '. The report can only be produced in English or Dutch, so it will print in ' + actualName + '. Tell the client, or agree a language that can be delivered.';
+  }
+  // §CLIENT-LANG — an order with no bound template renders with whatever Settings
+  //   template the person generating it has active (§RANK1 REVERTED v2.238). That is a
+  //   weaker guarantee than a bound template, so the badge says where the language came
+  //   from rather than quietly presenting it as settled.
+  if (r.known && r.src === 'active') note += ' \u00b7 from Active Template';
+  el.innerHTML = '<span class="qv-lang-code">' + esc(code) + '</span>'
+               + '<span class="qv-lang-note">' + esc(note) + '</span>';
+  el.className = cls;
+  el.title     = tip;
+  el.hidden    = false;
+}
+// The bound template may simply not have reached THIS device yet (templates sync through
+// report_templates). Ask the database ONCE per template id per session — the very same
+// force-fetch the report itself performs (_rctEnsureTemplate) — and redraw if it lands, so
+// the badge ends up agreeing with what the report will do. A template that really is gone
+// stays "unknown", which is the honest answer.
+var _qvLangProbed = {};
+function qvLangProbe(order){
+  try {
+    var id = (order && order.templateId) || '';
+    if (!id || _qvLangProbed[id]) return;
+    if (typeof _rctEnsureTemplate !== 'function' || typeof rctLoadStore !== 'function') return;
+    if ((rctLoadStore() || []).some(function(t){ return t && t.id === id; })) return;   // already resolvable locally
+    _qvLangProbed[id] = true;
+    var oid = order.id;
+    _rctEnsureTemplate(id).then(function(ok){
+      if (!ok) return;
+      if (!_qvLastOrder || _qvLastOrder.id !== oid) return;
+      try { qvUpdateLangBadge(_qvLastOrder, rctLoadStore() || []); } catch(_e){}
+    }).catch(function(){});
+  } catch(_e){}
+}
+window.qvUpdateLangBadge = qvUpdateLangBadge;
+
 function qvTplChange(tplId) {
   if (!_qvLastOrder) return;
   _qvLastOrder.templateId = tplId || '';
@@ -33216,6 +33399,7 @@ function qvTplChange(tplId) {
   // Refresh badge / meta inline (no re-render of whole QV needed)
   var arr = []; try { arr = (typeof rctLoadStore === 'function') ? (rctLoadStore() || []) : []; } catch(_e){}
   qvUpdateTplBadge(_qvLastOrder, arr);
+  try { qvUpdateLangBadge(_qvLastOrder, arr); qvLangProbe(_qvLastOrder); } catch(_cle){}   // §CLIENT-LANG (v2.366)
   // Persist — local cache + Supabase
   try { if (typeof persistOrders === 'function') persistOrders(_qvLastOrder.id); } catch(_pe){ console.warn('[qvTpl] persist failed:', _pe); }
   // Status indicator (uses existing inspector status if available)
@@ -44295,6 +44479,12 @@ function _toRow(o) {
       clientEmail:o.clientEmail||'', clientAddr:o.clientAddr||'',
       stateZip:o.stateZip||'', country:o.country||'', zip:o.zip||'',
       hearFrom:o.hearFrom||'',
+      // §CLIENT-LANG (v2.366) — the language the client asked the report to be in.
+      //   Written ONLY when actually set (the §DRAFT / §OP-FORMAT / §COST-DISCOUNT
+      //   precedent): JSON.stringify drops an undefined value entirely, so an order that
+      //   never answers this question produces byte-for-byte the extra_data it did in
+      //   v2.365. No schema migration — it rides in extra_data exactly like hearFrom above.
+      clientLang:(o.clientLang||undefined),
       // §PROMILLE (v2.281) — commercial per-mille charge (value + rate).
       promilleBase:(o.promilleBase!=null?o.promilleBase:''), promilleRate:(o.promilleRate!=null?o.promilleRate:''),
       // §COST-DISCOUNT (v2.352) — the Cost-tab quote discount. BOTH keys are written ONLY
@@ -44498,6 +44688,11 @@ function _fromRow(row, order) {
       if (x.country)        order.country        = x.country;
       if (x.zip)            order.zip            = x.zip;
       if (x.hearFrom)       order.hearFrom       = x.hearFrom;
+      // §CLIENT-LANG (v2.366) — set UNCONDITIONALLY (the §COST-DISCOUNT precedent):
+      //   clearing the field STOPS writing the key, so reading the row back has to clear
+      //   the value rather than let a stale in-memory one resurrect a language request the
+      //   client never made. Anything outside the four known codes reads as "not stated".
+      order.clientLang = (['nl','en','es','pap'].indexOf(x.clientLang) >= 0) ? x.clientLang : '';
       // §PROMILLE (v2.281) — restore the commercial per-mille charge.
       if (x.promilleBase!=null && x.promilleBase!=='') order.promilleBase = parseFloat(x.promilleBase)||0;
       if (x.promilleRate!=null && x.promilleRate!=='') order.promilleRate = parseFloat(x.promilleRate)||0;
