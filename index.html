@@ -7352,6 +7352,13 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
   <div id="erDashAlert" style="display:none;margin:0 0 16px;"></div>
   <!-- §WORLD-CLOCKS (v1.971; moved to top v1.972) — live international clocks; cities chosen in Settings → World Clocks -->
   <div id="dashClocks" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0 0 16px;"></div>
+  <!-- §APPROVED-QUEUE (v2.372) — "Ready to Deliver". Sits directly under the world
+       clocks and above the stat tiles: the first substantive thing on the dashboard,
+       so an approval is seen on login without scrolling. It is NOT hidden when empty
+       (unlike #erDashCard below) — the owner asked for a box that "remains a visible
+       box", and a work queue you can only see once it already has work in it teaches
+       nobody to look at it. Rendered by apqRender(); markup lives entirely in JS. -->
+  <div id="apqBox"></div>
   <div class="stats">
     <div class="sc"><div class="slbl">Total Orders</div><div class="sval">148</div><div class="sdelta up">▲ 12% vs last month</div></div>
     <div class="sc g"><div class="slbl">Avg Appraisal Value</div><div class="sval">$487K</div><div class="sdelta up">▲ 3.4% vs last month</div></div>
@@ -8320,6 +8327,233 @@ body.glass .ord-row:hover{ background: var(--g-fill-hov); }
   body.glass .ovl-wrap,
   body.glass .tbl-wrap,
   body.glass .btn-sec{ background: var(--g-fallback) !important; }
+}
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  §APPROVED-QUEUE (v2.372) — "Ready to Deliver" dashboard box             ║
+   ╚══════════════════════════════════════════════════════════════════════════╝
+   A WORK QUEUE, not decoration: an approved appraisal appears here so somebody
+   prints it, binds it and phones the client, and it leaves the moment both of
+   those are ticked off.
+
+   COLOUR CONTRACT. Everything the box paints goes through eight local custom
+   properties declared on .apq-card, so the whole thing re-themes by swapping
+   tokens instead of by re-writing rules. There are exactly three grounds this
+   box can ever sit on and each one only has to set those eight:
+
+     1. glass OFF, any of the ~10 themes  →  `#view-dashboard{background:#080a0f
+        !important}` @6087 makes the dashboard a dark slab in every theme, and
+        `.act-feed{background:#1c1c1e!important}` @6111 is the panel idiom. So
+        the defaults below ARE the glass-off case, in all ten themes. Nothing
+        theme-specific is hardcoded.
+     2. glass ON + a dark theme  →  the §GLASS surface recipe verbatim
+        (--g-fill / --g-blur / --g-border / --g-rim / --g-shadow). The light
+        text tokens still apply.
+     3. glass ON + a light theme  →  the same surface recipe (those tokens
+        already carry Paper Glass values), but the text tokens flip to the dark
+        set. That is the `body.glass:not([class*="theme-dark"])` rule, the same
+        selector §GLASS uses for .slbl and .psub.
+
+   §GLASS-COLLISION applies here too: `border: var(--g-border)` is a SHORTHAND
+   and resets border-top, so the accent hairline is restored as a LONGHAND
+   AFTER it — exactly what `body.glass .ovl-wrap{border-top:…}` @8000 had to do.
+
+   The accent green is the app's own approved colour, #16a34a (the status map
+   @18215 and the dashboard legend @14541), lightened to #4ade80 for text on
+   the dark ground — the dashboard's existing "good" green (`.sdelta.up` @6108). */
+#apqBox{ margin:0 0 16px; }
+.apq-card{
+  --apq-accent:   #16a34a;
+  --apq-accent-lt:#4ade80;
+  --apq-top:      var(--apq-accent);
+  --apq-txt:      #ffffff;
+  --apq-mut:      rgba(255,255,255,.55);
+  --apq-dim:      rgba(255,255,255,.34);
+  --apq-line:     rgba(255,255,255,.08);
+  --apq-edge:     rgba(255,255,255,.28);
+  --apq-row-hov:  rgba(74,222,128,.075);
+  --apq-mono:     'DM Mono', ui-monospace, monospace;
+  background: #1c1c1e;
+  border: 1px solid rgba(255,255,255,.08);
+  border-top: 2px solid var(--apq-top);
+  border-radius: 12px;
+  overflow: hidden;
+}
+/* Nothing waiting: the top hairline goes quiet. An empty work queue is good
+   news, so it must not shout in the same green as a live item. */
+.apq-card.is-empty{ --apq-top: var(--apq-line); }
+.apq-card.is-empty .apq-seal{ color: var(--apq-dim); }
+
+/* (2) + (3) — the §GLASS surface recipe, with the ID-scoped twin the §GLASS
+   block explains: between two !important declarations specificity decides, so
+   `body.glass .apq-card` (0,2,1) would lose to any `#view-dashboard …` rule. */
+body.glass .apq-card, body.glass #view-dashboard .apq-card{
+  background: var(--g-fallback) !important;
+  background: var(--g-fill) !important;
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat));
+          backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat));
+  border: var(--g-border) !important;
+  border-radius: var(--g-radius);
+  box-shadow: var(--g-rim), var(--g-shadow) !important;
+  /* LONGHAND, after the shorthand — see §GLASS-COLLISION (i). */
+  border-top: 2px solid var(--apq-top) !important;
+}
+/* (3) — Paper Glass. Only the text/edge tokens move; the surface is unchanged. */
+body.glass:not([class*="theme-dark"]) .apq-card,
+body.glass:not([class*="theme-dark"]) #view-dashboard .apq-card{
+  --apq-accent-lt: #15803d;
+  --apq-txt:  #26211c;
+  --apq-mut:  #5f574f;
+  --apq-dim:  #7d746a;
+  --apq-line: rgba(14,12,10,.11);
+  --apq-edge: rgba(14,12,10,.30);
+  --apq-row-hov: rgba(22,163,74,.085);
+}
+/* Cyber keeps its neon rim, additively — §GLASS-CYBER-GLOW (v2.338). */
+body.glass.theme-dark-cyber .apq-card{
+  box-shadow: var(--g-rim), var(--g-shadow), 0 0 8px rgba(0,229,255,.3) !important;
+}
+/* No backdrop-filter → the opaque plate, the same fallback §GLASS uses. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+  body.glass .apq-card, body.glass #view-dashboard .apq-card{
+    background: var(--g-fallback) !important;
+  }
+}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+.apq-hdr{ display:flex; align-items:center; gap:11px; padding:14px 17px 12px; flex-wrap:wrap; }
+.apq-seal{ display:flex; flex-shrink:0; color:var(--apq-accent-lt); }
+.apq-ttl{ font-family:Sora,system-ui,sans-serif; font-size:14.5px; font-weight:800;
+          color:var(--apq-txt); letter-spacing:.01em; }
+.apq-count{ background:var(--apq-accent); color:#fff; border-radius:999px; padding:1.5px 10px;
+            font-family:Sora,system-ui,sans-serif; font-size:11px; font-weight:800; }
+.apq-hint{ font-size:11.5px; color:var(--apq-mut); }
+.apq-grow{ flex:1 1 12px; }
+.apq-more{ background:transparent; border:1px solid var(--apq-line); color:var(--apq-mut);
+           border-radius:8px; padding:6px 12px; font-family:Sora,system-ui,sans-serif;
+           font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;
+           transition:color .16s ease, border-color .16s ease; }
+.apq-more:hover{ color:var(--apq-txt); border-color:var(--apq-accent); }
+
+/* ── one job ────────────────────────────────────────────────────────────── */
+.apq-row{ position:relative; display:flex; align-items:center; gap:13px;
+          padding:10px 17px; border-top:1px solid var(--apq-line);
+          transition:background .16s ease; }
+.apq-row:hover{ background:var(--apq-row-hov); }
+/* the left rail — off by default, lit on hover, lit and glowing while new */
+.apq-row::before{ content:''; position:absolute; left:0; top:-1px; bottom:0; width:3px;
+                  background:var(--apq-accent); opacity:0; transition:opacity .16s ease; }
+.apq-row:hover::before{ opacity:1; }
+.apq-row.is-new::before{ opacity:1; box-shadow:0 0 12px 1px rgba(74,222,128,.5); }
+.apq-tick{ display:flex; flex-shrink:0; color:var(--apq-accent-lt); opacity:.9; }
+
+/* only the text opens the job; the two checkboxes are their own targets */
+.apq-txt{ flex:1 1 auto; min-width:0; cursor:pointer; }
+.apq-l1{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; line-height:1.45; }
+.apq-lbl { font-size:12px; color:var(--apq-mut); font-family:Sora,system-ui,sans-serif; }
+.apq-id  { font-family:var(--apq-mono); font-size:13px; font-weight:700;
+           color:var(--apq-accent-lt); letter-spacing:.02em; }
+.apq-sep { font-size:12px; color:var(--apq-dim); }
+.apq-sep.tight{ margin-left:-5px; }
+.apq-addr{ font-family:Sora,system-ui,sans-serif; font-size:13.5px; font-weight:700;
+           color:var(--apq-txt); max-width:100%; overflow:hidden; text-overflow:ellipsis;
+           white-space:nowrap; }
+.apq-pill{ display:inline-flex; align-items:center; background:rgba(22,163,74,.16);
+           color:var(--apq-accent-lt); border:1px solid rgba(22,163,74,.42); border-radius:999px;
+           padding:1px 9px; font-family:Sora,system-ui,sans-serif; font-size:10px; font-weight:800;
+           letter-spacing:.1em; }
+.apq-l2{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:3px; }
+.apq-date{ font-family:var(--apq-mono); font-size:11.5px; color:var(--apq-mut); }
+.apq-meta{ font-size:11.5px; color:var(--apq-dim); }
+.apq-age { font-size:11px; font-weight:700; color:var(--apq-dim);
+           font-family:Sora,system-ui,sans-serif; }
+/* a job that has been sitting too long stops being quiet */
+.apq-age.warm{ color:#e0a93c; }
+.apq-age.hot { color:#f0863c; }
+.apq-by{ font-size:11px; color:var(--apq-dim); font-family:Sora,system-ui,sans-serif; }
+.apq-by b{ color:var(--apq-mut); font-weight:700; }
+
+.apq-new{ background:var(--apq-accent); color:#fff; border-radius:999px; padding:1px 8px;
+          font-family:Sora,system-ui,sans-serif; font-size:9.5px; font-weight:800;
+          letter-spacing:.11em; flex-shrink:0; animation:apqPulse 2.4s ease-out infinite; }
+@keyframes apqPulse{
+  0%,100%{ box-shadow:0 0 0 0 rgba(74,222,128,.5); }
+  55%    { box-shadow:0 0 0 6px rgba(74,222,128,0); }
+}
+
+/* ── THE TWO TICKS ──────────────────────────────────────────────────────────
+   Sized for a thumb, not a mouse: the control is a 36px-tall button with a
+   20px box in it, well clear of the 24px minimum, because these get used with
+   a phone in one hand while the client is on the other. */
+.apq-checks{ display:flex; align-items:center; gap:7px; flex-shrink:0; }
+.apq-chk{ display:inline-flex; align-items:center; gap:8px; min-height:36px;
+          padding:6px 12px 6px 9px; border:1px solid var(--apq-line); border-radius:9px;
+          background:transparent; cursor:pointer; font-family:Sora,system-ui,sans-serif;
+          font-size:12px; font-weight:700; color:var(--apq-mut); white-space:nowrap;
+          transition:border-color .16s ease, background .16s ease, color .16s ease; }
+.apq-chk:hover{ border-color:var(--apq-edge); color:var(--apq-txt); }
+.apq-chk:focus-visible{ outline:2px solid var(--apq-accent); outline-offset:2px; }
+.apq-box{ display:inline-flex; align-items:center; justify-content:center;
+          width:20px; height:20px; flex-shrink:0; border-radius:6px;
+          border:1.5px solid var(--apq-edge); color:transparent;
+          transition:background .16s ease, border-color .16s ease, color .16s ease; }
+.apq-chk[aria-checked="true"]{ border-color:rgba(22,163,74,.5);
+                               background:rgba(22,163,74,.13); color:var(--apq-accent-lt); }
+.apq-chk[aria-checked="true"] .apq-box{ background:var(--apq-accent);
+                                        border-color:var(--apq-accent); color:#ffffff; }
+
+/* A tick that does NOT clear the job still has to be seen landing — the list
+   re-renders under the cursor, so without this the click looks like it did
+   nothing at all. One green wash on the row that moved. */
+@keyframes apqFlash{ from{ background:rgba(22,163,74,.26); } to{ background:transparent; } }
+.apq-row.is-flash{ animation:apqFlash 1.15s ease-out; }
+
+/* ── the moment a row leaves ────────────────────────────────────────────────
+   Both boxes ticked removes the job automatically. A row that just vanishes on
+   click reads as a bug, so it says goodbye first: a green wash, the address
+   struck through, then it slides out. ~0.9s, then the list re-renders. */
+@keyframes apqGo{
+  0%   { background:rgba(22,163,74,.30); }
+  45%  { background:rgba(22,163,74,.22); opacity:1;  transform:translateX(0); }
+  100% { background:rgba(22,163,74,0);   opacity:0;  transform:translateX(14px); }
+}
+.apq-row.apq-go{ animation:apqGo .9s cubic-bezier(.4,0,.2,1) forwards; pointer-events:none; }
+.apq-row.apq-go .apq-addr,
+.apq-row.apq-go .apq-id{ text-decoration:line-through;
+                         text-decoration-color:var(--apq-accent-lt); }
+.apq-row.apq-go::before{ opacity:1; }
+
+/* ── undo strip ─────────────────────────────────────────────────────────────
+   Nothing is deleted — a cleared job is only filtered out — so getting it back
+   has to be one click, not a hunt through Job Orders. Session-only, in memory,
+   the last two clears, gone after 10 minutes. */
+.apq-undo{ display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+           padding:9px 17px; border-top:1px dashed var(--apq-line);
+           font-size:11.5px; color:var(--apq-mut); }
+.apq-undo b{ font-family:var(--apq-mono); font-weight:700; color:var(--apq-accent-lt); }
+.apq-undo-btn{ background:transparent; border:1px solid var(--apq-line); color:var(--apq-mut);
+               border-radius:7px; padding:4px 11px; font-family:Sora,system-ui,sans-serif;
+               font-size:11px; font-weight:700; cursor:pointer;
+               transition:color .16s ease, border-color .16s ease; }
+.apq-undo-btn:hover{ color:var(--apq-txt); border-color:var(--apq-accent); }
+
+/* ── nothing waiting ────────────────────────────────────────────────────── */
+.apq-empty{ display:flex; align-items:center; gap:14px; padding:6px 17px 19px; }
+.apq-empty .apq-tick{ color:var(--apq-dim); }
+.apq-empty-t{ font-family:Sora,system-ui,sans-serif; font-size:13px; font-weight:700;
+              color:var(--apq-mut); }
+.apq-empty-s{ font-size:11.5px; color:var(--apq-dim); margin-top:2px; }
+
+@media (max-width:860px){
+  .apq-row{ flex-wrap:wrap; align-items:flex-start; padding-top:12px; padding-bottom:12px; }
+  .apq-txt{ flex:1 1 200px; }
+  .apq-checks{ flex:1 0 100%; padding-left:30px; margin-top:9px; }
+  .apq-addr{ white-space:normal; }
+}
+@media (prefers-reduced-motion: reduce){
+  .apq-new{ animation:none; }
+  .apq-row.apq-go{ animation-duration:.2s; }
+  .apq-row.is-flash{ animation:none; }
 }
 </style>
 
@@ -17452,7 +17686,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.371';
+var APP_VERSION = 'v2.372';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -17490,6 +17724,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.372',type:'feature',date:'08-31-2026',ts:'08-31-2026 20:00',_static:true,title:'Ready to Deliver — approved appraisals now announce themselves on the dashboard',desc:'THE ASK. “When an appraisal is Approved and it turns Green, a general message is sent via the Dashboard informing the team that an appraisal is Approved, so they know to print/bind and call the client for delivery.” That message is now a permanent box at the top of the dashboard, directly under the world clocks and above the stat tiles — the first substantive thing you see on login, and it stays visible whether or not it has anything in it. Each job reads exactly as asked: “Appraisal 2026-114 - Kas ariba 29C: APPROVED - Date Aug31,2026, 7:22pm”, newest approval first, with a count. NOTHING NEW IS STORED TO MAKE IT WORK. It is a read of order.approved / order.approvedAt, which §APPROVE-PERSIST (v1.945) already writes and already shares across devices. No message table, no feed, no schema migration. _approveOrder and the approval semantics are untouched. THE LIFECYCLE. Each row carries two ticks, Binded and Delivered. Binded alone does NOT remove the job — a bound report still sitting on the desk is exactly what the box has to keep shouting about. The moment BOTH are ticked the job leaves, automatically, with no confirmation: visible = approved AND NOT (binded AND delivered). Status is deliberately not a second removal path; measured against the live data first, this firm has 36 Approved orders and has never once set Completed, so a Completed-based rule would have shipped a list nobody could clear. BOTH TICKS ARE SHARED, not per-device — the whole point is that the team sees ONE queue, so two people do not both bind the report or both phone the same client. They ride in extra_data (bindedAt/bindedBy, deliveredAt/deliveredBy) alongside approvedAt, written ONLY when set (the §DRAFT / §OWNERS-LIST precedent), so all 63 live orders serialise byte-for-byte as they did in v2.371 — verified against every one of them. Who ticked what, and when, shows as a quiet subtitle on the row. NOTHING IS DELETED. A cleared job is filtered out, not destroyed: un-tick either box and it returns to its place. Because the row is gone by then, the last two clears stay one click away in an undo strip at the foot of the box (in memory, this session, ten minutes). A clearing tick shows itself leaving — a green wash, the address struck through, then it slides out — so a row never just vanishes under the cursor. READING THE QUEUE. Anything approved in the last six hours carries a pulsing NEW badge and a lit rail; anything sitting more than three days says how long, in amber past a week. A job approved, unlocked and re-approved comes back with both ticks cleared, because a re-approved report has to be printed and bound again — handled purely on the read side, with no change to approval. Clicking a row opens that job in QuickView. Twenty-plus jobs collapse to six with a Show all. The empty state reads as calm, not broken. APPEARANCE. The box uses the §GLASS tokens, so it is glass under a dark theme and the plain dark panel with glass off, in all ten themes, with the Cyber neon rim preserved; every colour it paints goes through eight local custom properties rather than a hardcoded palette, including the light Paper Glass set for when that path switches on. The two ticks are 36px controls sized for a thumb. This box is APP UI, so it stays English under a Dutch or Spanish report template.'},
   {v:'v2.371',type:'fix',date:'08-31-2026',ts:'08-31-2026 18:00',_static:true,title:'The R.O.P.V. editor now shows the language the report will print',desc:'THE COMPLAINT. Order 2026-112 is bound to a Dutch template. Pressing Refresh ROPV filled the box with ENGLISH and put a note beside it — "prints in Dutch (template language)". The report was correct the whole time; the EDITOR was the thing that lied. Showing one language while printing another is not something a note can fix.\n\nWHY IT WAS BUILT THAT WAY, AND WHY THAT IS NOW WRONG. v2.367 kept the English on screen because regenerating the English and comparing it to what is stored is how this code PROVES a stored paragraph is untouched machine output and therefore safe to replace with Dutch. That proof never needed the English to be VISIBLE — it needs opRopvMeta, the structured record written beside the text. opRopvMeta is now the source of truth, and the paragraph is composed from it, in the language of the template bound to the order, for the editor and the report alike. What the owner sees is what prints.\n\nWHAT CHANGED. One composer, _ropvTextIn(lang, order, stored), now serves both: the report calls it with the report language (_rtLang) and Inspect Data calls it with the order’s template language (_orderLang). The Report Section Order preview snippet follows the same path. Refresh ROPV composes and STORES the paragraph in the order’s language together with a fresh opRopvMeta — an explicit regeneration, and the structured record it writes keeps everything downstream consistent. Rebinding an order to a different template is not frozen either: both the editor (on open) and the report (at render) recompose from opRopvMeta, so EN→NL and NL→EN both follow on the next open.\n\nNOTHING IS OVERWRITTEN THAT CANNOT BE PROVEN. The v2.367 guard is unchanged — it is only symmetric now. _ropvResolveParams still refuses to return anything unless the stored text is reproduced byte for byte by a composer; it simply tries both composers instead of only the English one, because opRopvText may now legitimately hold either language. English is tried FIRST, so an English paragraph resolves exactly as it did. A hand-written or hand-edited paragraph matches neither, resolves to null, and is displayed and printed exactly as it is stored. Text appended by the appraiser after the machine paragraph is still carried through verbatim.\n\nENGLISH CANNOT MOVE. When the stored text is already in the target language the resolver’s matched string IS the stored string and the function returns it, not a recomposition of it. English orders are byte-identical in the editor, in storage and on the report. 55 cases were run against the real 2026-112 parameters covering hand-written, hand-edited, truncated and appended text, unpinned coordinates, zones with no local rules, corrupt opRopvMeta and every template-switch direction; the twelve report-path outputs are byte-for-byte what v2.370 produced.\n\nTHE STATUS LINE. It no longer has to warn about a mismatch, because there is no mismatch left to warn about. "prints in Dutch (template language)" becomes "Dutch — the text above is what prints (template language)", and on a Dutch order it names the zone in Dutch so the note and the paragraph agree word for word. Opening the section on a Dutch order says the same thing in muted text.\n\nSPANISH. There is still no Spanish R.O.P.V. wording — the Aruban planning terminology has not been drafted in Spanish and this file will not invent planning law. An es template composes ENGLISH, deliberately, and the status line says so out loud rather than letting it look like a Spanish result.'},
   {v:'v2.370',type:'feature',date:'08-31-2026',ts:'08-31-2026 12:00',_static:true,title:'Three AI generators were still writing English on a Dutch template — and the report language now offers Spanish',desc:'TWO THINGS. First, the rest of the v2.367 fix. That release taught every AI generator to ask the template bound to the ORDER what language to write in, but it found its generators BY NAME — it swept everything called genAi* — and three call sites are not called that. genFloorplanOpinion (Inspect Data › Documents › Opinion of Floor Plan › AI Analyze), genFloorplanDetail (the space schedule) and genIntroNote (the Introductory Note on the order form) therefore kept sending an English-only prompt, which is why order 2026-112, bound to SIGMA_Type2.T1-GrndFLR+Data_NL, still produced an English floor-plan opinion. The file was re-swept by CALL SITE this time — every fetch to api.anthropic.com — not by name: there are ten, seven already carried the instruction, three did not, and the two that carry no instruction and never will (genAiInspSummary, genAiNeighbourhood) are dead code whose button ids aiSumBtn / aiNeighBtn do not exist in the document, so both return before they reach the network. genIntroNote runs from the order EDITOR, where the order is editingOrder rather than _inspOrderId, so it passes the order object straight to _orderLang(). genFloorplanDetail is the odd one: its reply is JSON that the report PARSES, and the ordinary "write the entire response in Dutch" instruction would have translated the JSON keys and the "Ground Floor" / "1st Floor" labels that _flRank() sorts the floor headers by. It gets a schema-safe instruction instead (_aiLangInstructionJson) that translates only the space name and pins everything else to English; the apartment-prefix regexes in the report and in the intro-note fact list were widened at the same time (appartement / apartamento / unidad / vivienda / woning) so a translated space name is still counted as an apartment. Second, SPANISH. The template language key (Report Customization › Layout › Report Language, RC.rcLang) accepted en and nl; it now accepts es, using the same nl/en/es/pap codes ER_LOCALE and the client-language field already use, so the app keeps ONE language vocabulary. The AI writes neutral Latin American Spanish — written for Venezuelan and Colombian readers, explicitly not Peninsular — in the register of an informe de tasación: tasador, valor de mercado, valor de ejecución, valor de reconstrucción, parcela, superficie construida. SPANISH IS DELIBERATELY PARTIAL AND SAYS SO. The report’s 432 printed labels exist in English and Dutch only; there is no Spanish string table and this release does not attempt one. A template set to es therefore prints an ENGLISH-LABELLED report — cover, headings, table labels, the certification and the declaration all English — containing SPANISH prose, which is the half that the client actually reads. _rt() reaches that state by its existing English fallback, so no label can come out blank or as a raw key (all 432 verified). The Settings option itself reads "Español (AI-written text only — headings remain English)" and expands into a caveat panel while it is selected; the QuickView badge shows ES and carries the same warning in its tooltip; the client-language field stops saying Spanish "cannot be produced" and says what it actually gets. Papiamento is unchanged — still record-only. Numbers and dates: Spanish writes a decimal comma and a thousands dot exactly like Dutch, so es is routed through the same formatter branch — AWG 1.500,00 and 28-08-2026, not AWG 1,500.00 and August 28, 2026. The R.O.P.V. paragraph has no Spanish composition, so it prints English and the on-screen status says so instead of implying otherwise. ENGLISH IS UNTOUCHED: _aiLangInstruction returns the empty string for en, so an English prompt is byte-identical to v2.369 (verified by rebuilding the real prompts and comparing), and _rt, _rfNum, _rfFix, _rfMoney, _rfDate, _rfLoc, _rcPct and _qvReportLang were all diffed key-by-key and value-by-value against v2.369 for both en and nl with zero differences.'},
   {v:'v2.369',type:'fix',date:'08-30-2026',ts:'08-30-2026 18:00',_static:true,title:'Report — the Current Valuation on a Type 3 no longer drops an existing building',desc:'On a New Construction (Type 3) report the Current Valuation printed the LAND and nothing else: parcels only in the component table, an Execution Value computed from the land alone, no Re-Construction Value at all (a ruled line where the figure belongs) and any Value Adjustment the appraiser had entered silently discarded. That layout is right for a bare lot — a parcel with nothing on it is worth its land — and it stays exactly as it is for one. But it was chosen by reading the TEMPLATE NAME, and a name cannot tell you whether anything is standing on the land. Order 2026-105 is a parcel with an existing 84.80 m² house, a roof-covered area, landscaping, a car bay and two fences already entered in its current valuation: the report printed AWG 179,025 where the appraiser had entered AWG 595,414, AWG 143,220 against his AWG 476,331, and left the Re-Construction Value blank where he had entered AWG 458,027. On order 2026-070 the closing Conclusion paragraph stated the current Free Market Value as AWG 173,493 while the table on the same page said AWG 137,700 — one report contradicting itself by AWG 35,793. The Current layout is now chosen from the VALUATION itself: if the appraiser has entered a building or a custom component in the current valuation, something is standing there, so the full as-is figures print — Free Market Value, Execution Value and Re-Construction Value, with adjustments applied, exactly as they already do for a MultiBuilding renovation and for every Type 1 and Type 2 report. A genuinely parcel-only order is untouched and prints byte-for-byte what it printed before, as do Type 1 and Type 2. Across the whole job list only the two orders described above change, and both change because figures the appraiser had entered were not reaching the page. Also corrected: inside the Current section the value-adjustment table was headed “Sub-Total to Projected Free Market Value (As Proposed)” — as-proposed wording above an as-is figure — and now reads “Current Free Market Value (CFMV)”, the same heading Type 1 and Type 2 have always used. No figure changes anywhere as a result of that heading.'},
@@ -22533,7 +22768,7 @@ function setView(view, sf2){
   if(view==='preferences'){renderUserList();}
   if(view==='reports'){setTimeout(()=>initChartsFor('rpt-overview'),100);}
   if(view==='calendar'){setTimeout(calRender,100);}
-  if(view==='dashboard'){ try{ clkStart(); }catch(e){} try{ erInit(true); }catch(e){} try{ bluInit(); }catch(e){} try{ dashActRender(); }catch(e){} }
+  if(view==='dashboard'){ try{ clkStart(); }catch(e){} try{ erInit(true); }catch(e){} try{ bluInit(); }catch(e){} try{ dashActRender(); }catch(e){} try{ apqRender(); }catch(e){} }
   if(view==='email'){ try{ erInit(); }catch(e){} }
   if(view==='developments'){ try{ bluInit(); }catch(e){} }   // §BLU-DEVELOPMENTS (v2.350)
   if(view==='finance'){ try{ finInit(); }catch(e){} }
@@ -28941,6 +29176,337 @@ function dashActRender(){
       + '<div><div class="atxt">' + it.html + '</div>'
       + '<div class="atime">' + _erEsc(_erAgo(new Date(it.t).toISOString())) + '</div></div></div>';
   }).join('');
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §APPROVED-QUEUE (v2.372) — "Ready to Deliver"                              ║
+// ║                                                                              ║
+// ║  When an appraisal is approved the team has to print it, bind it and phone   ║
+// ║  the client. Until now nothing told them: the approval was visible only to   ║
+// ║  whoever happened to be standing in the Job Orders table at that moment.     ║
+// ║  This box is that message, and it is a WORK QUEUE — a job is on it because   ║
+// ║  someone still has to do something, and it leaves when they have.            ║
+// ║                                                                              ║
+// ║  IT STORES NOTHING TO EXIST. Every word on it is derived from data the app   ║
+// ║  already writes: order.approved / order.approvedAt (§APPROVE-PERSIST v1.945, ║
+// ║  already round-tripping through _toRow/_fromRow, so it is already shared     ║
+// ║  across devices), order.id, order.address, order.city. There is no message   ║
+// ║  table, no feed, no migration. _approveOrder is untouched.                   ║
+// ║                                                                              ║
+// ║  ── THE LIFECYCLE — the owner's rule, and nothing else ─────────────────────  ║
+// ║        visible  =  approved  &&  !(binded && delivered)                      ║
+// ║  Two independent ticks per row. Binded on its own does NOT remove the job —  ║
+// ║  a bound report still sitting on the desk is exactly the case the box has    ║
+// ║  to keep shouting about. The second tick removes it, immediately.            ║
+// ║                                                                              ║
+// ║  Deliberately NOT a second removal path: status. The obvious rule would be   ║
+// ║  "drop off at Completed", and it was measured against the live database      ║
+// ║  before being rejected (63 orders): Approved 36 · In Review 10 · Pending 17  ║
+// ║  · Completed 0. This firm has never once set Completed, so that rule would   ║
+// ║  have shipped a list nobody could ever clear. It is also a rule the owner    ║
+// ║  did not ask for, and a row that vanishes for an unstated reason is a bug    ║
+// ║  to the person watching it. One rule, both ticks, no exceptions.             ║
+// ║  (The single exception is an ARCHIVED order — §ARCHIVE-SAFE removes those    ║
+// ║  from every active list in the app, and a queue is an active list.)          ║
+// ║                                                                              ║
+// ║  BOTH TICKS ARE SHARED, not per-device. The whole point is that the TEAM     ║
+// ║  sees one queue: two people must not both bind the report or both phone the  ║
+// ║  same client, and "did anyone call them?" has to be answerable from any      ║
+// ║  desk. They ride in extra_data (bindedAt/bindedBy, deliveredAt/deliveredBy)  ║
+// ║  like every other per-order flag, written ONLY when set — see _toRow.        ║
+// ║  Storing WHO as well as WHEN costs one extra key each and answers the        ║
+// ║  question a small firm always ends up asking.                                ║
+// ║                                                                              ║
+// ║  NOTHING IS DELETED. A cleared job is filtered out, not destroyed: un-tick   ║
+// ║  either box and it comes straight back, in its original place in the sort.   ║
+// ║  Because the row is gone by then, the last two clears stay reachable in a    ║
+// ║  session-only undo strip at the foot of the box (in memory, 10 minutes, no   ║
+// ║  storage) so a mis-tick is one click to fix instead of a hunt through Job    ║
+// ║  Orders.                                                                     ║
+// ║                                                                              ║
+// ║  UNLOCK → RE-APPROVE. _unlockOrder clears approved/approvedAt but nothing    ║
+// ║  clears the two ticks, so a re-approved job could arrive pre-ticked from its ║
+// ║  previous cycle — and a re-approved report is a report that has to be        ║
+// ║  printed and bound AGAIN. Handled on the READ side (a tick counts only if    ║
+// ║  its timestamp is at or after approvedAt) rather than by touching approval   ║
+// ║  semantics anywhere.                                                         ║
+// ║                                                                              ║
+// ║  LANGUAGE. This is APP UI, not the report, so it is English under every      ║
+// ║  template language — the staff read it, the client never sees it. It does    ║
+// ║  NOT go through the §REPORT-NL formatters (_rfDate would render              ║
+// ║  "31-08-2026" under a Dutch or Spanish template). The stamp format is the    ║
+// ║  owner's own, fixed: Aug31,2026, 7:22pm.                                     ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var _apqAll   = false;        // "Show all" expanded?
+var _apqFlash = '';           // id of the row to flash green on the next render
+var _apqUndo  = [];           // session-only {id,addr,ts} for the last clears
+var _APQ_CAP  = 6;            // rows shown collapsed
+var _APQ_NEW  = 6*36e5;       // approved within 6h reads as NEW
+var _APQ_UNDO_MS = 10*60000;  // how long a clear stays undoable from the box
+
+function _apqEsc(v){
+  return String(v==null?'':v).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+// The owner's stamp, exactly: "Aug31,2026, 7:22pm".
+function _apqStamp(iso){
+  var d = new Date(iso);
+  if(!isFinite(d.getTime())) return '';
+  var M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+  var h = d.getHours(), ap = (h < 12) ? 'am' : 'pm';
+  h = h % 12; if(h === 0) h = 12;
+  var mi = d.getMinutes();
+  return M + d.getDate() + ',' + d.getFullYear() + ', ' + h + ':' + (mi<10?'0':'') + mi + ap;
+}
+// How long it has been sitting. Silent under a day — a job approved this
+// morning is not "waiting", it is just approved.
+function _apqAge(ms){
+  if(!(ms > 0)) return null;
+  var d = Math.floor(ms/864e5);
+  if(d < 1)   return null;
+  if(d === 1) return {t:'1 day waiting',   c:''};
+  if(d < 4)   return {t:d+' days waiting', c:''};
+  if(d < 8)   return {t:d+' days waiting', c:'warm'};
+  return {t:d+' days waiting', c:'hot'};
+}
+// The line the owner asked for, verbatim, as plain text. It is the row's
+// title= so the exact sentence is always one hover away, and it is what the
+// styled row reads out loud, in order.
+function _apqPlain(o){
+  return 'Appraisal ' + (o.id||'') + ' - ' + (o.address||'no address')
+       + ': APPROVED - Date ' + _apqStamp(o.approvedAt);
+}
+// A tick counts only if it was made for the CURRENT approval — see the
+// unlock/re-approve note in the header.
+function _apqTicked(o, at, stamp){
+  var t = Date.parse(stamp || '');
+  if(!isFinite(t) || t <= 0) return 0;
+  if(at > 0 && t < at) return 0;
+  return t;
+}
+
+// The derivation. Read-only over ORDERS.
+function apqItems(){
+  var src = (typeof ORDERS !== 'undefined' && Array.isArray(ORDERS)) ? ORDERS : [];
+  var out = [];
+  src.forEach(function(o){
+    if(!o || !o.id || o.approved !== true) return;
+    if(o.archived === true) return;                         // §ARCHIVE-SAFE
+    var at = Date.parse(o.approvedAt || ''); if(!isFinite(at)) at = 0;
+    var b  = _apqTicked(o, at, o.bindedAt);
+    var d  = _apqTicked(o, at, o.deliveredAt);
+    if(b && d) return;                                      // THE RULE
+    out.push({o:o, at:at, b:b, d:d});
+  });
+  out.sort(function(x,y){ return y.at - x.at; });           // newest approval first
+  return out;
+}
+
+function _apqShield(sz, cls){
+  return '<span class="' + cls + '"><svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24"'
+    + ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M12 2 4.5 5.5v6c0 4.4 3.2 8.5 7.5 10 4.3-1.5 7.5-5.6 7.5-10v-6z"/>'
+    + '<path d="m9 12 2 2 4-4"/></svg></span>';
+}
+function _apqCheck(kind, label, on){
+  return '<button type="button" class="apq-chk" role="checkbox" aria-checked="' + (on?'true':'false') + '"'
+    + ' data-apq-tick="' + kind + '" title="' + label + (on?' — tick again to undo':'') + '">'
+    + '<span class="apq-box"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"'
+    + ' stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="m5 12.5 5 5 9-11"/></svg></span>'
+    + '<span>' + label + '</span></button>';
+}
+
+function _apqRow(it, now){
+  var o = it.o;
+  var age   = _apqAge(now - (it.at || now));
+  var isNew = it.at > 0 && (now - it.at) < _APQ_NEW;
+  // the live data carries a trailing ", na" province on nearly every city
+  var city  = String(o.city || '').replace(/,\s*na\s*$/i, '').trim();
+
+  var l2 = '<span class="apq-date">Date ' + _apqEsc(_apqStamp(o.approvedAt)) + '</span>';
+  if(city)  l2 += '<span class="apq-meta">· ' + _apqEsc(city) + '</span>';
+  if(age)   l2 += '<span class="apq-age ' + age.c + '">· ' + age.t + '</span>';
+  // who did what, quietly, once there is something to say
+  if(it.b)  l2 += '<span class="apq-by">· Binded'
+                + (o.bindedBy ? ' by <b>' + _apqEsc(o.bindedBy) + '</b>' : '')
+                + ' · ' + _apqEsc(_apqStamp(o.bindedAt)) + '</span>';
+  if(it.d)  l2 += '<span class="apq-by">· Delivered'
+                + (o.deliveredBy ? ' by <b>' + _apqEsc(o.deliveredBy) + '</b>' : '')
+                + ' · ' + _apqEsc(_apqStamp(o.deliveredAt)) + '</span>';
+
+  return '<div class="apq-row' + (isNew ? ' is-new' : '')
+    + (_apqFlash === o.id ? ' is-flash' : '') + '"'
+    + ' data-oid="' + _apqEsc(o.id) + '" title="' + _apqEsc(_apqPlain(o)) + '">'
+    + _apqShield(17, 'apq-tick')
+    + '<div class="apq-txt" data-apq-open="1">'
+    +   '<div class="apq-l1">'
+    +     '<span class="apq-lbl">Appraisal</span>'
+    +     '<span class="apq-id">' + _apqEsc(o.id) + '</span>'
+    +     '<span class="apq-sep">-</span>'
+    +     '<span class="apq-addr">' + _apqEsc(o.address || 'no address') + '</span>'
+    +     '<span class="apq-sep tight">:</span>'
+    +     '<span class="apq-pill">APPROVED</span>'
+    +     (isNew ? '<span class="apq-new">NEW</span>' : '')
+    +   '</div>'
+    +   '<div class="apq-l2">' + l2 + '</div>'
+    + '</div>'
+    + '<div class="apq-checks">'
+    +   _apqCheck('binded',    'Binded',    !!it.b)
+    +   _apqCheck('delivered', 'Delivered', !!it.d)
+    + '</div>'
+    + '</div>';
+}
+
+function apqRender(){
+  var host = document.getElementById('apqBox');
+  if(!host) return;
+  var items = apqItems(), now = Date.now();
+  var n = items.length;
+  var shown = (_apqAll || n <= _APQ_CAP) ? items : items.slice(0, _APQ_CAP);
+  _apqUndo = _apqUndo.filter(function(u){ return (now - u.ts) < _APQ_UNDO_MS; });
+
+  var h = '<div class="apq-card' + (n ? '' : ' is-empty') + '">'
+    + '<div class="apq-hdr">'
+    +   _apqShield(18, 'apq-seal')
+    +   '<span class="apq-ttl">Ready to Deliver</span>'
+    +   (n ? '<span class="apq-count">' + n + '</span>' : '')
+    +   '<span class="apq-hint">' + (n
+          ? 'Approved &mdash; print, bind and call the client.'
+          : 'Approved appraisals arrive here.') + '</span>'
+    +   '<span class="apq-grow"></span>'
+    +   (n > _APQ_CAP
+          ? '<button type="button" class="apq-more" data-apq-act="all">'
+            + (_apqAll ? 'Show fewer' : 'Show all ' + n + ' &rarr;') + '</button>'
+          : '')
+    + '</div>';
+
+  if(!n){
+    h += '<div class="apq-empty">' + _apqShield(22, 'apq-tick')
+      +  '<div><div class="apq-empty-t">Nothing waiting to go out.</div>'
+      +  '<div class="apq-empty-s">Every approved appraisal has been bound and delivered.</div>'
+      +  '</div></div>';
+  } else {
+    h += shown.map(function(it){ return _apqRow(it, now); }).join('');
+  }
+
+  _apqUndo.slice(0, 2).forEach(function(u){
+    h += '<div class="apq-undo"><span>&#10003; <b>' + _apqEsc(u.id) + '</b> &mdash; '
+      +  _apqEsc(u.addr) + ' cleared</span><span class="apq-grow"></span>'
+      +  '<button type="button" class="apq-undo-btn" data-apq-act="undo" data-uid="'
+      +  _apqEsc(u.id) + '" data-ukind="' + _apqEsc(u.kind) + '">Undo</button></div>';
+  });
+
+  host.innerHTML = h + '</div>';
+  _apqFlash = '';
+
+  // Delegated ONCE, on the container that survives every re-render — so the
+  // handlers cannot accumulate and no order id is ever interpolated into an
+  // onclick string (ids are user-renameable, via qvEditId).
+  if(!host._apqBound){
+    host._apqBound = true;
+    host.addEventListener('click', function(ev){
+      var t = ev.target;
+      if(!t || !t.closest) return;
+      var chk = t.closest('[data-apq-tick]');
+      if(chk){
+        var row = chk.closest('[data-oid]');
+        if(row) apqToggle(row.getAttribute('data-oid'), chk.getAttribute('data-apq-tick'));
+        return;
+      }
+      var act = t.closest('[data-apq-act]');
+      if(act){
+        var a = act.getAttribute('data-apq-act');
+        if(a === 'all'){ _apqAll = !_apqAll; apqRender(); return; }
+        if(a === 'undo'){ apqToggle(act.getAttribute('data-uid'),
+                                    act.getAttribute('data-ukind') || 'delivered', true); return; }
+        return;
+      }
+      var open = t.closest('[data-apq-open]');
+      if(open){
+        var r2 = open.closest('[data-oid]');
+        if(r2) apqOpen(r2.getAttribute('data-oid'));
+      }
+    });
+  }
+
+  // "NEW" and "N days waiting" are relative to the clock, so a dashboard left
+  // open all day must not go stale. Cheap: only while the dashboard is the
+  // visible view, and installed only once, on the first render.
+  if(!window._apqTimer){
+    window._apqTimer = setInterval(function(){
+      try{
+        var v = document.getElementById('view-dashboard');
+        if(v && v.classList.contains('active') && document.visibilityState !== 'hidden') apqRender();
+      }catch(e){}
+    }, 60000);
+  }
+}
+
+// Row click opens the job — the same thing the orders table and the Overview
+// list do (rowClick / ovlOpen → openQV), reached from the dashboard the way
+// cbOrdersOpenOrder does it: switch to Job Orders first, then open QuickView.
+function apqOpen(id){
+  try{
+    var src = (typeof ORDERS !== 'undefined' && Array.isArray(ORDERS)) ? ORDERS : [];
+    var o = null;
+    for(var i=0;i<src.length;i++) if(String(src[i].id) === String(id)){ o = src[i]; break; }
+    if(!o) return;
+    if(typeof setView === 'function') setView('orders');
+    setTimeout(function(){ try{ if(typeof openQV === 'function') openQV(o); }catch(e){} }, 200);
+  }catch(e){}
+}
+
+// The only thing this feature WRITES. No confirm on the way in or out: a work
+// queue dies of friction, ticking the last box is the natural end of the job,
+// and every tick is reversible by clicking it again.
+//   force === true  →  always UNtick (that is what the Undo strip needs; the
+//                      row is gone by then, so there is no checkbox to read).
+function apqToggle(id, kind, force){
+  try{
+    var o = (typeof _byId === 'function') ? _byId(id) : null;
+    if(!o) return;
+    var at = Date.parse(o.approvedAt || ''); if(!isFinite(at)) at = 0;
+    var atK = (kind === 'binded') ? 'bindedAt' : 'deliveredAt';
+    var byK = (kind === 'binded') ? 'bindedBy' : 'deliveredBy';
+    var on  = (force === true) ? false : !_apqTicked(o, at, o[atK]);
+
+    if(on){
+      o[atK] = new Date().toISOString();
+      o[byK] = (typeof _authUser !== 'undefined' && _authUser)
+               ? String(_authUser.name || _authUser.email || '') : '';
+    } else {
+      o[atK] = '';
+      o[byK] = '';
+    }
+    try{ persistOrders(id); }catch(e){}
+    try{ appLog('ACTION', 'DELIVERY',
+        (on ? 'Ticked ' : 'Un-ticked ') + kind + ' on ' + id); }catch(e){}
+
+    // Does this tick clear the job? Same rule as apqItems, asked once.
+    var cleared = on
+      && _apqTicked(o, at, o.bindedAt)
+      && _apqTicked(o, at, o.deliveredAt);
+
+    // an un-tick brings the row back, so its "cleared" note is stale
+    if(!on) _apqUndo = _apqUndo.filter(function(u){ return u.id !== id; });
+    if(!cleared){ _apqFlash = id; apqRender(); return; }
+
+    // It is leaving. Show it leaving, then re-render. The tick is painted
+    // immediately so the user sees the box they just clicked go green.
+    _apqUndo.unshift({id:id, kind:kind, addr:String(o.address||'no address'), ts:Date.now()});
+    _apqUndo = _apqUndo.slice(0, 2);
+    // Found by comparing the attribute, never by building a CSS attribute
+    // selector out of an id the user can rename to anything (qvEditId).
+    var row = null, all = document.querySelectorAll('#apqBox .apq-row[data-oid]');
+    for(var k=0;k<all.length;k++) if(all[k].getAttribute('data-oid') === String(id)){ row = all[k]; break; }
+    if(!row){ apqRender(); return; }
+    var box = row.querySelector('[data-apq-tick="' + kind + '"]');
+    if(box) box.setAttribute('aria-checked', 'true');
+    row.classList.add('apq-go');
+    setTimeout(function(){ try{ apqRender(); }catch(e){} }, 900);
+  }catch(e){}
 }
 
 /* ── Contact Book integration ─────────────────────────────────────────────── */
@@ -44774,6 +45340,21 @@ function _toRow(o) {
       //   the lock. Persist it in extra_data so it survives sync / navigation /
       //   other devices.
       approved:!!o.approved, approvedAt:o.approvedAt||'',
+      // §APPROVED-QUEUE (v2.372) — the two SHARED ticks behind the dashboard's
+      //   Ready-to-Deliver box: who bound the report and who delivered it, and when.
+      //   Shared rather than per-device on purpose — the whole point is that the TEAM
+      //   sees one queue, so two people don't both bind the report or both phone the
+      //   same client.
+      //   All four keys are written ONLY when actually set (the §DRAFT / §OP-FORMAT /
+      //   §OWNERS-LIST precedent): JSON.stringify drops an undefined value entirely, so
+      //   an order that has never been ticked produces byte-for-byte the extra_data it
+      //   did in v2.371. No schema migration — they ride in extra_data exactly like
+      //   approvedAt above. A *By is suppressed unless its *At exists, so a stray name
+      //   can never survive on its own.
+      bindedAt:(o.bindedAt||undefined),
+      bindedBy:(o.bindedAt?(o.bindedBy||undefined):undefined),
+      deliveredAt:(o.deliveredAt||undefined),
+      deliveredBy:(o.deliveredAt?(o.deliveredBy||undefined):undefined),
       // §REPORT-PDF (v2.112) — pointer to the published report PDF ({path,url,savedAt}),
       //   stored in extra_data so the QuickView "PDF" button lights up across devices
       //   (no schema migration; extra_data IS in the lean fetch).
@@ -44962,6 +45543,14 @@ function _fromRow(row, order) {
       //   DB syncs / navigation / other devices.
       if (typeof x.approved !== 'undefined') order.approved = !!x.approved;
       if (x.approvedAt)     order.approvedAt     = x.approvedAt;
+      // §APPROVED-QUEUE (v2.372) — set UNCONDITIONALLY (the §OWNERS-LIST ownersCols /
+      //   §MULTI-OWNER multiOwner precedent): un-ticking STOPS writing the keys, so
+      //   reading the row back has to clear the fields rather than let a stale
+      //   in-memory value resurrect a tick somebody has just taken off.
+      order.bindedAt    = (typeof x.bindedAt    === 'string') ? x.bindedAt    : '';
+      order.bindedBy    = order.bindedAt    ? (x.bindedBy    || '') : '';
+      order.deliveredAt = (typeof x.deliveredAt === 'string') ? x.deliveredAt : '';
+      order.deliveredBy = order.deliveredAt ? (x.deliveredBy || '') : '';
       // §REPORT-PDF (v2.112) — restore the published-PDF pointer for the QuickView button.
       if (x.reportPdf && typeof x.reportPdf==='object') order.reportPdf = x.reportPdf;
       if (x.contact)        order.contact        = x.contact;
