@@ -480,6 +480,35 @@ grant execute on function public.sigma_pay_payout(uuid,date,text,text,text)     
 grant execute on function public.sigma_void_payout(uuid,text,text)                  to authenticated;
 grant execute on function public.sigma_next_payout_number(int)                      to authenticated;
 
+-- ── 11. Take it back off anon ─────────────────────────────────────────────────
+-- Supabase's default privileges on the public schema hand `anon` a grant on every
+-- new table automatically, so section 10 above is not the whole story: the grant
+-- existed the moment the tables did. RLS still returned nothing (no policy names
+-- anon), but a grant that exists is one `disable row level security` away from
+-- exposing what a contractor is paid. Taken away explicitly.
+--
+-- REVOKE ... FROM PUBLIC would NOT do this: anon holds its own grant, not one
+-- inherited from PUBLIC. Verify with pg_class.relacl / pg_proc.proacl, because
+-- has_function_privilege() keeps answering true for a role that still holds a
+-- direct grant.
+revoke all on public.contractors           from anon;
+revoke all on public.contractor_tasks      from anon;
+revoke all on public.contractor_rates      from anon;
+revoke all on public.contractor_payouts    from anon;
+revoke all on public.work_items            from anon;
+revoke all on public.payout_counters       from anon;
+revoke all on public.contractor_balances_v from anon;
+revoke execute on function public.sigma_assign_work(uuid,text,text,text,numeric,text) from anon;
+revoke execute on function public.sigma_work_done(uuid,text,boolean)                 from anon;
+revoke execute on function public.sigma_void_work(uuid,text,text)                    from anon;
+revoke execute on function public.sigma_create_payout(uuid,uuid[],text,text)         from anon;
+revoke execute on function public.sigma_pay_payout(uuid,date,text,text,text)         from anon;
+revoke execute on function public.sigma_void_payout(uuid,text,text)                  from anon;
+revoke execute on function public.sigma_next_payout_number(int)                      from anon;
+revoke execute on function public.sigma_contractor_rate(uuid,text,date)              from anon;
+revoke execute on function public.sigma_my_contractor_id()                           from anon;
+revoke execute on function public.sigma_is_staff()                                   from anon;
+
 commit;
 
 -- ── §LATER — the two things Release A deliberately leaves out ─────────────────
