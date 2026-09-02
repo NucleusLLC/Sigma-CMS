@@ -25438,6 +25438,32 @@ async function _finIdentityEnforce(inv, order){
     return out;
   }
 
+  // §IDENTITY-DELIBERATE (v2.381) — was this difference put there on purpose? Asked
+  //   once, before BOTH issued branches: a deliberate change to the email alone would
+  //   otherwise fall through to the "use the details from the ORDER" offer below and be
+  //   quietly reverted to the address the correction was meant to replace.
+  //   undefined (the audit could not be read) deliberately falls through to the existing
+  //   behaviour, which blocks on a name difference. A question we could not answer must
+  //   never be the reason a client's invoice reaches somebody else.
+  var _dlb = await _finClientEditedAt(inv.id);
+  if(_dlb){
+    var _who = (inv.client_name || '(no name)')
+             + (inv.client_email ? '\n      ' + inv.client_email : '')
+             + (inv.client_phone ? '\n      ' + inv.client_phone : '');
+    if(!confirm('Invoice ' + inv.invoice_number + ' is billed to a different person from the one recorded on order '
+        + inv.order_id + ', and that was done ON PURPOSE:\n\n' + detail
+        + '\n\nThe change was made on ' + _finDate(_dlb.at)
+        + (_dlb.by ? ' by ' + _dlb.by : '') + ', and it is in the invoice history.\n\n'
+        + 'This will be sent to:\n      ' + _who + '\n\n'
+        + 'Press OK to send it to them, or Cancel to send nothing.')){
+      out.ok = false; return out;                           // cancelled: no message, no send
+    }
+    out.deliberate = _dlb;
+    try { appLog('ACTION','FINANCE','Invoice ' + inv.invoice_number + ' sent to its edited client ('
+      + (inv.client_name || 'no name') + '), which differs from order ' + inv.order_id); } catch(e){}
+    return out;                                             // the invoice is authoritative
+  }
+
   // Issued. The document itself names a client; it cannot be rewritten and must not be
   //   sent to somebody else.
   if(chk.nameDiff){
@@ -25445,9 +25471,15 @@ async function _finIdentityEnforce(inv, order){
     out.error = 'This invoice belongs to a DIFFERENT client and was not sent.\n\n'
               + 'Invoice ' + inv.invoice_number + ' was issued to ' + (inv.client_name || '(no name)')
               + ', but order ' + inv.order_id + ' is for ' + chk.want.client_name + ':\n\n' + detail
-              + '\n\nA finalised invoice cannot be changed, and sending it would give one client another '
-              + "client's invoice. Void invoice " + inv.invoice_number + ' and raise a new one for '
-              + chk.want.client_name + '.';
+              + '\n\nSending it would give one client another client\u2019s invoice, so nothing was sent.'
+              // §IDENTITY-DELIBERATE (v2.381) — the old wording here said a finalised invoice
+              //   "cannot be changed". It can: §INVOICE-EDIT permits exactly that, and the
+              //   owner had just done it. Sending them to void a correct invoice was wrong.
+              + '\n\nIf ' + (inv.client_name || 'the name on the invoice')
+              + ' is who this invoice SHOULD be billed to, open it with \u270e Edit and change the '
+              + 'client there — a deliberate change is recorded and the invoice can then be sent. '
+              + 'If it is genuinely the wrong client, void ' + inv.invoice_number
+              + ' and raise a new one for ' + chk.want.client_name + '.';
     return out;
   }
 
@@ -25775,6 +25807,13 @@ async function _finBillingRenderInner(){
       _ident.fixed = _rs.changed; _ident.err = _rs.error; _ident.slow = _rs.timedOut;
       if(_rs.changed){ _ident.differs = false; _ident.nameDiff = false; }
     }
+    // §IDENTITY-DELIBERATE (v2.381) — the panel must reach the same verdict as the send
+    //   path. Without this the buttons stay hidden on an invoice _finIdentityEnforce
+    //   would now let through, and the owner is told to void a document they had just
+    //   deliberately corrected.
+    if(_ident.differs && !_ic.isDraft){
+      try{ _ident.deliberate = await _finClientEditedAt(inv.id); }catch(e){}
+    }
   }
 
   var h = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px 22px;margin-bottom:14px;">';
@@ -25897,7 +25936,25 @@ async function _finBillingRenderInner(){
          + 'This draft carried different client details from the order. They have been corrected to '
          + _erEsc(inv.client_name || '(no name)') + (inv.client_email ? ' · ' + _erEsc(inv.client_email) : '') + '.</div>';
     }
-    if(_ident.differs){
+    // §IDENTITY-DELIBERATE (v2.381) — a recorded, on-purpose correction is not an alarm.
+    //   It is stated calmly and the send buttons stay on; the red banner below is kept for
+    //   a difference nobody chose, which is the one that means an invoice is about to
+    //   reach the wrong person.
+    if(_ident.differs && _ident.deliberate){
+      h += '<div style="margin-bottom:12px;padding:10px 13px;border:1px solid rgba(196,151,64,.45);border-radius:9px;'
+         + 'background:rgba(196,151,64,.07);font-size:12.5px;color:#e7e5e4;line-height:1.6;">'
+         + '<strong style="color:#e8b84b;">This invoice is billed to someone other than the client on the order, on purpose.</strong><br>'
+         + _ident.rows.map(function(x){
+             return _erEsc(x.label) + ': invoice says <b>' + _erEsc(x.on_invoice)
+                  + '</b>, order says <b>' + _erEsc(x.on_order) + '</b>'; }).join('<br>')
+         + '<br>Changed on ' + _erEsc(_finDate(_ident.deliberate.at))
+         + (_ident.deliberate.by ? ' by ' + _erEsc(_ident.deliberate.by) : '')
+         + ' and recorded in the invoice history, so it can still be sent. '
+         + 'It will go to <b>' + _erEsc(inv.client_name || '(no name)') + '</b>'
+         + (inv.client_email ? ' · ' + _erEsc(inv.client_email) : '')
+         + '. The order still records ' + _erEsc((_ident.rows[0] && _ident.rows[0].on_order) || 'its own client')
+         + ' — that is left alone, because who is BILLED and who the job is FOR are allowed to differ.</div>';
+    } else if(_ident.differs){
       h += '<div style="margin-bottom:12px;padding:10px 13px;border:1px solid rgba(248,113,113,.55);border-radius:9px;'
          + 'background:rgba(248,113,113,.10);font-size:12.5px;color:#e7e5e4;line-height:1.6;">'
          + '<strong style="color:#fca5a5;">This invoice does not match the client on this order'
@@ -25916,12 +25973,16 @@ async function _finBillingRenderInner(){
          + (_ident.slow
              ? ''
              : (_ident.nameDiff
-                 ? ('A finalised invoice can never be changed — void ' + _erEsc(inv.invoice_number) + ' and raise a new one for the right client.')
+                 ? ('If this invoice SHOULD be billed to ' + _erEsc(inv.client_name || 'the name shown')
+                    + ', open it with \u270e Edit and change the client there — a deliberate change is '
+                    + 'recorded and it can then be sent. If it is genuinely the wrong client, void '
+                    + _erEsc(inv.invoice_number) + ' and raise a new one.')
                  : 'Correct the client details on the order, then reopen this tab.'))
          + '</div>'
          + (_ident.slow ? '<div style="margin-bottom:12px;"><button class="btn-sec" onclick="finBillingRender()">↻ Try again</button></div>' : '');
     }
-    var _canSend = !_ident.differs;
+    // §IDENTITY-DELIBERATE (v2.381) — a recorded correction does not switch sending off.
+    var _canSend = !_ident.differs || !!_ident.deliberate;
     h += '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;">';
     if(inv.status === 'draft'){
       h += '<button onclick="finFinalize(\'' + inv.id + '\').then(finBillingRender)" style="padding:9px 18px;'
@@ -26854,6 +26915,58 @@ async function _finHandEditedAt(invoiceId){
     var e = r.data[i];
     if(e.action === 'invoice_edit_released') return null;
     if(e.action === 'invoice_edited' && e.metadata && e.metadata.lines_changed === true) return e.created_at;
+  }
+  return null;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §IDENTITY-DELIBERATE (v2.381) — a client correction made ON PURPOSE          ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+//
+// REPORTED: "the owner wrote back that the invoice needs to be on her name instead
+// of her husband. I went to change the name on the invoice through EDIT, it allows
+// me to change it but it doesn't allow me to re-send through email or WhatsApp."
+//
+// Two subsystems held CONTRADICTORY rules about the same field.
+//
+//   §INVOICE-EDIT (v2.301) deliberately permits a finalised invoice's client fields
+//     to be changed — behind the red banner and the tick-box. Its own header records
+//     that this "was put to the owner as an open question and decided, twice".
+//   §INVOICE-IDENTITY (v2.293) refuses to SEND any issued invoice whose client name
+//     differs from its order's, because that is what a cross-contaminated invoice
+//     looks like — order 2026-094 carried order 2026-072's client, one keystroke
+//     from mailing one client's invoice to another.
+//
+// Both rules are right. The gap is that the guard could not tell the two situations
+// apart: a name that differs because it was copied from the wrong order at creation,
+// and a name that differs because a signed-in user deliberately corrected it, look
+// identical if all you compare is the invoice against the order.
+//
+// They are not identical in the AUDIT TRAIL. sigma_edit_invoice records
+// metadata.fields_changed — the exact list of columns that moved — on every edit.
+// A client field in that list is a deliberate, attributed, timestamped correction.
+// Nothing writes such a row by accident, and creation does not write one at all.
+//
+// So the invoice becomes authoritative about who it bills ONLY when the audit trail
+// says a person decided that. Everything else still blocks, unchanged. Note the
+// three-valued return, copied from _finHandEditedAt: undefined means "could not find
+// out", and an unanswerable question must never open the gate.
+async function _finClientEditedAt(invoiceId){
+  if(typeof _sb === 'undefined' || !_sb) return undefined;
+  var r = await _finTry(_sb.schema('public').from('finance_audit_events')
+                   .select('action,created_at,actor,metadata')
+                   .eq('entity','invoice').eq('entity_id', invoiceId)
+                   .eq('action','invoice_edited')
+                   .order('created_at', { ascending:false }).limit(20),
+                   FIN_NET_MS, 'checking whether this invoice’s client was changed on purpose', null);
+  if(!r || r.error || !r.data) return undefined;
+  var IDF = ['client_name','client_email','client_phone','bill_to_name','bill_to_address'];
+  for(var i = 0; i < r.data.length; i++){
+    var e = r.data[i], f = e && e.metadata && e.metadata.fields_changed;
+    if(!f || !f.length) continue;
+    for(var j = 0; j < IDF.length; j++){
+      if(f.indexOf(IDF[j]) >= 0) return { at: e.created_at, by: e.actor || '', fields: f };
+    }
   }
   return null;
 }
