@@ -326,6 +326,17 @@ html,body{background:#080a0f;margin:0;padding:0;}
 .qv-ab-btn:disabled, .qv-ab-btn.qv-ab-disabled { opacity:.38; cursor:not-allowed; filter:grayscale(.55); }
 .qv-ab-btn:disabled:hover, .qv-ab-btn.qv-ab-disabled:hover { background:transparent !important; }
 .qv-ab-btn:disabled .qv-ab-ico, .qv-ab-btn.qv-ab-disabled .qv-ab-ico { transform:none !important; }
+/* §WA-INSP-NOTIFY (v2.422) — Quick-View's WhatsApp control, sitting beside Schedule.
+   Same #25D366 as the invoice/payout buttons; "lit" once this exact appointment has
+   been handed to WhatsApp. It carries .qv-ab-disabled rather than [disabled] so that
+   hovering and clicking both still explain WHY it cannot be used. */
+.qv-ab-wa::after  { background:#25D366; }
+.qv-ab-wa:hover   .qv-ab-ico { color:#25D366; }
+.qv-ab-wa:hover   .qv-ab-lbl { color:#25D366; }
+.qv-ab-wa:hover   { background:#f0fdf4; }
+.qv-ab-wa.qv-ab-lit .qv-ab-ico { color:#25D366; }
+.qv-ab-wa.qv-ab-lit .qv-ab-lbl { color:#1ea952; font-weight:700; }
+.qv-ab-wa.qv-ab-lit { background:#f0fdf4; }
 .qv-ab-pdf.qv-ab-lit .qv-ab-ico { color:#16a34a; }
 .qv-ab-pdf.qv-ab-lit .qv-ab-lbl { color:#15803d; font-weight:700; }
 .qv-ab-pdf.qv-ab-lit { background:#f0fdf4; }
@@ -8946,8 +8957,24 @@ body.glass:not([class*="theme-dark"]) .syn-pay.over{ color:#b3261e; }
 .uis-btn:focus-visible{ outline:2px solid var(--apq-accent); outline-offset:2px; }
 .uis-btn.is-sent{ border-color:rgba(20,184,166,.42); background:rgba(20,184,166,.12);
                   color:var(--apq-accent-lt); }
+/* §BASEMAP-ESRI (v2.423) — Esri's Dark Gray Canvas is a LIGHTER grey than the CARTO
+   Dark Matter base it replaced, which reads wrong against this app's #0b0d10 chrome and
+   against a card that promises a dark base. Darkened here rather than by picking a
+   different provider, because no keyless dark raster has Aruba detail past z16. Applied
+   to the TILE PANE only, so the footprint, zoning and marker overlays drawn on top keep
+   their true colours — a filter on the map container would have dimmed those too. */
+.sa-dark-tiles{ filter:brightness(.52) contrast(1.12) saturate(.9); }
 .uis-btn.is-blocked{ border-style:dashed; color:var(--apq-dim); cursor:help; }
 .uis-btn[disabled]{ opacity:.55; cursor:progress; }
+/* §WA-INSP-NOTIFY (v2.422) — the WhatsApp control, beside the email one. The same
+   #25D366 the invoice and payout WhatsApp buttons use, so one colour means one
+   channel everywhere in the app. It is greyed, never removed, when it cannot be
+   used: a control that disappears just reads as a broken screen (v2.294). */
+.uis-btn.uis-wa{ border-color:rgba(37,211,102,.42); color:#25D366; }
+.uis-btn.uis-wa:hover{ border-color:#25D366; color:#25D366; background:rgba(37,211,102,.10); }
+.uis-btn.uis-wa.is-blocked{ border-color:var(--apq-line); color:var(--apq-dim); }
+.uis-btn.uis-wa.is-wa-sent{ border-color:rgba(37,211,102,.55); background:rgba(37,211,102,.14);
+                            color:#25D366; }
 
 @media (max-width:860px){
   /* §APPROVED-QUEUE s narrow rule lets .apq-txt wrap BELOW the row icon once it
@@ -14137,6 +14164,14 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
       <span class="qv-ab-lbl">Schedule</span>
       <span class="qv-ab-bg"></span>
     </button>
+    <!-- §WA-INSP-NOTIFY (v2.422) — hand this appointment to WhatsApp for the inspector.
+         Beside Schedule because it is the same appointment. It never sends: WhatsApp
+         opens with the message typed and the user presses Send. -->
+    <button class="qv-ab-btn qv-ab-wa" id="qvBtnWaInsp" title="Open WhatsApp with the inspection appointment ready for the inspector">
+      <span class="qv-ab-ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></span>
+      <span class="qv-ab-lbl">WhatsApp</span>
+      <span class="qv-ab-bg"></span>
+    </button>
     <button class="qv-ab-btn qv-ab-val" id="qvBtnVal">
       <span class="qv-ab-ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></span>
       <span class="qv-ab-lbl">Valuation</span>
@@ -15676,7 +15711,7 @@ function saOpenModule(module) {
 // ══ PROPERTY MAP · ARUBA ═════════════════════════════════════════════════════
 //  Full-screen dark interactive map opened from the "Property Map" analytics
 //  card. Reuses the app's already-loaded Leaflet + already-authenticated _sb.
-//    • CARTO Dark Matter dark base
+//    • Esri Dark Gray Canvas base (keyless; native to z16, upscaled beyond — §BASEMAP-ESRI)
 //    • OSM/Overpass building footprints (viewport, z>=16), dim by default
 //    • Nominatim address search (Aruba) -> locate + light up the building
 //    • Plots `orders` with map_lat/map_lng as status-colored appraisal markers
@@ -15708,7 +15743,7 @@ function saOpenPropertyMap(){
     +     '<div style="display:flex;align-items:center;gap:7px;margin:4px 0;"><span style="width:11px;height:11px;border-radius:50%;background:#2563eb;"></span>In Review</div>'
     +     '<div style="display:flex;align-items:center;gap:7px;margin:4px 0;"><span style="width:11px;height:11px;border-radius:50%;background:#dc2626;"></span>Revision</div>'
     +     '<div style="display:flex;align-items:center;gap:7px;margin:4px 0;"><span style="width:11px;height:11px;border-radius:50%;background:#6b7280;"></span>Completed / other</div>'
-    +     '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #2a3138;line-height:1.5;">Zoom in (&ge; z16) for building footprints. &copy; OpenStreetMap &middot; CARTO.</div>'
+    +     '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #2a3138;line-height:1.5;">Zoom in (&ge; z16) for building footprints. Base blurs past z16. &copy; OpenStreetMap &middot; Esri.</div>'
     +   '</div>'
     +   '<div id="saZoneLegend" style="display:none;position:absolute;right:14px;bottom:18px;z-index:1000;background:rgba(20,24,29,.92);border:1px solid #2a3138;border-radius:12px;padding:12px 14px;font-size:11px;color:#8b97a3;max-width:220px;max-height:48vh;overflow:auto;">'
     +     '<div style="font-weight:700;color:#e8edf2;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">ROPV zoning</div>'
@@ -15734,7 +15769,20 @@ function saOpenPropertyMap(){
 
   // ── Map + dark base ──
   var map=L.map('saPropMap',{center:[12.5211,-69.9683],zoom:12,preferCanvas:true,zoomControl:true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+  // §BASEMAP-ESRI (v2.423) — CARTO moved its basemaps behind an API key and now answers
+  //   an unkeyed tile request with HTTP 200 and an "API KEY REQUIRED" watermark image. So
+  //   nothing threw, no status check failed, and the map simply became unreadable. Esri's
+  //   Dark Gray Canvas is keyless, needs no account, and this file already calls the same
+  //   host for the satellite layer.
+  //   TWO differences that bite. (1) The axis order is {z}/{y}/{x}, NOT {z}/{x}/{y} — swap
+  //   them and it renders a plausible-looking WRONG PLACE rather than an error. (2) There
+  //   is no {r} retina variant and no {s} subdomain.
+  //   Its tiles stop at z16 over Aruba — z17+ returns a light-grey "Map data not yet
+  //   available" sheet, which would be worse than the watermark on a map whose whole point
+  //   is z≥16. maxNativeZoom pins fetching at 16 and lets Leaflet upscale beyond it: the
+  //   BASE blurs, while the building footprints and ROPV zoning stay sharp because those
+  //   are vector overlays, not tiles. That is the trade, and it is the right way round.
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:16,className:'sa-dark-tiles',attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}).addTo(map);
   setTimeout(function(){ try{map.invalidateSize();}catch(e){} },80);
 
   var rend=L.canvas({padding:.5});
@@ -18753,7 +18801,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.421';
+var APP_VERSION = 'v2.422';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -18791,6 +18839,8 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.422',type:'feature',date:'09-04-2026',ts:'09-04-2026 14:00',_static:true,title:'Tell the inspector on WhatsApp when you book the inspection',desc:"Tell the inspector on WhatsApp when you book an inspection. When you set an inspection date AND a time — on the calendar, in the Quick-View scheduling row, or from the date picker on the order — SIGMA now offers to send the assigned appraiser a WhatsApp carrying the job order number, the property address, the date, the time, and a map link to the property. It only ever offers: it opens WhatsApp with the message already typed, on YOUR number, and you read it and press Send yourself. Nothing is sent behind your back, and nothing anywhere in the app claims SIGMA sent it. There is also a 💬 WhatsApp button beside Notify inspector in the Upcoming Inspections panel, and one next to Schedule in Quick-View, so a message can be sent again at any time. The number comes from the Appraiser Roster, matched to the inspector by name. If the person is not on the roster, or is on it with no phone number, nothing opens and it tells you which of the two is wrong and where to fix it — it never guesses a number and never falls back to somebody else's. If a stored number cannot be read with certainty it asks you to type one for that message only. The map link uses the pin set on the order; if no pin has been placed it falls back to searching the address, and the message itself says it is a search rather than a pinned location, so nobody drives to the wrong house believing otherwise. Repeats are guarded separately from the email one: once a message has been handed to WhatsApp for a given appointment the button reads as sent and a second send asks again, and if you move the date or the time the button comes back by itself and says the appointment moved. Emailing the inspector is untouched — the two are separate channels and one is never marked because of the other."},
+  {v:'v2.422',type:'fix',date:'09-04-2026',ts:'09-04-2026 13:30',_static:true,title:'The Aruba Property Map went blank because its map supplier started charging',desc:"The Aruba Property Map went unreadable, and every health check said it was fine. CARTO, who supplied the dark map background, have put their maps behind a paid API key. What makes this worth writing down is HOW it failed: instead of returning an error, their server answers normally — correct status, correct image — with a picture reading API KEY REQUIRED. So nothing broke, nothing was logged, and no automated check could see it. The only way to catch it was to download one of those images and look at it. The map now uses Esri's Dark Gray Canvas instead, which needs no key and no account, and which this app already used for its satellite view. Two consequences you will notice. The map is a slightly different shade of dark. And past zoom 16 the BACKGROUND goes soft, because no free dark map has detail beyond that point over Aruba — but the building footprints and the ROPV zoning are drawn by SIGMA on top of it, so those stay perfectly sharp at every zoom. That is the right way round: the part you are reading stays crisp, the backdrop behind it does not. The same background was also offered as the Dark option on the map used to place a property pin, and it was broken there in exactly the same way. It is fixed in both places. No key was bought and none is needed."},
   {v:'v2.421',type:'feature',date:'09-04-2026',ts:'09-04-2026 12:00',_static:true,title:'The Introductory Note has moved to Inspect Data \u203a 13. Opinions',desc:'The Introductory Note is no longer in Project Data \u203a Notes. It is now the first field of 13. Opinions in Inspect Data, at the very top, above Building, Equipment &amp; Finishes \u2014 beside the other professional opinions it belongs with, in the screen you are already in when you write them. The AI Generate button moved with it and works there, and what it generates is now saved the moment it appears rather than waiting for a screen you no longer open. Nothing about your existing notes changed: every note is still stored on the job order itself, so every report and every job order prints exactly the note it printed before. Project Data \u203a Notes keeps Revision / Correction Requests, Assignment Notes and Comparable Sales Notes. Two safeguards came with the move \u2014 the note is deliberately kept out of the inspection-data record, so the copy the report prints can never drift from the one you typed; and the Project Data screen no longer writes the field at all, which is what stops a note left on screen from one job order being saved onto another.'},
   {v:'v2.420',type:'feature',date:'09-04-2026',ts:'09-04-2026 10:30',_static:true,title:'Approve and Unlock are now in Quick-View',desc:'Quick-View gains the two buttons the Job Orders list already had: APPROVE, which locks the job order against further editing, and UNLOCK, which asks for your password and re-enables it. They are the same actions doing the same thing \u2014 you no longer have to close Quick-View and find the row in the table to approve a job. They sit at the end of the action bar, which now runs six across instead of five so the twelve buttons still fill two clean rows. Unlike every other pill in that bar, they hover green and red rather than gold, because they are the two that change the order rather than open a screen. Approve greys out and reads \u2713 Approved once the job is locked; Unlock is dark until there is something to unlock. Approving or unlocking now also repaints Quick-View itself \u2014 the status badge, the workflow bar and the buttons all update on the spot instead of showing the old state until you reopen the popup.'},
   {v:'v2.419',type:'feature',date:'09-04-2026',ts:'09-04-2026 09:30',_static:true,title:'Master Fees can now be printed on A4 portrait',desc:'A Print A4 button beside the Type tabs opens a real print preview of the Master Fees, paginated on screen exactly as it will print: A4 portrait, column headings repeated on every sheet, no row ever cut across a page, and Page N of M counted rather than estimated. It uses the same page setup as the rest of the app rather than a new one. It prints ALL THREE appraisal types, each as its own section with its own totals, and that is deliberate: the screen shows one type at a time because it is an editor, but a job fee is one figure shared across all three types while a charge fee is per type, so the same payout sits against three different prices and three different margins. A sheet showing only the open tab could not show that and would look like the whole master list. Every item prints with its charge fee, its job fee, the margin in money and as a percentage, and which kind of field work it pays. The two warnings the screen carries print as well - an item that pays out more than it charges, and two rows priced for the same kind of field work - gathered into one Worth a look section at the end rather than repeated under each type: since job fees are shared, the same loss usually applies to all three, and it now says so once instead of printing three identical red lines. Nothing is changed by printing; it reads the fees and stops.'},
@@ -35889,6 +35939,15 @@ function _uisRow(it){
         + (o.inspNotifiedTo ? ' → <b>' + _apqEsc(o.inspNotifiedTo) + '</b>' : '')
         + ' · ' + _apqEsc(_apqStamp(o.inspNotifiedAt)) + '</span>';
   }
+  // §WA-INSP-NOTIFY (v2.422) — the OTHER channel, reported separately from the email
+  //   one above and never merged with it. "Opened", not "sent": SIGMA hands the
+  //   message to WhatsApp and never learns whether the user pressed Send.
+  if(o.inspWaNotifiedAt){
+    var wmoved = (String(o.inspWaNotifiedFor||'') !== _uisStamp(o));
+    l2 += '<span class="apq-by">· ' + (wmoved ? 'WhatsApp opened for the OLD date' : 'WhatsApp opened')
+        + (o.inspWaNotifiedTo ? ' → <b>' + _apqEsc(o.inspWaNotifiedTo) + '</b>' : '')
+        + ' · ' + _apqEsc(_apqStamp(o.inspWaNotifiedAt)) + '</span>';
+  }
 
   // The one control. It never sends on its own — see the header.
   var btn;
@@ -35908,6 +35967,27 @@ function _uisRow(it){
         + (done ? '✓ Notified' : 'Notify inspector') + '</button>';
   }
 
+  // §WA-INSP-NOTIFY (v2.422) — the second control. Same doctrine as the email one:
+  //   it never sends by itself, and when it cannot be used it is GREYED with the
+  //   reason on hover rather than removed (v2.294 — a button that disappears just
+  //   looks like the screen is broken). A number that cannot be READ is not a block:
+  //   that case is answerable at send time by typing one, so the button stays live.
+  var wp = _wainPhoneFor(o);
+  var wbtn;
+  if(!wp.e164 && !wp.fixable){
+    wbtn = '<button type="button" class="uis-btn uis-wa is-blocked" data-uis-act="why"'
+         + ' title="' + _apqEsc('Cannot WhatsApp the inspector — ' + wp.why
+             + '. Add it under Settings › Appraisers.') + '">💬 No number</button>';
+  } else {
+    var wdone = o.inspWaNotifiedAt && String(o.inspWaNotifiedFor||'') === _uisStamp(o);
+    wbtn = '<button type="button" class="uis-btn uis-wa' + (wdone ? ' is-wa-sent' : '') + '"'
+         + ' data-uis-act="wa" title="' + _apqEsc((wdone
+               ? 'This exact date and time has already been opened in WhatsApp. Click to open it again — you will be asked to confirm. Goes to '
+               : 'Open WhatsApp with the appointment ready for the inspector. SIGMA cannot send it — you press Send in WhatsApp. Goes to ')
+             + (wp.pretty || 'a number you will be asked to type')) + '">'
+         + (wdone ? '💬 Opened' : '💬 WhatsApp') + '</button>';
+  }
+
   return '<div class="apq-row' + rowCls + '" data-oid="' + _apqEsc(o.id) + '"'
     + ' title="' + _apqEsc(String(o.id) + ' - ' + (o.address||'no address') + ': inspection '
         + _uisDay(it.d) + (t ? ' at ' + t : ' (no time set)')
@@ -35924,7 +36004,7 @@ function _uisRow(it){
     +   '</div>'
     +   '<div class="apq-l2">' + l2 + '</div>'
     + '</div>'
-    + '<div class="uis-acts">' + btn + '</div>'
+    + '<div class="uis-acts">' + btn + wbtn + '</div>'
     + '</div>';
 }
 
@@ -35975,6 +36055,13 @@ function uisRender(){
         var a = act.getAttribute('data-uis-act');
         if(a === 'all'){ _uisAll = !_uisAll; uisRender(); return; }
         if(a === 'why'){ alert(act.getAttribute('title') || ''); return; }
+        // §WA-INSP-NOTIFY (v2.422) — the WhatsApp control's click. Nothing opens
+        //   without this click AND the confirmation wainSend() puts up.
+        if(a === 'wa'){
+          var wrow = act.closest('[data-oid]');
+          if(wrow) wainSend(wrow.getAttribute('data-oid'));
+          return;
+        }
         if(a === 'notify'){
           var row = act.closest('[data-oid]');
           if(row) uisNotify(row.getAttribute('data-oid'));
@@ -36080,6 +36167,317 @@ async function uisNotify(id){
     try{ uisRender(); }catch(_){}
   }
 }
+
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §WA-INSP-NOTIFY (v2.422) — WhatsApp the inspector the appointment           ║
+// ║                                                                              ║
+// ║  The ask: "when an inspection booking is made for an appraiser, offer to     ║
+// ║  send that appraiser a WhatsApp carrying the job order number, the property  ║
+// ║  address, the inspection date, the inspection time, and the GPS location."   ║
+// ║                                                                              ║
+// ║  ── IT DOES NOT SEND. SAY IT OUT LOUD. ────────────────────────────────────  ║
+// ║  wa.me is click-to-chat: it OPENS WhatsApp with the message already typed,   ║
+// ║  and a human presses Send from their own number. There is no transport in    ║
+// ║  here, nothing leaves the machine on its own, and no label, comment, log     ║
+// ║  line or confirmation in this section is allowed to read as if SIGMA sent    ║
+// ║  anything. §INVOICE-WHATSAPP is the same rule for the same reason.           ║
+// ║                                                                              ║
+// ║  ── WHY IT SITS BESIDE §INSPECTION-QUEUE AND NOT INSIDE IT ────────────────  ║
+// ║  Same event, same recipient — so it REUSES that section's resolution         ║
+// ║  (_uisWho, matched against APPRAISERS BY NAME, case-insensitively) and its   ║
+// ║  wording of an appointment (_uisDay/_uisTime). Two date formats for one      ║
+// ║  appointment is how a reader ends up unsure which one is real.               ║
+// ║  But the CHANNEL is separate. This writes inspWaNotifiedFor and NEVER        ║
+// ║  touches inspNotifiedFor. Email and WhatsApp are two channels; one stamp     ║
+// ║  for both would make either control lie about what the inspector actually    ║
+// ║  received — the §INVOICE-WHATSAPP email_status lesson, verbatim.             ║
+// ║                                                                              ║
+// ║  ── TWO WAYS IN, AND WHY THE FIRST IS SO NARROW ───────────────────────────  ║
+// ║  A) an offer at the moment a booking is completed;                           ║
+// ║  B) a 💬 WhatsApp button that stays, so it can be sent again later.          ║
+// ║                                                                              ║
+// ║  (A) is dangerous in this app for the three reasons §INSPECTION-QUEUE spells ║
+// ║  out and they have not changed: the app saves on a DEBOUNCE; the date and    ║
+// ║  the time are TWO separate writes; and a correction is indistinguishable     ║
+// ║  from a booking at the data layer. So _wainOffer() is wired to the three     ║
+// ║  EXPLICIT save actions only — calNewInspSave (Calendar), _inspTimeSave       ║
+// ║  (the Project Data date picker's time prompt) and qvScheduleSave             ║
+// ║  (Quick-View) — never to a debounce, a re-render, a load or a sync. It then  ║
+// ║  refuses itself unless BOTH inspDate and inspTime are set, which is what     ║
+// ║  makes the "Select Later" path (_inspTimeLater) offer nothing at all, and    ║
+// ║  it asks with a confirm naming the appraiser and the exact number. Cancel    ║
+// ║  does nothing whatsoever: no window, no stamp, no log.                       ║
+// ║                                                                              ║
+// ║  ── THE NUMBER, AND THE THREE REFUSALS ────────────────────────────────────  ║
+// ║  APPRAISERS carries `phone` beside `email`. Three things can be wrong and    ║
+// ║  they are reported separately because they are fixed in different places:    ║
+// ║    1. the inspector is not on the Appraiser Roster at all;                   ║
+// ║    2. they are on it with no phone number;                                   ║
+// ║    3. the number on file is one _waNormalizePhone cannot read with           ║
+// ║       certainty — which gets the invoice path's courtesy: the user is asked  ║
+// ║       to type a number, once, for this message only.                         ║
+// ║  There is NO fallback number anywhere in here. A wrong guess messages a      ║
+// ║  STRANGER a client's address and the hour somebody will be standing at it.   ║
+// ║                                                                              ║
+// ║  ── THE LOCATION, AND WHY IT MAY BE ABSENT ────────────────────────────────  ║
+// ║  order.mapLat/mapLng are written by the map-location picker. When they are   ║
+// ║  there the message carries a real pin. When they are NOT it carries a maps   ║
+// ║  SEARCH of the address and SAYS SO IN THE MESSAGE ITSELF — an inspector who  ║
+// ║  believes a searched street is a surveyed pin drives to the wrong gate.      ║
+// ║  With neither a pin nor an address there is no location line at all, rather  ║
+// ║  than an empty promise. Coordinates are never invented, never interpolated   ║
+// ║  and never borrowed from another order.                                      ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+
+// The property, worded once. _uisMail() strips the ', na' that an old import left on
+// the city field; the same string has to reach WhatsApp, or the two channels would
+// describe the same property differently.
+function _wainAddr(o){
+  return [String((o && o.address) || '').trim(),
+          String((o && o.city) || '').replace(/,\s*na\s*$/i, '').trim()]
+         .filter(function(x){ return x; }).join(', ');
+}
+
+// Resolve the inspector's WhatsApp number from the shared roster, BY NAME —
+// deliberately the SAME match _uisEmailFor() makes, so the email control and this
+// one can never name two different people for one appointment.
+// Returns { name, e164, pretty, raw, why, fixable }. `why` is set and e164 empty
+// when the number cannot be used; `fixable` is true only for case 3 above, the one
+// the user can settle here and now by typing a number.
+function _wainPhoneFor(o){
+  var nm = _uisWho(o);
+  if(!nm) return { name:'', e164:'', pretty:'', raw:'', why:'no inspector is assigned to this order', fixable:false };
+  var list = (typeof APPRAISERS !== 'undefined' && Array.isArray(APPRAISERS)) ? APPRAISERS : [];
+  var key = nm.toLowerCase();
+  for(var i=0; i<list.length; i++){
+    var a = list[i];
+    if(!a || String(a.name||'').trim().toLowerCase() !== key) continue;
+    var raw = String(a.phone||'').trim();
+    if(!raw) return { name:nm, e164:'', pretty:'', raw:'',
+                      why:nm + ' is on the Appraiser Roster but has no phone number on file', fixable:false };
+    var n = (typeof _waNormalizePhone === 'function')
+              ? _waNormalizePhone(raw)
+              : { ok:false, reason:'the number reader is not available in this build' };
+    if(!n.ok) return { name:nm, e164:'', pretty:'', raw:raw,
+                       why:'the number on file for ' + nm + ' (' + raw + ') cannot be read with certainty — ' + n.reason,
+                       fixable:true };
+    return { name:nm, e164:n.e164, pretty:n.pretty, raw:raw, why:'', fixable:false };
+  }
+  return { name:nm, e164:'', pretty:'', raw:'', why:nm + ' is not on the Appraiser Roster', fixable:false };
+}
+
+// The maps link, and WHICH KIND it is. Three outcomes, and the message is told
+// which one it got, because "here is the location" over an address search is a lie
+// an inspector acts on with a car.
+//   pin    — order.mapLat/mapLng, set by the map-location picker
+//   search — no pin, but there is an address worth searching for
+//   none   — neither, so the message must not pretend to carry a location
+function _wainMap(o){
+  var lat = parseFloat(o && o.mapLat), lng = parseFloat(o && o.mapLng);
+  // 0,0 is Null Island and is what an empty field parses to elsewhere in this file
+  // (@46965 uses the same truthiness test), so it is treated as "no pin", not Africa.
+  if(isFinite(lat) && isFinite(lng) && !(lat === 0 && lng === 0)){
+    return { kind:'pin', url:'https://www.google.com/maps?q=' + lat + ',' + lng };
+  }
+  var addr = _wainAddr(o);
+  if(addr) return { kind:'search', url:'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr) };
+  return { kind:'none', url:'' };
+}
+
+// One sentence describing the location, used in the CONFIRMATION so the user knows
+// what they are about to hand over before WhatsApp opens.
+function _wainLocSay(kind){
+  return (kind === 'pin')    ? 'the GPS pin set on this order'
+       : (kind === 'search') ? 'a map SEARCH of the address — no GPS pin is set on this order'
+       :                       'no location at all — this order has neither a GPS pin nor an address';
+}
+
+// The message. Plain text: WhatsApp has no markdown, and this is read on a phone,
+// often in a car. Job order, property, date, time, location — nothing else.
+function _wainText(o){
+  var d = _uisDate(o);
+  var map = _wainMap(o);
+  var L = [];
+  L.push('Inspection scheduled');
+  L.push('');
+  L.push('Job order: ' + (o.id || '—'));
+  L.push('Property: ' + (_wainAddr(o) || 'no address on file'));
+  L.push('Date: ' + (d ? _uisDay(d) : (String(o.inspDate || '') || 'not set')));
+  L.push('Time: ' + (o.inspTime ? (_uisTime(o.inspTime) || String(o.inspTime)) : 'not agreed yet'));
+  if(map.kind === 'pin'){
+    L.push('Location: ' + map.url);
+  } else if(map.kind === 'search'){
+    L.push('Location: ' + map.url);
+    L.push('(that link is a map SEARCH for the address — no GPS point has been set on this order yet)');
+  } else {
+    L.push('No location has been set on this order.');
+  }
+  L.push('');
+  L.push('Sent from SIGMA.');
+  return L.join('\n');
+}
+
+// The ONE path that can open WhatsApp, used by BOTH the offer and the buttons, so
+// there is exactly one set of refusals and they cannot drift apart.
+//   opts.silent — refuse WITHOUT an alert. Only the booking-time offer passes this:
+//                 a popup after every booking for a colleague with no number would
+//                 train people to dismiss popups, and the panel button already
+//                 carries the same explanation on hover.
+//   opts.lead   — a line placed above the confirmation ("Inspection saved.").
+// Returns true only when WhatsApp was actually handed the message.
+function wainSend(id, opts){
+  opts = opts || {};
+  var o = (typeof _byId === 'function') ? _byId(id) : null;
+  if(!o) return false;
+
+  var p      = _wainPhoneFor(o);
+  var num    = p.e164;
+  var pretty = p.pretty;
+
+  if(!num){
+    if(opts.silent) return false;
+    if(p.fixable){
+      // Case 3: the stored number is unreadable. ASK rather than message whoever the
+      // digits happen to point at — the invoice path's courtesy, same reasoning.
+      var typed = prompt('The number on file for ' + p.name + ' cannot be used.\n\n'
+                       + p.why + '\n\n'
+                       + 'Type the number to use for THIS message. Aruban numbers can be typed as 564-8882; '
+                       + 'for any other country include the + and the country code.\n\n'
+                       + 'Fix it for good under Settings › Appraisers.', p.raw);
+      if(typed === null) return false;
+      var re = _waNormalizePhone(typed);
+      if(!re.ok){
+        alert('That number cannot be used:\n\n' + re.reason
+            + '\n\nWhatsApp was not opened and nothing has been sent.');
+        return false;
+      }
+      num = re.e164; pretty = re.pretty;
+    } else {
+      alert('Cannot WhatsApp the inspector — ' + p.why + '.\n\n'
+          + 'Add it under Settings › Appraisers, then try again.\n\n'
+          + 'WhatsApp was not opened and nothing has been sent.');
+      return false;
+    }
+  }
+
+  // The repeat guard. Its own stamp — inspNotifiedFor (email) is never read or
+  // written here. Matching stamp = this exact appointment has already been handed
+  // over, so a second hand-over needs a second confirmation. Change the date or the
+  // time and it stops matching by itself.
+  var again = !!(o.inspWaNotifiedAt && String(o.inspWaNotifiedFor || '') === _uisStamp(o));
+  var map   = _wainMap(o);
+  var d     = _uisDate(o);
+
+  var msg = (opts.lead ? opts.lead + '\n\n' : '')
+    + 'Open WhatsApp with this appointment ready to send to:\n\n'
+    + '    ' + p.name + '   ' + pretty + '\n\n'
+    + '    ' + (o.id || '—') + '  ·  ' + (_wainAddr(o) || 'no address on file') + '\n'
+    + '    ' + (d ? _uisDay(d) : (String(o.inspDate || '') || 'no date'))
+    +          (o.inspTime ? ' at ' + (_uisTime(o.inspTime) || String(o.inspTime)) : ' — no time agreed yet') + '\n'
+    + '    Location: ' + _wainLocSay(map.kind) + '\n\n'
+    + 'SIGMA CANNOT SEND THIS. WhatsApp opens with the message already typed and YOU press Send.\n\n'
+    + (again
+        ? '⚠ WhatsApp was already opened for this exact date and time on '
+          + _apqStamp(o.inspWaNotifiedAt) + '.\nOpen it again?'
+        : 'Continue?');
+  if(!confirm(msg)) return false;      // Cancel does nothing at all.
+
+  var url = 'https://wa.me/' + num + '?text=' + encodeURIComponent(_wainText(o));
+  var w = null;
+  try{ w = window.open(url, '_blank'); }catch(e){}
+  if(!w){
+    // A blocked pop-up must not be a silent failure. Hand the link over instead.
+    prompt('Your browser blocked the WhatsApp window.\n\n'
+         + 'Copy this link and open it to send the message:', url);
+  }
+
+  // Recorded as HANDED TO WHATSAPP — never as delivered. SIGMA does not learn
+  // whether the user pressed Send, so nothing here may claim that it knows.
+  // The stamp lives on the order row, so persistOrders() is what gets it to the
+  // server; without that it survives only until the next sync.
+  o.inspWaNotifiedAt  = new Date().toISOString();
+  o.inspWaNotifiedTo  = pretty;
+  o.inspWaNotifiedFor = _uisStamp(o);
+  try{ persistOrders(id); }catch(e){}
+  try{
+    appLog('ACTION','INSPECTION','Inspection ' + id + ' handed to WhatsApp for ' + p.name + ' ' + pretty
+      + ' (' + map.kind + ' location)' + (w ? '' : ' — the pop-up was blocked, the link was shown instead')
+      + '. The message is sent by the user from their own number.');
+  }catch(e){}
+  try{ uisRender(); }catch(e){}
+  try{ wainQvSync(); }catch(e){}
+  return true;
+}
+
+// TRIGGER A — the offer at the moment a booking is completed. Called ONLY from the
+// three explicit save actions. Every guard here exists because of a specific way
+// this app writes an appointment:
+//   • both a date AND a time, or there is no appointment to hand over — this is
+//     what makes the "Select Later" path offer nothing;
+//   • a number that can be used, or it says nothing at all (opts.silent) — the
+//     panel button carries that explanation instead;
+//   • the same date+time already handed over offers nothing again, so re-saving an
+//     unchanged booking is silent. Move the date or the time and the stamp stops
+//     matching, so it offers again — the one case where a second message is wanted.
+// It never runs from a debounce, a re-render, a load or a sync.
+function _wainOffer(oid){
+  try{
+    var o = (typeof _byId === 'function') ? _byId(oid) : null;
+    if(!o && typeof editingOrder !== 'undefined' && editingOrder && editingOrder.id === oid) o = editingOrder;
+    if(!o) return;
+    if(!o.inspDate || !o.inspTime) return;
+    if(o.inspWaNotifiedAt && String(o.inspWaNotifiedFor || '') === _uisStamp(o)) return;
+    if(!_wainPhoneFor(o).e164) return;
+    wainSend(oid, { silent:true, lead:'Inspection saved.' });
+  }catch(e){}
+}
+
+// TRIGGER B, Quick-View's half. The button is never removed — only greyed, with the
+// reason on hover AND on click — because a control that disappears just reads as a
+// broken screen (the v2.294 lesson). `order` is optional: called with nothing it
+// re-reads whatever Quick-View is showing, so a send can refresh its own button.
+function wainQvSync(order){
+  var b = document.getElementById('qvBtnWaInsp');
+  if(!b) return;
+  var o = order || ((typeof _qvLastOrder !== 'undefined') ? _qvLastOrder : null);
+  var lbl = b.querySelector ? b.querySelector('.qv-ab-lbl') : null;
+  if(!o){ b.classList.add('qv-ab-disabled'); b.onclick = null; return; }
+
+  var p = _wainPhoneFor(o);
+  var why = '';
+  if(!o.inspDate)            why = 'No inspection is scheduled on this order yet — use Schedule first.';
+  else if(!o.inspTime)       why = 'This inspection has a date but no time yet — set the time on the Calendar or with Schedule.';
+  else if(!p.e164 && !p.fixable) why = 'Cannot WhatsApp the inspector — ' + p.why + '. Add it under Settings › Appraisers.';
+
+  if(why){
+    b.classList.add('qv-ab-disabled');
+    b.classList.remove('qv-ab-lit');
+    if(lbl) lbl.textContent = 'WhatsApp';
+    b.title = why;
+    // NOT disabled=, so hovering AND clicking both still explain themselves.
+    b.onclick = function(){ alert(why + '\n\nWhatsApp was not opened and nothing has been sent.'); };
+    return;
+  }
+
+  var done = !!(o.inspWaNotifiedAt && String(o.inspWaNotifiedFor || '') === _uisStamp(o));
+  var oid  = o.id;
+  b.classList.remove('qv-ab-disabled');
+  if(done) b.classList.add('qv-ab-lit'); else b.classList.remove('qv-ab-lit');
+  if(lbl) lbl.textContent = done ? 'WhatsApp ✓' : 'WhatsApp';
+  b.title = (done
+      ? 'This exact date and time has already been opened in WhatsApp. Click to open it again — you will be asked to confirm. '
+      : 'Open WhatsApp with the appointment ready for the inspector. SIGMA cannot send it — you press Send in WhatsApp. ')
+    + 'Goes to ' + (p.pretty || 'a number you will be asked to type') + '.';
+  b.onclick = function(){ wainSend(oid); };
+}
+
+try{
+  window.wainSend = wainSend; window.wainQvSync = wainQvSync;
+  window._wainOffer = _wainOffer; window._wainPhoneFor = _wainPhoneFor;
+  window._wainMap = _wainMap; window._wainText = _wainText; window._wainAddr = _wainAddr;
+}catch(e){}
+
 
 // One entry point, so the dashboard has one thing to call.
 function synDashRender(){
@@ -41288,6 +41686,10 @@ function openQV(order) {
   e('qvBtnInsp').onclick = () => { _qvLastOrder=order; var _ord=order; closeQV(); setTimeout(function(){ openInsp(_ord); }, 100); };
   // §QV-SCHEDULE (v2.162) — schedule the inspection (date/time/assignee) onto the Calendar
   try{ var _qsb=e('qvBtnSchedule'); if(_qsb) _qsb.onclick=function(){ _qvLastOrder=order; qvScheduleInspection(order); }; }catch(_e){}
+  // §WA-INSP-NOTIFY (v2.422) — TRIGGER B. wainQvSync() decides live whether the button
+  //   can be used and, when it cannot, greys it and says why on hover and on click
+  //   rather than hiding it (v2.294).
+  try{ wainQvSync(order); }catch(_e){}
   // §FINANCE-NATIVE (v2.275) — QuickView's Invoice button now opens the order's native
   //   Billing tab (was: create a QuickBooks invoice). One invoicing path.
   try{ var _qib=e('qvBtnInvoice'); if(_qib){
@@ -50967,16 +51369,21 @@ var MLOC_TILES = {
   osm:   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   topo:  'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
   sat:   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  dark:  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  dark:  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',   // §BASEMAP-ESRI (v2.423) — see the note on the Property Map layer
   cycle: 'https://{s}.tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png'
 };
 var MLOC_ATTR = {
   osm:   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   topo:  '&copy; OpenTopoMap &copy; OpenStreetMap contributors',
   sat:   'Tiles &copy; Esri &mdash; Source: Esri, DigitalGlobe',
-  dark:  '&copy; <a href="https://carto.com">CARTO</a> &copy; OpenStreetMap contributors',
+  dark:  'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
   cycle: '&copy; OpenStreetMap contributors'
 };
+
+// §BASEMAP-ESRI (v2.423) — deepest zoom each base actually HAS tiles for. Leaflet upscales
+//   past it instead of requesting a tile the provider will answer with a "no data" sheet.
+//   Absent = the layer is good all the way to maxZoom.
+var MLOC_MAXNATIVE = { dark: 16 };
 
 // Entry point — called when Map tab is clicked (via switchETab)
 function mlocOpenTab() {
@@ -51211,7 +51618,11 @@ function mlocLayer(key, btn) {
   if (btn) btn.classList.add('on');
   if (!_lMap || !MLOC_TILES[key]) return;
   if (_lLayer) _lMap.removeLayer(_lLayer);
-  _lLayer = L.tileLayer(MLOC_TILES[key], { maxZoom:19, attribution: MLOC_ATTR[key]||'' }).addTo(_lMap);
+  var _mnz = MLOC_MAXNATIVE[key];
+  var _lOpt = { maxZoom:19, attribution: MLOC_ATTR[key]||'' };
+  if (_mnz) _lOpt.maxNativeZoom = _mnz;              // §BASEMAP-ESRI (v2.423)
+  if (key === 'dark') _lOpt.className = 'sa-dark-tiles';   // same darkening as the Property Map
+  _lLayer = L.tileLayer(MLOC_TILES[key], _lOpt).addTo(_lMap);
 }
 
 // Search box geocode (button / Enter key)
@@ -52839,6 +53250,14 @@ function _toRow(o) {
       inspNotifiedAt :(o.inspNotifiedAt  || undefined),
       inspNotifiedTo :(o.inspNotifiedAt  ? (o.inspNotifiedTo  || '') : undefined),
       inspNotifiedFor:(o.inspNotifiedAt  ? (o.inspNotifiedFor || '') : undefined),   // §DRAFT (v2.327) — written only when ON, so an untouched order's extra_data JSON is unchanged
+      // §WA-INSP-NOTIFY (v2.422) — the WhatsApp channel's OWN repeat guard. A SEPARATE
+      //   key on purpose: email and WhatsApp are two channels, and one stamp shared
+      //   between them would make either control lie about what the inspector actually
+      //   got. Written only when actually set, the same rule as the three keys above,
+      //   so an order that has never used it produces byte-identical extra_data.
+      inspWaNotifiedAt :(o.inspWaNotifiedAt  || undefined),
+      inspWaNotifiedTo :(o.inspWaNotifiedAt  ? (o.inspWaNotifiedTo  || '') : undefined),
+      inspWaNotifiedFor:(o.inspWaNotifiedAt  ? (o.inspWaNotifiedFor || '') : undefined),
       compDate:o.compDate||'', builder:o.builder||'', dueRaw:o.dueRaw||'',
       clientFirst:o.clientFirst||'', clientLast:o.clientLast||'',
       clientWork:o.clientWork||'', clientCell:o.clientCell||'',
@@ -53120,6 +53539,12 @@ function _fromRow(row, order) {
       order.inspNotifiedAt  = (typeof x.inspNotifiedAt === 'string') ? x.inspNotifiedAt : '';
       order.inspNotifiedTo  = order.inspNotifiedAt ? (x.inspNotifiedTo  || '') : '';
       order.inspNotifiedFor = order.inspNotifiedAt ? (x.inspNotifiedFor || '') : '';
+      // §WA-INSP-NOTIFY (v2.422) — read back UNCONDITIONALLY, the same reason as above:
+      //   a stale in-memory stamp must not resurrect a "WhatsApp opened" that the row
+      //   no longer carries.
+      order.inspWaNotifiedAt  = (typeof x.inspWaNotifiedAt === 'string') ? x.inspWaNotifiedAt : '';
+      order.inspWaNotifiedTo  = order.inspWaNotifiedAt ? (x.inspWaNotifiedTo  || '') : '';
+      order.inspWaNotifiedFor = order.inspWaNotifiedAt ? (x.inspWaNotifiedFor || '') : '';
       // §REPORT-PDF (v2.112) — restore the published-PDF pointer for the QuickView button.
       if (x.reportPdf && typeof x.reportPdf==='object') order.reportPdf = x.reportPdf;
       if (x.contact)        order.contact        = x.contact;
@@ -61293,6 +61718,10 @@ function calNewInspSave(){
   try{ if(typeof persistOrders==='function') persistOrders(oid); }catch(e){}
   var ov=document.getElementById('calNewInspOverlay'); if(ov) ov.remove();
   try{ if(typeof calRender==='function') calRender(); }catch(e){}
+  // §WA-INSP-NOTIFY (v2.422) — TRIGGER A. This is the explicit Save click, not a
+  //   debounce, so it is a real booking. _wainOffer() still refuses itself unless the
+  //   date AND the time are both set and the inspector has a usable number.
+  try{ if(typeof _wainOffer==='function') _wainOffer(oid); }catch(e){}
 }
 window.calNewInspection=calNewInspection; window.calNewInspSave=calNewInspSave;
 
@@ -61459,6 +61888,9 @@ function _inspTimeSave(){
   _inspTimeCommit(info.oid, info.date, time);
   try{ if(typeof _editToast==='function') _editToast('✓ Inspection '+info.date+' at '+time); }catch(e){}
   try{ if(typeof appLog==='function') appLog('ACTION','ORDER','Inspection time set on '+info.oid+' — '+info.date+' '+time); }catch(e){}
+  // §WA-INSP-NOTIFY (v2.422) — TRIGGER A. Only HERE, never in _inspTimeLater(): that
+  //   path deliberately leaves the time empty, so there is no appointment to hand over.
+  try{ if(typeof _wainOffer==='function') _wainOffer(info.oid); }catch(e){}
 }
 
 function _inspTimeLater(){
@@ -61526,6 +61958,10 @@ function qvScheduleSave(oid){
   var ov=document.getElementById('qvSchedOverlay'); if(ov) ov.remove();
   if(wantICS){ try{ qvScheduleICS(oid); }catch(e){} }
   try{ if(typeof _editToast==='function') _editToast('✓ Inspection scheduled — '+date+(time?(' '+time):'')+(who?(' · '+who):'')); }catch(e){}
+  // §WA-INSP-NOTIFY (v2.422) — TRIGGER A, and refresh Quick-View's own button, which
+  //   is sitting behind this overlay showing the PREVIOUS appointment's state.
+  try{ if(typeof wainQvSync==='function') wainQvSync(ord); }catch(e){}
+  try{ if(typeof _wainOffer==='function') _wainOffer(oid); }catch(e){}
 }
 function qvScheduleICS(oid){
   var o=(typeof ORDERS!=='undefined'&&ORDERS)?ORDERS.find(function(x){return x.id===oid;}):null;
