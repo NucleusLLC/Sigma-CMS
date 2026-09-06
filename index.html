@@ -6963,7 +6963,8 @@ body[class*="theme-dark"] .app-del-btn  { color: var(--red,#ff6b6b); }
 .cal-day-event .cal-ev-id   { font-size:12px !important; }
 .cal-day-event .cal-ev-addr { font-size:11px !important; white-space:normal !important; }
 .cal-day-event .cal-ev-who  { font-size:10.5px !important; }
-.cal-ev-status { font-size:9px; opacity:.6
+.cal-ev-status { font-size:9px; opacity:.6; margin-top:2px; font-style:italic; }
+
 /* Value card tag colours */
 .qv-val-card.v1 .qv-val-card-tag { color:var(--gold,#c8922a); }
 .qv-val-card.v2 .qv-val-card-tag { color:#2d8a52; }
@@ -6981,7 +6982,6 @@ body[class*="theme-dark"] .app-del-btn  { color: var(--red,#ff6b6b); }
 body[class*="theme-dark"] .qv-val-card { background:var(--surface,var(--paper)); }
 body[class*="theme-dark"] .qv-val-card-name { color:var(--ink); }
 body[class*="theme-dark"] .qv-val-awg { color:var(--ink); }
-; margin-top:2px; font-style:italic; }
 
 /* Month grid stretch */
 .cal-grid { min-height:500px; }
@@ -6994,6 +6994,175 @@ body[class*="theme-dark"] .qv-val-awg { color:var(--ink); }
   .cal-day-slot { height:60px; }
   .cal-time-gutter,.cal-time-label { width:42px; min-width:42px; font-size:9px; }
 }
+
+
+/* ══ §CAL-DAYSHEET (v2.427) — one day, grouped by inspector ══════════════ */
+.ds-ov   { position:fixed; inset:0; z-index:9998; background:rgba(8,9,12,.74);
+           backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+           display:flex; align-items:center; justify-content:center; padding:20px; }
+.ds-box  { background:#0d0f14; border:1px solid rgba(255,255,255,.10); border-radius:14px;
+           width:100%; max-width:760px; max-height:88vh; display:flex; flex-direction:column;
+           box-shadow:0 24px 70px rgba(0,0,0,.55); overflow:hidden; color:#f0e6d2;
+           font-family:Sora,system-ui,sans-serif; }
+.ds-hd   { display:flex; align-items:center; gap:12px; padding:14px 18px;
+           border-bottom:1px solid rgba(255,255,255,.09); background:rgba(0,0,0,.30); }
+.ds-ttl  { font-family:'Playfair Display',serif; font-weight:700; font-size:17px; color:#f0e6d2; }
+.ds-sub  { font-size:11.5px; color:rgba(255,255,255,.45); margin-top:2px; }
+.ds-nav  { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14);
+           color:#e0a93c; border-radius:7px; font-size:17px; font-weight:800; line-height:1;
+           padding:4px 12px; cursor:pointer; }
+.ds-nav:hover { background:rgba(224,169,60,.16); border-color:#e0a93c; }
+.ds-body { padding:14px 18px 18px; overflow-y:auto; }
+
+.ds-card { border:1px solid rgba(255,255,255,.10); border-radius:11px; margin-bottom:13px;
+           overflow:hidden; background:rgba(255,255,255,.022); }
+.ds-card.unassigned { border-style:dashed; border-color:rgba(224,82,77,.4); }
+.ds-chd  { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+           padding:10px 13px; background:rgba(0,0,0,.28);
+           border-bottom:1px solid rgba(255,255,255,.08); }
+.ds-who  { font-size:13.5px; font-weight:800; color:#f0e6d2; }
+.ds-cnt  { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:800;
+           color:#e0a93c; letter-spacing:.04em; }
+.ds-acts { margin-left:auto; display:flex; gap:7px; }
+.ds-btn  { padding:5px 11px; border-radius:6px; font-size:11px; font-weight:700;
+           cursor:pointer; border:1px solid rgba(255,255,255,.16);
+           background:rgba(255,255,255,.05); color:#f0e6d2; font-family:inherit; }
+.ds-btn:hover  { background:rgba(255,255,255,.10); }
+.ds-btn.wa     { border-color:rgba(37,211,102,.45); color:#7ff0a8;
+                 background:rgba(37,211,102,.10); }
+.ds-btn.wa:hover  { background:rgba(37,211,102,.19); }
+.ds-btn.off    { opacity:.45; cursor:not-allowed; }
+
+.ds-row  { display:flex; align-items:flex-start; gap:11px; padding:9px 13px;
+           border-bottom:1px solid rgba(255,255,255,.055); cursor:pointer; }
+.ds-row:last-child { border-bottom:none; }
+.ds-row:hover      { background:rgba(224,169,60,.05); }
+.ds-time { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:800;
+           color:#e0a93c; width:64px; flex:none; padding-top:1px; }
+.ds-time.none { color:rgba(255,255,255,.34); font-style:italic; font-weight:600; font-size:10px; }
+.ds-main { flex:1; min-width:0; }
+.ds-oid  { font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:800;
+           color:#f0e6d2; letter-spacing:.03em; }
+.ds-addr { font-size:12px; color:rgba(255,255,255,.72); margin-top:1px; }
+.ds-meta { font-size:10.5px; color:rgba(255,255,255,.42); margin-top:2px; }
+.ds-pin  { font-size:9.5px; font-weight:700; letter-spacing:.04em; padding:2px 6px;
+           border-radius:4px; flex:none; margin-top:1px; }
+.ds-pin.yes { color:#7ff0a8; background:rgba(37,211,102,.12); }
+.ds-pin.no  { color:rgba(255,255,255,.38); background:rgba(255,255,255,.05); }
+.ds-empty { padding:34px 10px; text-align:center; color:rgba(255,255,255,.42); font-size:13px; }
+.ds-note  { font-size:11px; color:rgba(255,255,255,.4); padding:2px 2px 10px; line-height:1.5; }
+.ds-ft    { padding:12px 18px; border-top:1px solid rgba(255,255,255,.09);
+            display:flex; justify-content:space-between; align-items:center; gap:10px;
+            background:rgba(0,0,0,.22); }
+@media(max-width:620px){ .ds-time{width:54px} .ds-acts{margin-left:0;width:100%} }
+/* ══ END §CAL-DAYSHEET ═══════════════════════════════════════ */
+
+/* ══ §CAL-CAP (v2.426) — capacity + legibility ═══════════════════ */
+/* The calendar used to render three different things as one kind of pill: a real
+   booking, an inspection with a date but no agreed hour, and an order that has no
+   inspection date at all (calGetEvents fell back to the REPORT DUE date). The
+   untimed ones were dropped into the 8am row, so 8am read as the busiest hour of
+   every week and none of it was true. Each kind now looks like what it is, and
+   only a real booking counts against the 2-per-hour rule. */
+
+/* Capacity dots in the time gutter */
+.cal-cap      { display:flex; gap:3px; justify-content:flex-end; margin-top:3px; }
+.cal-cap i    { width:5px; height:5px; border-radius:50%; display:block;
+                background:rgba(255,255,255,.16); }
+.cal-cap i.on   { background:#e0a93c; }
+.cal-cap i.over { background:#e0524d; }
+
+/* Slot fill state. Amber = this hour is full at 2. Red = it holds more than the
+   rule allows, which only legacy rows can do — new writes are refused. */
+.cal-slot.cap-full { background:rgba(224,169,60,.09) !important;
+                     box-shadow:inset 2px 0 0 #e0a93c; }
+.cal-slot.cap-over { background:rgba(224,82,77,.11) !important;
+                     box-shadow:inset 2px 0 0 #e0524d; }
+
+/* Free slot: says how much room is left, always — hidden-until-hover would have
+   defeated the point, which is seeing capacity without touching anything.
+   height:auto, not 100%: a slot holding one booking plus this marker would
+   otherwise push a full-height box under an event and overflow the cell. */
+.cal-free { display:flex; align-items:center; justify-content:center;
+            height:auto; min-height:17px; padding:3px 0;
+            border-radius:5px; font-size:9.5px; font-weight:700; letter-spacing:.04em;
+            color:rgba(224,169,60,.34); border:1px dashed rgba(224,169,60,.16);
+            transition:.13s; }
+.cal-slot:hover .cal-free { color:rgba(224,169,60,.9);
+                            border-color:rgba(224,169,60,.45);
+                            background:rgba(224,169,60,.07); }
+
+/* A full hour has to read as full even when its two bookings cover the cell, so
+   the state is drawn on the cell's top edge as well as its left. */
+.cal-slot.cap-full { border-top:1px solid rgba(224,169,60,.45); }
+.cal-slot.cap-over { border-top:1px solid rgba(224,82,77,.6); }
+
+/* Lanes above the clock: things with no agreed hour never sit in an hour row. */
+.cal-lane-lbl  { font-size:9px !important; font-weight:800 !important;
+                 letter-spacing:.06em; text-transform:uppercase;
+                 color:rgba(255,255,255,.34) !important; padding:6px 8px !important;
+                 text-align:right; vertical-align:middle !important; }
+.cal-lane-cell { vertical-align:top; padding:4px 3px;
+                 background:rgba(255,255,255,.022);
+                 border-bottom:1px solid rgba(255,255,255,.09);
+                 border-right:1px solid rgba(255,255,255,.06); }
+
+/* Chip styling for the two non-booking kinds. Dashed = not an appointment. */
+.cal-chip { display:block; border-radius:4px; padding:3px 6px; margin-bottom:3px;
+            font-size:9.5px; line-height:1.3; cursor:pointer; border:1px dashed;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cal-chip.k-untimed { border-color:rgba(224,169,60,.55); color:#f0c368;
+                      background:rgba(224,169,60,.07); }
+.cal-chip.k-due     { border-color:rgba(255,255,255,.22); color:rgba(255,255,255,.55);
+                      background:rgba(255,255,255,.03); }
+.cal-chip:hover     { filter:brightness(1.25); }
+.cal-chip-tag { font-family:'IBM Plex Mono',monospace; font-weight:800;
+                font-size:8.5px; letter-spacing:.04em; opacity:.75;
+                margin-right:5px; }
+
+/* Month cell: the day's shape before you read a single word of it. */
+.cal-cell-top   { display:flex; align-items:center; justify-content:space-between;
+                  gap:6px; }
+.cal-cell-count { font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:800;
+                  color:rgba(255,255,255,.4); letter-spacing:.03em; }
+.cal-cell-count.has  { color:#e0a93c; }
+.cal-cell-count.over { color:#e0524d; }
+/* One segment per bookable hour, 8am–5pm. Height IS the load: nothing, one of two,
+   or full. Ten segments read as a density bar from across the room. */
+.cal-load     { display:flex; gap:2px; height:9px; margin:4px 0 5px; align-items:flex-end; }
+.cal-load i   { flex:1; height:2px; border-radius:1px; display:block;
+                background:rgba(255,255,255,.10); }
+.cal-load i.l1   { height:5px; background:rgba(224,169,60,.55); }
+.cal-load i.l2   { height:9px; background:#e0a93c; }
+.cal-load i.lover{ height:9px; background:#e0524d; }
+.cal-more { font-size:9px; font-weight:700; color:rgba(255,255,255,.42);
+            margin-top:2px; letter-spacing:.02em; }
+
+/* Header capacity legend */
+.cal-legend      { display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+                   padding:8px 14px; font-size:10.5px;
+                   color:rgba(255,255,255,.5); border-bottom:1px solid rgba(255,255,255,.07);
+                   background:rgba(0,0,0,.18); }
+.cal-legend b    { color:#e0a93c; font-weight:800; }
+.cal-legend span { display:inline-flex; align-items:center; gap:5px; }
+.cal-legend .sw  { width:11px; height:11px; border-radius:3px; display:inline-block; }
+.cal-legend .sw.booked  { background:#c8922a; }
+.cal-legend .sw.untimed { border:1px dashed rgba(224,169,60,.7); background:rgba(224,169,60,.10); }
+.cal-legend .sw.due     { border:1px dashed rgba(255,255,255,.3); background:rgba(255,255,255,.04); }
+.cal-legend .sw.full    { background:rgba(224,169,60,.35); box-shadow:inset 2px 0 0 #e0a93c; }
+
+/* Day view: the hour rail carries its own count so the rule is never implicit. */
+.cal-hour-meta { font-size:8.5px; font-weight:700; letter-spacing:.04em;
+                 color:rgba(255,255,255,.3); }
+.cal-hour-meta.full { color:#e0a93c; }
+.cal-hour-meta.over { color:#e0524d; }
+
+@media(max-width:700px){
+  .cal-load { height:7px; }
+  .cal-load i.l2, .cal-load i.lover { height:7px; }
+}
+/* ══ END §CAL-CAP ════════════════════════════════════════════ */
+
 /* ══ END CALENDAR TIMETABLE ════════════════════════════════════════════════ */
 
 /* ── Order view modes ─────────────────────────────────────────── */
@@ -7602,6 +7771,7 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button onclick="calSync(&#39;google&#39;)" style="padding:8px 14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;color:#444;">📅 Google Calendar</button>
       <button onclick="calSync(&#39;outlook&#39;)" style="padding:8px 14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;color:#444;">📅 Outlook</button>
+      <button onclick="dsOpen()" title="The day's inspections, grouped by inspector" style="padding:8px 14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;color:#444;">🗒 Day Sheet</button>
       <button onclick="calNewInspection()" style="padding:8px 14px;background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:800;cursor:pointer;">＋ New Inspection</button>
       <button onclick="calExportICS()" style="padding:8px 14px;background:var(--ink);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">⬇ Export .ICS</button>
     </div>
@@ -8957,7 +9127,7 @@ body.glass:not([class*="theme-dark"]) .syn-pay.over{ color:#b3261e; }
 .uis-btn:focus-visible{ outline:2px solid var(--apq-accent); outline-offset:2px; }
 .uis-btn.is-sent{ border-color:rgba(20,184,166,.42); background:rgba(20,184,166,.12);
                   color:var(--apq-accent-lt); }
-/* §BASEMAP-ESRI (v2.423) — Esri's Dark Gray Canvas is a LIGHTER grey than the CARTO
+/* §BASEMAP-ESRI (v2.422) — Esri's Dark Gray Canvas is a LIGHTER grey than the CARTO
    Dark Matter base it replaced, which reads wrong against this app's #0b0d10 chrome and
    against a card that promises a dark base. Darkened here rather than by picking a
    different provider, because no keyless dark raster has Aruba detail past z16. Applied
@@ -15769,7 +15939,7 @@ function saOpenPropertyMap(){
 
   // ── Map + dark base ──
   var map=L.map('saPropMap',{center:[12.5211,-69.9683],zoom:12,preferCanvas:true,zoomControl:true});
-  // §BASEMAP-ESRI (v2.423) — CARTO moved its basemaps behind an API key and now answers
+  // §BASEMAP-ESRI (v2.422) — CARTO moved its basemaps behind an API key and now answers
   //   an unkeyed tile request with HTTP 200 and an "API KEY REQUIRED" watermark image. So
   //   nothing threw, no status check failed, and the map simply became unreadable. Esri's
   //   Dark Gray Canvas is keyless, needs no account, and this file already calls the same
@@ -18801,7 +18971,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.425';
+var APP_VERSION = 'v2.427';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -18839,6 +19009,8 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.427',type:'feature',date:'09-06-2026',ts:'09-06-2026 10:00',_static:true,title:'Day Sheet \u2014 the day\u2019s inspections by inspector, and one WhatsApp per inspector',desc:'A new Day Sheet on the Calendar lists every inspection booked on a chosen day, grouped by the inspector it is assigned to, in time order, with the address, the type, the status and whether the order carries a real GPS pin or none. Orders with nobody assigned are grouped separately so they cannot be missed. Arrows step a day at a time; open it from the Calendar toolbar or from inside the Day view. Each inspector\u2019s card carries a WhatsApp button that opens WhatsApp with THEIR whole day typed in as one message \u2014 job order, time, address, type and map link for each inspection \u2014 instead of one message per booking. As everywhere else in SIGMA, this does not send: WhatsApp opens with the message ready and a person presses Send from their own number. The number is resolved through the same roster lookup the per-booking WhatsApp button uses, so the two can never name different people, and there is no fallback number: an inspector who is not on the roster, or has no number, or has a number that cannot be read, is reported as such and nothing is opened. A map link that is only an address search is labelled as a search, never as a location. Inspections with a date but no agreed time are included and listed separately as having no time, rather than being hidden or given an hour nobody agreed to. A Copy button puts the same text on the clipboard for any other channel.'},
+  {v:'v2.426',type:'feature',date:'09-05-2026',ts:'09-05-2026 09:00',_static:true,title:'Inspection Calendar — a 2-per-hour booking limit, and a calendar that shows the load',desc:'The Calendar now enforces a firm-wide maximum of 2 inspections in any one clock hour. A third booking in a full hour is refused wherever it is attempted — the Calendar’s New Inspection dialog, Quick-View’s Schedule, and the time picker that appears when an inspection date is set in Project Data — and the refusal names the hour, the count and the order numbers already holding it. In the time picker, an hour that is already full is shown as full and cannot be chosen at all. An order being re-saved never blocks itself. Bookings made before this release are left exactly as they are: an hour that already holds more than two is shown in red rather than trimmed, because those are real appointments. The calendar itself was drawing three different things as the same kind of pill: a real booking, an inspection with a date but no agreed hour, and an order with no inspection date at all, which fell back to the REPORT DUE date. Anything without a time was dropped into the 8am row, so 8am read as the busiest hour of every week and none of it was true. Each kind now looks like what it is — booked inspections sit in their hour, a date with no agreed time sits in a No time lane above the clock, and a report due date is labelled DUE and never counted as an inspection. Week and Day views mark every open hour with how many of the 2 slots are still free and let you click one to book straight into it; Month shows each day as a ten-segment load strip, one segment per bookable hour, so a full week is readable at a glance; the List view flags any hour that is over the limit.'},
   {v:'v2.425',type:'fix',date:'09-04-2026',ts:'09-04-2026 16:00',_static:true,title:'Empty Ground Floor and Upper Floor lines no longer print on a parcel-only valuation',desc:'On a Parcel Only appraisal the Valuation table could show a Ground Floor and an Upper Floor row with nothing in them \u2014 no area, no rate, only dashes \u2014 as seen on 2026-108 with the SIGMA_Type1.T0-LotsofOwners template. The Valuation screen starts every order with a few named building rows ready to be filled in, and an order that never uses them still keeps them. The report was asking whether any building rows existed, not whether they said anything, so those blank starters printed as though they were findings. A building row now has to carry an area or a rate to appear. Nothing else changes: a Parcel + Building or New Build report shows its building rows exactly as before, and so does a parcel-only order where a building really was measured. No saved data was altered \u2014 the blank rows stay on the order, they simply stop printing.'},
   {v:'v2.424',type:'tweak',date:'09-04-2026',ts:'09-04-2026 15:00',_static:true,title:'Registered Owners &amp; Shares prints larger on the LotsofOwners template',desc:'On SIGMA_Type1.T0-LotsofOwners the Registered Owners &amp; Shares list printed at a size that was hard to read. The owner names and their shares are now noticeably bigger, and so are the owner count beside the heading, the TOTAL OWNERSHIP line and the note that appears when a list is longer than the page allows. The block itself is slightly SHORTER than before rather than taller — measured, not assumed: a full twelve-owner column comes out at 187px where it used to be 194px, because the lines were tightened by more than the letters grew, because that block sits on a fixed-height page and anything that overruns it would be cut off without warning. The same twelve-owners-per-column limit therefore still applies, and no name is lost. This affects only templates whose name contains LotsofOwners \u2014 every other template prints exactly as it did before.'},
   {v:'v2.423',type:'fix',date:'09-04-2026',ts:'09-04-2026 14:00',_static:true,title:'A Building Inspection no longer prints a valuation',desc:'A Type 4 \u2014 Building Inspection order was still producing the ordinary appraisal report, valuation page and all: V1 Free Market, V2 Execution and V3 Re-Construction printed as figures, on a job where the inspection form deliberately never asks for a value. Those pages are now left out of a Type 4 report entirely \u2014 the page, its entry in the Contents, and its page number, so the report still reads straight through with no gap and no missing sheet. The Conclusion / Opinion block, which shares that page, goes with it. Everything a Type 4 order does record \u2014 the property, the photographs, the condition sections, the documents \u2014 prints exactly as before. Types 1, 2 and 3 are untouched: the change is reached only by an order whose type is 4. This is the safety catch, not the finished article: the Type 4 report is being built as its own document, with its own cover and its own order of sections, and that is what a Building Inspection will print when it lands.'},
@@ -51430,7 +51602,7 @@ var MLOC_TILES = {
   osm:   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   topo:  'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
   sat:   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  dark:  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',   // §BASEMAP-ESRI (v2.423) — see the note on the Property Map layer
+  dark:  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',   // §BASEMAP-ESRI (v2.422) — see the note on the Property Map layer
   cycle: 'https://{s}.tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png'
 };
 var MLOC_ATTR = {
@@ -51441,7 +51613,7 @@ var MLOC_ATTR = {
   cycle: '&copy; OpenStreetMap contributors'
 };
 
-// §BASEMAP-ESRI (v2.423) — deepest zoom each base actually HAS tiles for. Leaflet upscales
+// §BASEMAP-ESRI (v2.422) — deepest zoom each base actually HAS tiles for. Leaflet upscales
 //   past it instead of requesting a tile the provider will answer with a "no data" sheet.
 //   Absent = the layer is good all the way to maxZoom.
 var MLOC_MAXNATIVE = { dark: 16 };
@@ -51681,7 +51853,7 @@ function mlocLayer(key, btn) {
   if (_lLayer) _lMap.removeLayer(_lLayer);
   var _mnz = MLOC_MAXNATIVE[key];
   var _lOpt = { maxZoom:19, attribution: MLOC_ATTR[key]||'' };
-  if (_mnz) _lOpt.maxNativeZoom = _mnz;              // §BASEMAP-ESRI (v2.423)
+  if (_mnz) _lOpt.maxNativeZoom = _mnz;              // §BASEMAP-ESRI (v2.422)
   if (key === 'dark') _lOpt.className = 'sa-dark-tiles';   // same darkening as the Property Map
   _lLayer = L.tileLayer(MLOC_TILES[key], _lOpt).addTo(_lMap);
 }
@@ -61773,6 +61945,9 @@ function calNewInspSave(){
   if(!d){ if(msg)msg.textContent='Please pick an inspection date.'; return; }
   var ord=(typeof ORDERS!=='undefined'&&ORDERS)?ORDERS.find(function(o){return o.id===oid;}):null;
   if(!ord){ if(msg)msg.textContent='Order not found.'; return; }
+  // §CAL-CAP (v2.426) — the 2-per-hour rule. Excludes this order so re-saving
+  //   an existing booking at its own time is not blocked by itself.
+  if(!_capGuard(d, t, oid, 'calNewInspMsg')) return;
   ord.inspDate=d;
   ord.inspTime=t||'';                 // §INSP-TIME (v2.055)
   if(who){ ord.inspAssignee=who; ord.appraiser=who; }   // §INSP-ASSIGNEE (v2.055) — also set the order's appraiser so it shows everywhere
@@ -61825,7 +62000,7 @@ function _inspTimeAsk(dateStr){
     +'<div style="padding:18px 20px;">'
       +'<div style="font-size:12.5px;color:var(--ink,#0f0d0a);line-height:1.6;margin-bottom:13px;">Inspection set for <b>'+_e(dateStr)+'</b>. What time has been requested?</div>'
       +'<label style="'+lbl+'">Requested time</label>'
-      +'<div id="inspTimeGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:11px;">'+_inspTimeSlots(ord.inspTime||'')+'</div>'
+      +'<div id="inspTimeGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:11px;">'+_inspTimeSlots(ord.inspTime||'', dateStr, (ord&&ord.id)||'')+'</div>'
       +'<label style="'+lbl+'">Another time</label>'
       +'<input type="time" id="inspTimeVal" value="'+_e(ord.inspTime||'')+'" style="'+fld+'" oninput="_inspTimeSyncGrid()">'
       +'<div style="font-size:11px;color:var(--slate-lt,#6b6257);margin-top:9px;line-height:1.55;">If the hour has not been agreed yet, choose <b>Select Later</b> — the date is kept and you can set the time by editing the item on the Inspection Calendar.</div>'
@@ -61873,14 +62048,27 @@ function _inspTimeLabel(hhmm){
   var h=parseInt(m[1],10), ap=(h<12?'AM':'PM'), h12=(h%12)||12;
   return h12+':'+m[2]+' '+ap;
 }
-function _inspTimeSlots(sel){
+function _inspTimeSlots(sel, dateStr, excludeId){
   var on='background:var(--au,#c49740);border-color:var(--au,#c49740);color:#fff;font-weight:800;';
   var off='background:var(--surface,#fff);border-color:var(--border,#e0d8c8);color:var(--ink,#0f0d0a);font-weight:600;';
+  var full='background:rgba(180,35,31,.07);border-color:rgba(180,35,31,.35);color:#b4231f;font-weight:700;cursor:not-allowed;opacity:.75;';
+  // §CAL-CAP (v2.426) — a slot whose HOUR is already full is shown as full and
+  //   cannot be picked. Refusing only on save would let someone choose a time, write
+  //   a WhatsApp message in their head, and then be told no.
+  var load={};
+  try{ if(typeof _capLoad==='function') load=_capLoad(
+        (typeof _calDateKey==='function'?_calDateKey(dateStr):''), excludeId)||{}; }catch(e){}
   return INSP_TIME_SLOTS.map(function(t){
     var is=(String(sel||'').slice(0,5)===t);
-    return '<button type="button" class="insp-slot" data-t="'+t+'" onclick="_inspTimePick(this)" '
-         + 'style="padding:8px 4px;border:1.5px solid;border-radius:8px;font-family:inherit;font-size:12px;cursor:pointer;'+(is?on:off)+'">'
-         + _inspTimeLabel(t)+'</button>';
+    var h=parseInt(t.slice(0,2),10);
+    var n=(load[h]||[]).length;
+    var isFull=(typeof INSP_MAX_PER_HOUR!=='undefined') && n>=INSP_MAX_PER_HOUR && !is;
+    return '<button type="button" class="insp-slot" data-t="'+t+'"'
+         + (isFull?' disabled title="This hour already has '+n+' of '+INSP_MAX_PER_HOUR+' inspections"'
+                  :' onclick="_inspTimePick(this)"')
+         + ' style="padding:8px 4px;border:1.5px solid;border-radius:8px;font-family:inherit;font-size:12px;cursor:pointer;'
+         + (is?on:(isFull?full:off))+'">'
+         + _inspTimeLabel(t)+(isFull?' \u00b7 full':'')+'</button>';
   }).join('');
 }
 // A slot tap fills the free input too, so Set time has one place to read from.
@@ -61899,6 +62087,10 @@ function _inspTimeSyncGrid(){
   var g=document.getElementById('inspTimeGrid'); if(!g) return;
   var btns=g.querySelectorAll('.insp-slot');
   for(var i=0;i<btns.length;i++){
+    // §CAL-CAP (v2.426) - a full hour is disabled and painted red by
+    //   _inspTimeSlots(). Repainting it here would make an unpickable slot look
+    //   exactly like a free one.
+    if(btns[i].disabled) continue;
     var is=(btns[i].getAttribute('data-t')===cur);
     btns[i].style.background  = is?'var(--au,#c49740)':'var(--surface,#fff)';
     btns[i].style.borderColor = is?'var(--au,#c49740)':'var(--border,#e0d8c8)';
@@ -61925,6 +62117,10 @@ function _inspTimeCommit(oid, dateStr, time){
   try{ ord=(typeof ORDERS!=='undefined'&&ORDERS)?ORDERS.find(function(o){return o.id===oid;}):null; }catch(e){}
   if(!ord && typeof editingOrder!=='undefined' && editingOrder && editingOrder.id===oid) ord=editingOrder;
   if(!ord) return false;
+  // §CAL-CAP (v2.426) — this is the durable funnel the other paths feed, so the
+  //   rule is enforced HERE too rather than only at the dialogs. A future caller that
+  //   forgets to pre-check still cannot write a third booking into a full hour.
+  if(!_capGuard(dateStr || ord.inspDate || '', time, oid, null)) return false;
   ord.inspDate = dateStr || ord.inspDate || '';
   ord.inspTime = time || '';
   try{ if(typeof persistOrders==='function') persistOrders(oid); }catch(e){}
@@ -61945,6 +62141,11 @@ function _inspTimeSave(){
     if(m) m.textContent='Pick a time above, or choose Select Later.';
     return;
   }
+  // §CAL-CAP (v2.426) — check BEFORE _inspTimeClose(), or the refusal would be
+  //   written into a dialog that no longer exists and the user would see nothing.
+  var _ov=document.getElementById('inspTimeOverlay');
+  var _oid=_ov?(_ov._inspOid||''):'', _dat=_ov?(_ov._inspDate||''):'';
+  if(!_capGuard(_dat, time, _oid, 'inspTimeMsg')) return;
   var info=_inspTimeClose(); if(!info) return;
   _inspTimeCommit(info.oid, info.date, time);
   try{ if(typeof _editToast==='function') _editToast('✓ Inspection '+info.date+' at '+time); }catch(e){}
@@ -62009,6 +62210,8 @@ function qvScheduleSave(oid){
   if(!date){ if(msg)msg.textContent='Please pick an inspection date.'; return; }
   var ord=(typeof ORDERS!=='undefined'&&ORDERS)?ORDERS.find(function(o){return o.id===oid;}):null;
   if(!ord){ if(msg)msg.textContent='Order not found.'; return; }
+  // §CAL-CAP (v2.426) — same rule, same check, same exclusion.
+  if(!_capGuard(date, time, oid, 'qvSchedMsg')) return;
   ord.inspDate=date;
   ord.inspTime=time||'';
   if(who){ ord.inspAssignee=who; ord.appraiser=who; }   // assign appraiser so it shows everywhere
@@ -62068,33 +62271,231 @@ function _calParseLocalDate(s){
 }
 function calGetEvents(){
   var evs=[];
-  ORDERS.forEach(function(o){
-    var ds=o.inspDate||o.dueRaw||'';if(!ds)return;
-    var d=_calParseLocalDate(ds);if(!d||isNaN(d.getTime()))return;
+  (typeof ORDERS!=='undefined'&&ORDERS?ORDERS:[]).forEach(function(o){
+    if(!o) return;
+    // §CAL-CAP (v2.426) — three kinds, told apart at the source.
+    //   booked   inspection date AND an agreed hour  → lives in its hour, counts
+    //   untimed  inspection date, hour not agreed    → Unscheduled lane, counts for nothing
+    //   due      no inspection date at all           → the REPORT DUE date, not an inspection
+    //   The old code merged all three and then put anything without a time in the
+    //   8am row, which invented a standing 8 o'clock appointment nobody had made.
+    var kind='booked', ds=o.inspDate||'';
+    if(!ds){ ds=o.dueRaw||''; kind='due'; }
+    else if(!o.inspTime){ kind='untimed'; }
+    if(!ds) return;
+    var d=_calParseLocalDate(ds); if(!d||isNaN(d.getTime())) return;
     var st=(o.status||'').toLowerCase();
     var cls=st==='completed'?'completed':(st==='approved'||st==='in review'?'confirmed':'pending');
-    evs.push({date:d,orderId:o.id,address:o.address||'',city:o.city||'',appraiser:o.inspAssignee||o.appraiser||'-',status:o.status||'',cls:cls,type:o.type||'',time:o.inspTime||''});
+    evs.push({date:d, dateKey:_calDateKey(d), kind:kind, hour:(kind==='booked'?_capHourOf(o.inspTime):null),
+              orderId:o.id, address:o.address||'', city:o.city||'',
+              appraiser:o.inspAssignee||o.appraiser||'-', status:o.status||'',
+              cls:cls, type:o.type||'', time:o.inspTime||''});
   });
   return evs;
 }
+
+/* ╔════════════════════════════════════════════════════════════════════╗
+   ║  §CAL-CAP (v2.426) — THE 2-PER-HOUR RULE                                ║
+   ╠════════════════════════════════════════════════════════════════════╣
+   ║  Firm-wide, per clock hour, counting only orders that have BOTH a date and   ║
+   ║  an agreed time. An order with a date but no hour is not an appointment and  ║
+   ║  must not consume a slot — otherwise setting a date would silently spend      ║
+   ║  capacity the office never agreed to give.                                   ║
+   ║                                                                             ║
+   ║  One check, _capCheck(), guards all three write paths: calNewInspSave        ║
+   ║  (Calendar), qvScheduleSave (Quick-View) and _inspTimeCommit (Project Data   ║
+   ║  time picker, which is also the durable funnel the others feed). A rule      ║
+   ║  enforced in one of three places is decoration, not a rule.                  ║
+   ║                                                                             ║
+   ║  Rows already over the limit are shown in red rather than hidden or          ║
+   ║  silently trimmed: existing bookings predate the rule and are real           ║
+   ║  appointments. The rule stops NEW writes; it never rewrites history.         ║
+   ║  Editing an order in place passes its own id as excludeId so it does not     ║
+   ║  block itself.                                                               ║
+   ╚════════════════════════════════════════════════════════════════════╝ */
+var INSP_MAX_PER_HOUR = 2;
+var CAL_HOURS = [8,9,10,11,12,13,14,15,16,17,18];
+var CAL_BOOKABLE = [8,9,10,11,12,13,14,15,16,17];
+
+function _ce(v){ return String(v==null?'':v)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+/* 'YYYY-MM-DD' from a Date or from anything _calParseLocalDate understands. Built
+   from LOCAL parts — toISOString() would shift the day for anyone west of UTC. */
+function _calDateKey(v){
+  var d=(v instanceof Date)?v:_calParseLocalDate(v);
+  if(!d||isNaN(d.getTime())) return '';
+  var p=function(n){ return (n<10?'0':'')+n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+
+/* Accepts '09:00', '9:00 am', '2:30 PM', '14:00'. Returns 0..23, or null when
+   there is no usable hour — null means "not an appointment", never "midnight". */
+function _capHourOf(t){
+  if(t==null) return null;
+  var m=String(t).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+  if(!m) return null;
+  var h=parseInt(m[1],10); if(isNaN(h)) return null;
+  var ap=(m[3]||'').toLowerCase();
+  if(ap==='pm'&&h!==12) h+=12;
+  if(ap==='am'&&h===12) h=0;
+  return (h<0||h>23)?null:h;
+}
+
+/* { hour: [orderId, ...] } for one day. Only real bookings are counted. */
+function _capLoad(dateKey, excludeId){
+  var load={};
+  if(!dateKey) return load;
+  (typeof ORDERS!=='undefined'&&ORDERS?ORDERS:[]).forEach(function(o){
+    if(!o||!o.inspDate||!o.inspTime) return;
+    if(excludeId&&o.id===excludeId) return;
+    if(_calDateKey(o.inspDate)!==dateKey) return;
+    var h=_capHourOf(o.inspTime); if(h==null) return;
+    (load[h]=load[h]||[]).push(o.id);
+  });
+  return load;
+}
+
+function _capCheck(dateStr, timeStr, excludeId){
+  var h=_capHourOf(timeStr), key=_calDateKey(dateStr);
+  // No agreed hour, or no usable date: nothing is being booked, so nothing to refuse.
+  if(h==null||!key) return {ok:true, skipped:true, count:0, max:INSP_MAX_PER_HOUR, conflicts:[]};
+  var ids=_capLoad(key,excludeId)[h]||[];
+  return {ok:ids.length<INSP_MAX_PER_HOUR, skipped:false, hour:h, dateKey:key,
+          count:ids.length, max:INSP_MAX_PER_HOUR, conflicts:ids};
+}
+
+function _capHourLabel(h){
+  var ap=(h<12?'am':'pm'), h12=(h%12)||12;
+  return h12+':00 '+ap;
+}
+
+/* Says which hour, how full, and WHICH orders are in the way — a refusal you can
+   act on without going to look the bookings up. */
+function _capDenyMsg(r){
+  return 'That hour is full. '+r.count+' of '+r.max+' inspections are already booked between '
+       + _capHourLabel(r.hour)+' and '+_capHourLabel((r.hour+1)%24)
+       + ' on '+r.dateKey
+       + (r.conflicts.length?(' \u2014 '+r.conflicts.join(', ')):'')
+       + '. Pick another time.';
+}
+window._capCheck=_capCheck; window._capLoad=_capLoad; window._capDenyMsg=_capDenyMsg;
+
+/* Shared refusal for the three write paths: message into the dialog when there is
+   one, toast when there is not, and always a log line. Returns false so a caller
+   can `if(!_capBlock(...)) return;`. */
+function _capGuard(dateStr, timeStr, oid, msgElId){
+  var r=_capCheck(dateStr,timeStr,oid);
+  if(r.ok) return true;
+  var txt=_capDenyMsg(r);
+  var el=msgElId?document.getElementById(msgElId):null;
+  if(el) el.textContent=txt;
+  else { try{ if(typeof _editToast==='function') _editToast('\u26a0 '+txt); else alert(txt); }catch(e){ alert(txt); } }
+  try{ if(typeof appLog==='function') appLog('BLOCKED','ORDER','Booking refused for '+oid+' \u2014 '+txt); }catch(e){}
+  return false;
+}
+window._capGuard=_capGuard;
+
+/* ── shared render helpers ───────────────────────────────────────────── */
+
+/* One pass over the events, grouped by day, so no renderer filters the whole
+   list once per cell. A month with 200 orders used to do 42 full scans. */
+function _calIndex(evs){
+  var ix={};
+  evs.forEach(function(ev){
+    var k=ev.dateKey; if(!k) return;
+    var e=ix[k]||(ix[k]={booked:[],untimed:[],due:[],load:{}});
+    if(ev.kind==='booked'){
+      e.booked.push(ev);
+      if(ev.hour!=null)(e.load[ev.hour]=e.load[ev.hour]||[]).push(ev);
+    }
+    else if(ev.kind==='untimed') e.untimed.push(ev);
+    else e.due.push(ev);
+  });
+  return ix;
+}
+function _calDay(ix,key){ return ix[key]||{booked:[],untimed:[],due:[],load:{}}; }
+
+function _capDots(n){
+  var h='<div class="cal-cap">';
+  for(var i=0;i<INSP_MAX_PER_HOUR;i++) h+='<i class="'+(i<n?'on':'')+'"></i>';
+  if(n>INSP_MAX_PER_HOUR) h+='<i class="over"></i>';
+  return h+'</div>';
+}
+function _capCls(n){ return n>INSP_MAX_PER_HOUR?'cap-over':(n>=INSP_MAX_PER_HOUR?'cap-full':'cap-free'); }
+
+/* The month load strip: one segment per bookable hour, height = how full it is. */
+function _calLoadStrip(day){
+  var h='<div class="cal-load">';
+  for(var i=0;i<CAL_BOOKABLE.length;i++){
+    var n=(day.load[CAL_BOOKABLE[i]]||[]).length;
+    h+='<i class="'+(n>INSP_MAX_PER_HOUR?'lover':(n>=INSP_MAX_PER_HOUR?'l2':(n>0?'l1':'')))+'"></i>';
+  }
+  return h+'</div>';
+}
+
+function _calPill(ev,extraCls){
+  return '<div class="cal-event '+ev.cls+(extraCls?' '+extraCls:'')
+    +'" onclick="event.stopPropagation();calEventClick(this,'+JSON.stringify(ev.orderId)+')"'
+    +' title="'+_ce(ev.address+(ev.city?', '+ev.city:''))+' | '+_ce(ev.appraiser)+'">'
+    +'<span class="cal-ev-id">'+_ce(ev.orderId)+'</span>'
+    +(ev.time?'<span class="cal-ev-time">'+_ce(ev.time)+'</span>':'')
+    +'</div>';
+}
+function _calChip(ev){
+  var tag=(ev.kind==='due')?'DUE':'NO TIME';
+  return '<div class="cal-chip k-'+ev.kind+'" onclick="event.stopPropagation();calEventClick(this,'
+    +JSON.stringify(ev.orderId)+')" title="'+_ce(ev.kind==='due'
+      ?('Report due \u2014 no inspection has been scheduled for '+ev.orderId)
+      :('Inspection date set, hour not agreed \u2014 '+ev.address))+'">'
+    +'<span class="cal-chip-tag">'+tag+'</span>'+_ce(ev.orderId)+'</div>';
+}
+
+function _calLegend(){
+  return '<div class="cal-legend">'
+    +'<span><b>Max '+INSP_MAX_PER_HOUR+'</b> inspections per hour</span>'
+    +'<span><i class="sw booked"></i>Booked</span>'
+    +'<span><i class="sw untimed"></i>Date set, no time</span>'
+    +'<span><i class="sw due"></i>Report due (not an inspection)</span>'
+    +'<span><i class="sw full"></i>Hour full</span>'
+    +'</div>';
+}
+
 function calRender(){
   var title=document.getElementById('calTitle'),grid=document.getElementById('calGrid');
   if(!title||!grid)return;
-  var evs=calGetEvents();
-  if(_calView==='week')_calRenderWeek(title,grid,evs);
-  else if(_calView==='day')_calRenderDay(title,grid,evs);
-  else if(_calView==='list')_calRenderList(title,grid,evs);
-  else _calRenderMonth(title,grid,evs);
+  var evs=calGetEvents(), ix=_calIndex(evs);
+  if(_calView==='week')_calRenderWeek(title,grid,evs,ix);
+  else if(_calView==='day')_calRenderDay(title,grid,evs,ix);
+  else if(_calView==='list')_calRenderList(title,grid,evs,ix);
+  else _calRenderMonth(title,grid,evs,ix);
 }
 function calEventClick(el,id){var o=_byId(id);if(!o)return;openQV(o);}
-function _calRenderMonth(title,grid,evs){
+
+/* Click an hour that still has room → New Inspection, pre-filled with that exact
+   slot. The capacity you can see is the capacity you can book into. */
+function calBookSlot(y,mo,day,hh){
+  try{
+    if(typeof calNewInspection!=='function') return;
+    calNewInspection();
+    var p=function(n){ return (n<10?'0':'')+n; };
+    var dEl=document.getElementById('calNewInspDate');
+    var tEl=document.getElementById('calNewInspTime');
+    if(dEl) dEl.value=y+'-'+p(mo+1)+'-'+p(day);
+    if(tEl) tEl.value=p(hh)+':00';
+  }catch(e){}
+}
+window.calBookSlot=calBookSlot;
+
+function _calRenderMonth(title,grid,evs,ix){
   var y=_calDate.getFullYear(),mo=_calDate.getMonth();
   var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
   var DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   title.textContent=MN[mo]+' '+y;
   var today=new Date();today.setHours(0,0,0,0);
   var first=new Date(y,mo,1).getDay(),dim=new Date(y,mo+1,0).getDate(),dipm=new Date(y,mo,0).getDate();
-  var html='<div class="cal-hdr-row">';
+  var html=_calLegend()+'<div class="cal-hdr-row">';
   DN.forEach(function(d){html+='<div class="cal-hdr-cell">'+d+'</div>';});
   html+='</div><div class="cal-grid">';
   var total=Math.ceil((first+dim)/7)*7;
@@ -62105,130 +62506,451 @@ function _calRenderMonth(title,grid,evs){
     else{day=i-first+1;cm=mo;}
     var cd=new Date(y,cm,day);cd.setHours(0,0,0,0);
     var isT=cd.getTime()===today.getTime();
-    html+='<div class="cal-cell'+(other?' other-month':'')+(isT?' today':'')+'" onclick="calOpenDay('+y+','+cm+','+day+')" title="Open this day" style="cursor:pointer;"><div class="cal-day-num">'+day+'</div>';
-    evs.filter(function(ev){var ed=new Date(ev.date);ed.setHours(0,0,0,0);return ed.getTime()===cd.getTime();})
-       .forEach(function(ev){
-         html+='<div class="cal-event '+ev.cls+'" onclick="event.stopPropagation();calEventClick(this,'+JSON.stringify(ev.orderId)+')" title="'+ev.address+' | '+ev.appraiser+'">'+ev.orderId+' '+(ev.time?'@ '+ev.time:'')+'</div>';
-       });
+    var dinfo=_calDay(ix,_calDateKey(cd));
+    var nb=dinfo.booked.length, over=false, fullHours=0;
+    for(var hh in dinfo.load){ var ln=dinfo.load[hh].length;
+      if(ln>INSP_MAX_PER_HOUR) over=true; if(ln>=INSP_MAX_PER_HOUR) fullHours++; }
+    var cnt=nb+dinfo.untimed.length;
+    html+='<div class="cal-cell'+(other?' other-month':'')+(isT?' today':'')
+        +'" onclick="calOpenDay('+y+','+cm+','+day+')"'
+        +' title="'+(cnt?(nb+' booked'+(dinfo.untimed.length?(', '+dinfo.untimed.length+' with no time'):'')
+             +(fullHours?(' \u2014 '+fullHours+' hour'+(fullHours>1?'s':'')+' full'):'')):'No inspections')
+        +'" style="cursor:pointer;">'
+        +'<div class="cal-cell-top"><div class="cal-day-num">'+day+'</div>'
+        +(cnt?'<span class="cal-cell-count'+(over?' over':' has')+'">'+cnt+'</span>':'')
+        +'</div>'
+        +_calLoadStrip(dinfo);
+    // Booked first, in time order; then the two dashed kinds. Three at most, so a
+    // busy day stays a readable cell rather than an unbounded column.
+    var shown=dinfo.booked.slice().sort(function(a,b){return (a.hour||0)-(b.hour||0);});
+    shown.slice(0,3).forEach(function(ev){ html+=_calPill(ev); });
+    var rest=Math.max(0,shown.length-3);
+    dinfo.untimed.slice(0,2).forEach(function(ev){ html+=_calChip(ev); });
+    dinfo.due.slice(0,1).forEach(function(ev){ html+=_calChip(ev); });
+    var hidden=rest+Math.max(0,dinfo.untimed.length-2)+Math.max(0,dinfo.due.length-1);
+    if(hidden) html+='<div class="cal-more">+'+hidden+' more</div>';
     html+='</div>';
   }
   grid.innerHTML=html+'</div>';
 }
-function _calRenderWeek(title,grid,evs){
+
+function _calRenderWeek(title,grid,evs,ix){
   var dow=_calDate.getDay(),ws=new Date(_calDate);
   ws.setDate(_calDate.getDate()-dow);ws.setHours(0,0,0,0);
   var we=new Date(ws);we.setDate(ws.getDate()+6);
-  var fmt=function(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric"});};
-  title.textContent=fmt(ws)+" – "+fmt(we)+", "+ws.getFullYear();
+  var fmt=function(d){return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
+  title.textContent=fmt(ws)+' \u2013 '+fmt(we)+', '+ws.getFullYear();
   var today=new Date();today.setHours(0,0,0,0);
-  var days=[],DN=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var days=[],DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   for(var i=0;i<7;i++){var dd=new Date(ws);dd.setDate(ws.getDate()+i);days.push(dd);}
-  var HOURS=[8,9,10,11,12,13,14,15,16,17,18];
-  var HLBL=["8am","9am","10am","11am","12pm","1pm","2pm","3pm","4pm","5pm","6pm"];
-  var html="<div class=\"cal-tbl-wrap\"><table class=\"cal-timetable\"><thead><tr>";
-  html+="<th class=\"cal-time-gutter\"></th>";
+  var info=days.map(function(d){ return _calDay(ix,_calDateKey(d)); });
+  var HLBL=['8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm'];
+
+  var html=_calLegend()+'<div class="cal-tbl-wrap"><table class="cal-timetable"><thead><tr>';
+  html+='<th class="cal-time-gutter"></th>';
   days.forEach(function(d,i){
     var isT=d.getTime()===today.getTime();
-    html+="<th class=\"cal-col-hdr"+(isT?" cal-today-hdr":"")+"\" onclick=\"calOpenDay("+d.getFullYear()+","+d.getMonth()+","+d.getDate()+")\" title=\"Open this day\" style=\"cursor:pointer;\">"+DN[i]+"<br><span class=\"cal-col-date"+(isT?" cal-today-num":"")+"\">" +d.getDate()+"</span></th>";
+    var nb=info[i].booked.length;
+    html+='<th class="cal-col-hdr'+(isT?' cal-today-hdr':'')+'" onclick="calOpenDay('
+      +d.getFullYear()+','+d.getMonth()+','+d.getDate()+')" title="Open this day" style="cursor:pointer;">'
+      +DN[i]+'<br><span class="cal-col-date'+(isT?' cal-today-num':'')+'">'+d.getDate()+'</span>'
+      +(nb?'<div class="cal-hour-meta">'+nb+' booked</div>':'')+'</th>';
   });
-  html+="</tr></thead><tbody>";
-  HOURS.forEach(function(h,hi){
-    html+="<tr><td class=\"cal-time-label\"><span>"+HLBL[hi]+"</span></td>";
-    days.forEach(function(d){
+  html+='</tr></thead><tbody>';
+
+  // Lanes for everything with no agreed hour. They never enter the clock, so they
+  // can never be mistaken for an appointment or counted against capacity.
+  var anyU=info.some(function(e){return e.untimed.length;});
+  var anyD=info.some(function(e){return e.due.length;});
+  if(anyU){
+    html+='<tr><td class="cal-time-label cal-lane-lbl">No time</td>';
+    days.forEach(function(d,i){ html+='<td class="cal-lane-cell">';
+      info[i].untimed.forEach(function(ev){ html+=_calChip(ev); }); html+='</td>'; });
+    html+='</tr>';
+  }
+  if(anyD){
+    html+='<tr><td class="cal-time-label cal-lane-lbl">Due</td>';
+    days.forEach(function(d,i){ html+='<td class="cal-lane-cell">';
+      info[i].due.forEach(function(ev){ html+=_calChip(ev); }); html+='</td>'; });
+    html+='</tr>';
+  }
+
+  CAL_HOURS.forEach(function(h,hi){
+    var peak=0;
+    days.forEach(function(d,i){ var n=(info[i].load[h]||[]).length; if(n>peak) peak=n; });
+    html+='<tr><td class="cal-time-label"><span>'+HLBL[hi]+'</span></td>';
+    days.forEach(function(d,i){
       var isT=d.getTime()===today.getTime();
-      html+="<td class=\"cal-slot"+(isT?" cal-today-slot":"")+(h===12?" cal-noon":"")+(hi===HOURS.length-1?" cal-last-slot":"")+"\" onclick=\"calOpenDay("+d.getFullYear()+","+d.getMonth()+","+d.getDate()+")\" style=\"cursor:pointer;\">";
-      evs.filter(function(ev){
-        var ed=new Date(ev.date);ed.setHours(0,0,0,0);
-        if(ed.getTime()!==d.getTime())return false;
-        if(!ev.time)return h===8;
-        var hp=ev.time.match(/(\d+):?(\d*)\s*(am|pm)?/i);
-        if(!hp)return h===8;
-        var eh=parseInt(hp[1]),ap=(hp[3]||"").toLowerCase();
-        if(ap==="pm"&&eh!==12)eh+=12;
-        if(ap==="am"&&eh===12)eh=0;
-        return eh===h;
-      }).forEach(function(ev){
-        html+="<div class=\"cal-event "+ev.cls+"\" onclick=\"event.stopPropagation();calEventClick(this,"+JSON.stringify(ev.orderId)+")\">"
-          +"<span class=\"cal-ev-id\">"+ev.orderId+"</span>"
-          +(ev.time?"<span class=\"cal-ev-time\">"+ev.time+"</span>":"")
-          +"<div class=\"cal-ev-addr\">"+ev.address+"</div>"
-          +"<div class=\"cal-ev-who\">"+ev.appraiser+"</div>"
-          +"</div>";
+      var slot=info[i].load[h]||[], n=slot.length;
+      var bookable=CAL_BOOKABLE.indexOf(h)>=0;
+      html+='<td class="cal-slot '+_capCls(n)+(isT?' cal-today-slot':'')+(h===12?' cal-noon':'')
+        +(hi===CAL_HOURS.length-1?' cal-last-slot':'')+'"'
+        +(bookable&&n<INSP_MAX_PER_HOUR
+            ?(' onclick="calBookSlot('+d.getFullYear()+','+d.getMonth()+','+d.getDate()+','+h+')"'
+              +' title="'+(INSP_MAX_PER_HOUR-n)+' of '+INSP_MAX_PER_HOUR+' free \u2014 click to book"')
+            :(' onclick="calOpenDay('+d.getFullYear()+','+d.getMonth()+','+d.getDate()+')"'
+              +' title="'+(n>INSP_MAX_PER_HOUR?('Over the limit \u2014 '+n+' booked'):'This hour is full')+'"'))
+        +' style="cursor:pointer;">';
+      slot.forEach(function(ev){
+        html+='<div class="cal-event '+ev.cls+'" onclick="event.stopPropagation();calEventClick(this,'
+          +JSON.stringify(ev.orderId)+')">'
+          +'<span class="cal-ev-id">'+_ce(ev.orderId)+'</span>'
+          +(ev.time?'<span class="cal-ev-time">'+_ce(ev.time)+'</span>':'')
+          +'<div class="cal-ev-addr">'+_ce(ev.address)+'</div>'
+          +'<div class="cal-ev-who">'+_ce(ev.appraiser)+'</div>'
+          +'</div>';
       });
-      html+="</td>";
+      if(bookable&&n<INSP_MAX_PER_HOUR)
+        html+='<div class="cal-free">'+(INSP_MAX_PER_HOUR-n)+' FREE</div>';
+      html+='</td>';
     });
-    html+="</tr>";
+    html+='</tr>';
   });
-  html+="</tbody></table></div>";
+  html+='</tbody></table></div>';
   grid.innerHTML=html;
 }
-function _calRenderDay(title,grid,evs){
+
+function _calRenderDay(title,grid,evs,ix){
   var y=_calDate.getFullYear(),mo=_calDate.getMonth(),dd=_calDate.getDate();
   var dayDate=new Date(y,mo,dd);dayDate.setHours(0,0,0,0);
   var today=new Date();today.setHours(0,0,0,0);
   var isToday=dayDate.getTime()===today.getTime();
-  var DN=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
-  title.textContent=DN[dayDate.getDay()]+", "+MN[mo]+" "+dd+", "+y;
-  var HOURS=[8,9,10,11,12,13,14,15,16,17,18];
-  var HLBL=["8:00 am","9:00 am","10:00 am","11:00 am","12:00 pm","1:00 pm","2:00 pm","3:00 pm","4:00 pm","5:00 pm","6:00 pm"];
-  var dayEvs=evs.filter(function(ev){var ed=new Date(ev.date);ed.setHours(0,0,0,0);return ed.getTime()===dayDate.getTime();});
-  // §CAL-DAY-INVIEW-NAV (v2.165) — prev/next-day arrows embedded inside the day view.
-  var _navLbl=DN[dayDate.getDay()]+", "+MN[mo]+" "+dd+", "+y;
-  var html="<div class=\"cal-inview-nav\">"
-    +"<button class=\"cal-nav-arrow\" onclick=\"calNav(-1)\" title=\"Previous day\" aria-label=\"Previous day\">‹</button>"
-    +"<span class=\"cal-inview-label\">"+_navLbl+(isToday?" &middot; Today":"")+"</span>"
-    +"<button class=\"cal-nav-arrow\" onclick=\"calNav(1)\" title=\"Next day\" aria-label=\"Next day\">›</button>"
-    +"</div>";
-  html+="<div class=\"cal-tbl-wrap\"><table class=\"cal-timetable cal-day-tbl\"><thead><tr>";
-  html+="<th class=\"cal-time-gutter\"></th>";
-  html+="<th class=\"cal-col-hdr"+(isToday?" cal-today-hdr":"")+"\">"+DN[dayDate.getDay()]+"<br><span class=\"cal-col-date"+(isToday?" cal-today-num":"")+"\">" +dd+"</span></th>";
-  html+="</tr></thead><tbody>";
-  HOURS.forEach(function(h,hi){
-    var slotEvs=dayEvs.filter(function(ev){
-      if(!ev.time)return h===8;
-      var hp=ev.time.match(/(\d+):?(\d*)\s*(am|pm)?/i);
-      if(!hp)return h===8;
-      var eh=parseInt(hp[1]),ap=(hp[3]||"").toLowerCase();
-      if(ap==="pm"&&eh!==12)eh+=12;
-      if(ap==="am"&&eh===12)eh=0;
-      return eh===h;
+  var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  title.textContent=DN[dayDate.getDay()]+', '+MN[mo]+' '+dd+', '+y;
+  var d=_calDay(ix,_calDateKey(dayDate));
+  var HLBL=['8:00 am','9:00 am','10:00 am','11:00 am','12:00 pm','1:00 pm','2:00 pm','3:00 pm','4:00 pm','5:00 pm','6:00 pm'];
+
+  var free=0,fullH=0,overH=0;
+  CAL_BOOKABLE.forEach(function(h){ var n=(d.load[h]||[]).length;
+    free+=Math.max(0,INSP_MAX_PER_HOUR-n);
+    if(n>=INSP_MAX_PER_HOUR) fullH++; if(n>INSP_MAX_PER_HOUR) overH++; });
+
+  var _navLbl=DN[dayDate.getDay()]+', '+MN[mo]+' '+dd+', '+y;
+  var html='<div class="cal-inview-nav">'
+    +'<button class="cal-nav-arrow" onclick="calNav(-1)" title="Previous day" aria-label="Previous day">\u2039</button>'
+    +'<span class="cal-inview-label">'+_navLbl+(isToday?' &middot; Today':'')+'</span>'
+    +'<button class="cal-nav-arrow" onclick="calNav(1)" title="Next day" aria-label="Next day">\u203a</button>'
+    +' <button class="cal-nav-arrow" style="font-size:11px;font-weight:800;padding:5px 11px;" onclick="dsOpen()" title="This day\'s inspections grouped by inspector">DAY SHEET</button>'
+    +'</div>';
+  html+='<div class="cal-legend">'
+    +'<span><b>'+d.booked.length+'</b> booked</span>'
+    +'<span><b>'+free+'</b> slots free today</span>'
+    +'<span>'+fullH+' hour'+(fullH===1?'':'s')+' full</span>'
+    +(overH?'<span style="color:#e0524d;font-weight:700;">'+overH+' hour'+(overH===1?'':'s')+' over the limit</span>':'')
+    +(d.untimed.length?'<span><b>'+d.untimed.length+'</b> with no time agreed</span>':'')
+    +'</div>';
+
+  if(d.untimed.length||d.due.length){
+    html+='<div style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.08);">';
+    d.untimed.forEach(function(ev){ html+=_calChip(ev); });
+    d.due.forEach(function(ev){ html+=_calChip(ev); });
+    html+='</div>';
+  }
+
+  html+='<div class="cal-tbl-wrap"><table class="cal-timetable cal-day-tbl"><thead><tr>';
+  html+='<th class="cal-time-gutter"></th>';
+  html+='<th class="cal-col-hdr'+(isToday?' cal-today-hdr':'')+'">'+DN[dayDate.getDay()]
+       +'<br><span class="cal-col-date'+(isToday?' cal-today-num':'')+'">'+dd+'</span></th>';
+  html+='</tr></thead><tbody>';
+  CAL_HOURS.forEach(function(h,hi){
+    var slot=d.load[h]||[], n=slot.length, bookable=CAL_BOOKABLE.indexOf(h)>=0;
+    html+='<tr><td class="cal-time-label"><span>'+HLBL[hi]+'</span>'
+        +(bookable?_capDots(n):'')+'</td>';
+    html+='<td class="cal-slot cal-day-slot '+_capCls(n)+(isToday?' cal-today-slot':'')
+        +(h===12?' cal-noon':'')+(hi===CAL_HOURS.length-1?' cal-last-slot':'')+'"'
+        +(bookable&&n<INSP_MAX_PER_HOUR
+            ?(' onclick="calBookSlot('+y+','+mo+','+dd+','+h+')" style="cursor:pointer;"'
+              +' title="'+(INSP_MAX_PER_HOUR-n)+' of '+INSP_MAX_PER_HOUR+' free \u2014 click to book"')
+            :'')
+        +'>';
+    slot.forEach(function(ev){
+      html+='<div class="cal-event '+ev.cls+' cal-day-event" onclick="event.stopPropagation();calEventClick(this,'
+        +JSON.stringify(ev.orderId)+')">'
+        +'<div class="cal-day-ev-row"><span class="cal-ev-id">'+_ce(ev.orderId)+'</span>'
+        +(ev.time?'<span class="cal-ev-time">'+_ce(ev.time)+'</span>':'')+'</div>'
+        +'<div class="cal-ev-addr">'+_ce(ev.address+(ev.city?', '+ev.city:''))+'</div>'
+        +'<div class="cal-ev-who">'+_ce(ev.appraiser+(ev.type?' \u00b7 '+ev.type:''))+'</div>'
+        +'<div class="cal-ev-status">'+_ce(ev.status)+'</div>'
+        +'</div>';
     });
-    html+="<tr><td class=\"cal-time-label\"><span>"+HLBL[hi]+"</span></td>";
-    html+="<td class=\"cal-slot cal-day-slot"+(isToday?" cal-today-slot":"")+(h===12?" cal-noon":"")+(hi===HOURS.length-1?" cal-last-slot":"")+"\">";
-    slotEvs.forEach(function(ev){
-      html+="<div class=\"cal-event "+ev.cls+" cal-day-event\" onclick=\"calEventClick(this,"+JSON.stringify(ev.orderId)+")\">"
-        +"<div class=\"cal-day-ev-row\">"
-        +"<span class=\"cal-ev-id\">"+ev.orderId+"</span>"
-        +(ev.time?"<span class=\"cal-ev-time\">"+ev.time+"</span>":"")
-        +"</div>"
-        +"<div class=\"cal-ev-addr\">"+ev.address+(ev.city?", "+ev.city:"")+"</div>"
-        +"<div class=\"cal-ev-who\">"+ev.appraiser+(ev.type?" &middot; "+ev.type:"")+"</div>"
-        +"<div class=\"cal-ev-status\">"+ev.status+"</div>"
-        +"</div>";
-    });
-    html+="</td></tr>";
+    if(bookable&&n<INSP_MAX_PER_HOUR)
+      html+='<div class="cal-free">'+(INSP_MAX_PER_HOUR-n)+' OF '+INSP_MAX_PER_HOUR+' FREE \u2014 CLICK TO BOOK</div>';
+    html+='</td></tr>';
   });
-  html+="</tbody></table></div>";
+  html+='</tbody></table></div>';
   grid.innerHTML=html;
 }
 
-function _calRenderList(title,grid,evs){
+function _calRenderList(title,grid,evs,ix){
   var y=_calDate.getFullYear(),mo=_calDate.getMonth();
   var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
   title.textContent=MN[mo]+' '+y;
   var me=evs.filter(function(ev){return ev.date.getFullYear()===y&&ev.date.getMonth()===mo;});
-  me.sort(function(a,b){return a.date-b.date;});
+  me.sort(function(a,b){ var t=a.date-b.date; if(t) return t;
+    return (a.hour==null?99:a.hour)-(b.hour==null?99:b.hour); });
   if(!me.length){grid.innerHTML='<div style="padding:40px;text-align:center;color:var(--slate-lt);">No inspections this month.</div>';return;}
-  var dc={pending:'#c8922a',confirmed:'#2d5a3d',completed:'#1e40af'},html='';
+  var dc={pending:'#c8922a',confirmed:'#2d5a3d',completed:'#1e40af'};
+  var html=_calLegend();
   me.forEach(function(ev){
-    html+='<div class="cal-list-item"><div class="cal-list-date">'+ev.date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</div>';
-    html+='<div class="cal-list-dot" style="background:'+dc[ev.cls]+'"></div>';
-    html+='<div class="cal-list-body"><div class="cal-list-title">'+ev.orderId+' &mdash; '+ev.address+'</div><div class="cal-list-sub">&#x23F0; '+(ev.time||'Time TBD')+' &nbsp;|&nbsp; &#x1F464; '+ev.appraiser+' &nbsp;|&nbsp; '+ev.type+' &nbsp;|&nbsp; <strong>'+ev.status+'</strong></div></div>';
-    html+='<button onclick="calEventClick(this,'+JSON.stringify(ev.orderId)+')" style="padding:5px 12px;background:var(--cream);border:1px solid var(--border);border-radius:3px;font-size:11px;cursor:pointer;">View</button></div>';
+    var over=false;
+    if(ev.kind==='booked'&&ev.hour!=null)
+      over=((_calDay(ix,ev.dateKey).load[ev.hour]||[]).length>INSP_MAX_PER_HOUR);
+    var tag=ev.kind==='due'?'REPORT DUE':(ev.kind==='untimed'?'NO TIME AGREED':(ev.time||'Time TBD'));
+    html+='<div class="cal-list-item"'+(over?' style="box-shadow:inset 3px 0 0 #e0524d;"':'')+'>'
+      +'<div class="cal-list-date">'+ev.date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</div>'
+      +'<div class="cal-list-dot" style="background:'+(ev.kind==='booked'?dc[ev.cls]:'transparent')
+      +(ev.kind==='booked'?'':';border:1px dashed rgba(160,160,160,.7)')+'"></div>'
+      +'<div class="cal-list-body"><div class="cal-list-title">'+_ce(ev.orderId)+' &mdash; '+_ce(ev.address)+'</div>'
+      +'<div class="cal-list-sub">&#x23F0; '+_ce(tag)+' &nbsp;|&nbsp; &#x1F464; '+_ce(ev.appraiser)
+      +' &nbsp;|&nbsp; '+_ce(ev.type)+' &nbsp;|&nbsp; <strong>'+_ce(ev.status)+'</strong>'
+      +(over?' &nbsp;|&nbsp; <span style="color:#e0524d;font-weight:700;">OVER THE '+INSP_MAX_PER_HOUR+'/HOUR LIMIT</span>':'')
+      +'</div></div>'
+      +'<button onclick="calEventClick(this,'+JSON.stringify(ev.orderId)+')" style="padding:5px 12px;background:var(--cream);border:1px solid var(--border);border-radius:3px;font-size:11px;cursor:pointer;">View</button></div>';
   });
   grid.innerHTML=html;
 }
+
+/* ╔═══════════════════════════════════════════════════════════════════╗
+   ║  §CAL-DAYSHEET (v2.427) — the day's inspections, and the inspector's copy   ║
+   ╠═══════════════════════════════════════════════════════════════════╣
+   ║  Two asks, one screen: a list of the inspections on a given day, and a way    ║
+   ║  to hand each inspector THEIR share of it over WhatsApp in one message        ║
+   ║  instead of one message per booking.                                          ║
+   ║                                                                              ║
+   ║  ── IT DOES NOT SEND. ───────────────────────────────────────────  ║
+   ║  Same rule as §WA-INSP-NOTIFY and §INVOICE-WHATSAPP, for the same reason:      ║
+   ║  wa.me is click-to-chat. This OPENS WhatsApp with the message typed and a     ║
+   ║  human presses Send from their own number. Nothing in this section may read   ║
+   ║  as though SIGMA sent anything, because it cannot.                            ║
+   ║                                                                              ║
+   ║  ── IT REUSES THE EXISTING NUMBER RESOLUTION, DELIBERATELY ───────────────  ║
+   ║  _dsPhoneFor() calls _wainPhoneFor() with a synthetic order carrying only     ║
+   ║  the inspector's name, so the day sheet and the per-booking button match the  ║
+   ║  SAME roster row, by name, case-insensitively, and produce the SAME three     ║
+   ║  refusals. Two code paths resolving one person's number is how a day sheet    ║
+   ║  ends up messaging somebody the booking button would have refused.            ║
+   ║  There is NO fallback number here either.                                     ║
+   ║                                                                              ║
+   ║  ── IT WRITES NO CHANNEL STAMP ──────────────────────────────────  ║
+   ║  §WA-INSP-NOTIFY stamps inspWaNotifiedFor when ONE appointment is handed    ║
+   ║  over. A day sheet is a different event about several orders at once, and     ║
+   ║  stamping it would make each order's own WhatsApp button claim that THAT      ║
+   ║  appointment had been sent on its own. It is a repeatable manual action and   ║
+   ║  is recorded only in the activity log.                                        ║
+   ║                                                                              ║
+   ║  ── UNTIMED INSPECTIONS ARE INCLUDED, AND SAID TO BE UNTIMED ────────────  ║
+   ║  An inspection with a date and no agreed hour still belongs on the            ║
+   ║  inspector's day. Leaving it out of the message would hide work; giving it    ║
+   ║  an invented hour is what §CAL-CAP just finished removing from the calendar. ║
+   ║  It is listed last, under its own heading, with no time.                      ║
+   ╚═══════════════════════════════════════════════════════════════════╝ */
+var _dsDate = null;   // 'YYYY-MM-DD' currently on screen
+
+/* Every inspection ON a day, grouped by inspector. Report-due rows are NOT
+   inspections and never appear here — same rule as the calendar's `due` kind. */
+function _dsGroups(dateKey){
+  var byWho = {}, order = [];
+  (typeof ORDERS!=='undefined'&&ORDERS?ORDERS:[]).forEach(function(o){
+    if(!o||!o.inspDate) return;
+    if(_calDateKey(o.inspDate)!==dateKey) return;
+    var who=(typeof _uisWho==='function'?_uisWho(o):String(o.inspAssignee||o.appraiser||'').trim())||'';
+    var key=who.toLowerCase()||'\u0000unassigned';
+    if(!byWho[key]){ byWho[key]={name:who, rows:[]}; order.push(key); }
+    byWho[key].rows.push(o);
+  });
+  order.forEach(function(k){
+    byWho[k].rows.sort(function(a,b){
+      var ha=_capHourOf(a.inspTime), hb=_capHourOf(b.inspTime);
+      if(ha==null&&hb==null) return String(a.id||'').localeCompare(String(b.id||''));
+      if(ha==null) return 1;            // untimed always last
+      if(hb==null) return -1;
+      if(ha!==hb) return ha-hb;
+      return String(a.inspTime||'').localeCompare(String(b.inspTime||''));
+    });
+  });
+  // Named inspectors first, alphabetically; the unassigned bucket last.
+  order.sort(function(a,b){
+    var ua=(a==='\u0000unassigned'), ub=(b==='\u0000unassigned');
+    if(ua!==ub) return ua?1:-1;
+    return byWho[a].name.localeCompare(byWho[b].name);
+  });
+  return order.map(function(k){ return byWho[k]; });
+}
+
+/* The same resolution the per-booking button makes, reached through the same
+   function so the two can never disagree about whose number this is. */
+function _dsPhoneFor(name){
+  if(typeof _wainPhoneFor!=='function')
+    return {name:name, e164:'', why:'the WhatsApp number reader is not available in this build', fixable:false};
+  return _wainPhoneFor({ inspAssignee:name });
+}
+
+function _dsTimeTxt(o){
+  if(!o.inspTime) return '';
+  return (typeof _uisTime==='function'?_uisTime(o.inspTime):'')||String(o.inspTime);
+}
+
+/* The digest. Plain text — WhatsApp has no markdown and this is read on a phone,
+   often in a car. Same fields, same wording and the same map honesty as
+   _wainText(): a search link is labelled a search, never "the location". */
+function _dsText(name, dateKey, rows){
+  var d=_calParseLocalDate(dateKey);
+  var dayTxt=(d&&typeof _uisDay==='function')?_uisDay(d):dateKey;
+  var timed=rows.filter(function(o){ return !!o.inspTime; });
+  var untimed=rows.filter(function(o){ return !o.inspTime; });
+  var L=[];
+  L.push('Your inspections \u2014 '+dayTxt);
+  L.push('');
+  L.push(timed.length+' scheduled'+(untimed.length?(', '+untimed.length+' still without a time'):'')+'.');
+  timed.forEach(function(o,i){
+    var map=(typeof _wainMap==='function')?_wainMap(o):{kind:'none',url:''};
+    L.push('');
+    L.push((i+1)+') '+_dsTimeTxt(o)+'  \u00b7  '+(o.id||'\u2014'));
+    L.push((typeof _wainAddr==='function'?_wainAddr(o):(o.address||''))||'no address on file');
+    if(o.type) L.push(o.type);
+    if(map.kind==='pin')         L.push(map.url);
+    else if(map.kind==='search'){ L.push(map.url);
+      L.push('(that link is a map SEARCH of the address \u2014 no GPS point is set on this order)'); }
+    else                          L.push('No location has been set on this order.');
+  });
+  if(untimed.length){
+    L.push('');
+    L.push('Also assigned to you on this day, time not agreed yet:');
+    untimed.forEach(function(o){
+      L.push('\u2022 '+(o.id||'\u2014')+' \u2014 '
+        +((typeof _wainAddr==='function'?_wainAddr(o):(o.address||''))||'no address on file'));
+    });
+  }
+  L.push('');
+  L.push('Sent from SIGMA.');
+  return L.join('\n');
+}
+
+/* Opens WhatsApp with the day's list typed in. Confirms first, naming the person,
+   the number and the count, because the message carries client addresses and the
+   hour somebody will be standing at them. */
+function dsWhatsApp(name, dateKey){
+  var g=_dsGroups(dateKey).filter(function(x){ return x.name===name; })[0];
+  if(!g||!g.rows.length){ alert('There are no inspections for '+name+' on this day.'); return; }
+  var p=_dsPhoneFor(name);
+  if(!p.e164){
+    alert('Cannot WhatsApp '+(name||'this inspector')+' \u2014 '+p.why+'.\n\n'
+        + 'Add it under Settings \u203a Appraisers, then try again.\n\n'
+        + 'WhatsApp was not opened and nothing has been sent.');
+    return;
+  }
+  var msg=_dsText(name, dateKey, g.rows);
+  if(!confirm('Open WhatsApp to '+p.name+' on '+p.pretty+'?\n\n'
+            + 'The message lists '+g.rows.length+' inspection'+(g.rows.length===1?'':'s')
+            + ' with addresses and locations.\n\n'
+            + 'SIGMA does not send it \u2014 WhatsApp opens with the message typed and you press Send.')) return;
+  try{ window.open('https://wa.me/'+p.e164+'?text='+encodeURIComponent(msg), '_blank'); }catch(e){}
+  try{ if(typeof appLog==='function')
+        appLog('ACTION','ORDER','Day sheet handed to WhatsApp for '+p.name+' \u2014 '+dateKey
+              +' ('+g.rows.length+' inspections). SIGMA did not send it.'); }catch(e){}
+}
+
+function dsCopy(name, dateKey){
+  var g=_dsGroups(dateKey).filter(function(x){ return x.name===name; })[0];
+  if(!g) return;
+  var txt=_dsText(name, dateKey, g.rows);
+  var done=function(){ try{ if(typeof _editToast==='function') _editToast('\u2713 Day sheet for '
+      +(name||'unassigned')+' copied'); }catch(e){} };
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,function(){ window.prompt('Copy the day sheet:', txt); }); return; }
+  }catch(e){}
+  window.prompt('Copy the day sheet:', txt);
+}
+
+function dsNav(dir){
+  var d=_calParseLocalDate(_dsDate); if(!d) return;
+  d.setDate(d.getDate()+dir);
+  _dsDate=_calDateKey(d);
+  dsRender();
+}
+function dsClose(){ var ov=document.getElementById('dsOverlay'); if(ov) ov.remove(); }
+
+function dsOpen(dateStr){
+  _dsDate = _calDateKey(dateStr || (typeof _calDate!=='undefined'?_calDate:new Date()))
+            || _calDateKey(new Date());
+  var ov=document.getElementById('dsOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='dsOverlay'; ov.className='ds-ov';
+    ov.onclick=function(e){ if(e.target===ov) dsClose(); };
+    ov.innerHTML='<div class="ds-box">'
+      +'<div class="ds-hd">'
+        +'<button class="ds-nav" onclick="dsNav(-1)" title="Previous day">\u2039</button>'
+        +'<div style="flex:1;"><div class="ds-ttl" id="dsTitle"></div><div class="ds-sub" id="dsSub"></div></div>'
+        +'<button class="ds-nav" onclick="dsNav(1)" title="Next day">\u203a</button>'
+      +'</div>'
+      +'<div class="ds-body" id="dsBody"></div>'
+      +'<div class="ds-ft"><div class="ds-note">WhatsApp opens with the message typed. SIGMA does not send it \u2014 you press Send.</div>'
+      +'<button class="ds-btn" onclick="dsClose()">Close</button></div>'
+      +'</div>';
+    document.body.appendChild(ov);
+    ov._dsKey=function(e){ if(e.key==='Escape'){ e.preventDefault(); dsClose(); } };
+    document.addEventListener('keydown', ov._dsKey, true);
+  }
+  dsRender();
+}
+
+function dsRender(){
+  var t=document.getElementById('dsTitle'), sb=document.getElementById('dsSub'),
+      b=document.getElementById('dsBody');
+  if(!t||!b) return;
+  var d=_calParseLocalDate(_dsDate);
+  var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  t.textContent = d ? (DN[d.getDay()]+', '+MN[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()) : _dsDate;
+
+  var groups=_dsGroups(_dsDate);
+  var total=0, untimedTotal=0;
+  groups.forEach(function(g){ total+=g.rows.length;
+    g.rows.forEach(function(o){ if(!o.inspTime) untimedTotal++; }); });
+  if(sb) sb.textContent = total
+    ? (total+' inspection'+(total===1?'':'s')+' \u00b7 '+groups.length+' inspector'
+       +(groups.length===1?'':'s')+(untimedTotal?(' \u00b7 '+untimedTotal+' without a time'):''))
+    : 'Nothing booked on this day.';
+
+  if(!groups.length){ b.innerHTML='<div class="ds-empty">No inspections on this day.</div>'; return; }
+
+  var h='';
+  groups.forEach(function(g){
+    var named=!!g.name;
+    var p=named?_dsPhoneFor(g.name):{e164:'',why:'no inspector is assigned to these orders'};
+    h+='<div class="ds-card'+(named?'':' unassigned')+'">'
+      +'<div class="ds-chd">'
+        +'<span class="ds-who">'+_ce(named?g.name:'Unassigned')+'</span>'
+        +'<span class="ds-cnt">'+g.rows.length+' INSPECTION'+(g.rows.length===1?'':'S')+'</span>'
+        +'<span class="ds-acts">'
+          +'<button class="ds-btn" onclick="dsCopy('+JSON.stringify(g.name)+','+JSON.stringify(_dsDate)+')">Copy</button>'
+          +(p.e164
+             ? '<button class="ds-btn wa" onclick="dsWhatsApp('+JSON.stringify(g.name)+','+JSON.stringify(_dsDate)+')" title="Opens WhatsApp to '+_ce(p.pretty)+' with the list typed in">\ud83d\udcac WhatsApp the day</button>'
+             : '<button class="ds-btn wa off" onclick="alert('+JSON.stringify('Cannot WhatsApp \u2014 '+p.why+'.\n\nAdd it under Settings \u203a Appraisers.\n\nNothing has been sent.')+')" title="'+_ce(p.why)+'">\ud83d\udcac No number</button>')
+        +'</span>'
+      +'</div>';
+    g.rows.forEach(function(o){
+      var map=(typeof _wainMap==='function')?_wainMap(o):{kind:'none'};
+      var tm=_dsTimeTxt(o);
+      h+='<div class="ds-row" onclick="dsClose();calEventClick(this,'+JSON.stringify(o.id)+')">'
+        +'<span class="ds-time'+(tm?'':' none')+'">'+_ce(tm||'no time')+'</span>'
+        +'<span class="ds-main"><span class="ds-oid">'+_ce(o.id||'')+'</span>'
+        +'<div class="ds-addr">'+_ce((typeof _wainAddr==='function'?_wainAddr(o):(o.address||''))||'no address on file')+'</div>'
+        +'<div class="ds-meta">'+_ce([o.type,o.status].filter(function(x){return x;}).join('  \u00b7  '))+'</div></span>'
+        +'<span class="ds-pin '+(map.kind==='pin'?'yes':'no')+'">'
+        +(map.kind==='pin'?'GPS PIN':(map.kind==='search'?'NO PIN':'NO LOCATION'))+'</span>'
+        +'</div>';
+    });
+    h+='</div>';
+  });
+  b.innerHTML=h;
+}
+
+window.dsOpen=dsOpen; window.dsClose=dsClose; window.dsNav=dsNav; window.dsRender=dsRender;
+window.dsWhatsApp=dsWhatsApp; window.dsCopy=dsCopy; window._dsGroups=_dsGroups;
+window._dsText=_dsText; window._dsPhoneFor=_dsPhoneFor;
+
 function calSync(provider){
   var modal=document.getElementById('calSyncModal');if(!modal)return;
   var body=document.getElementById('calSyncBody'),evs=calGetEvents();
