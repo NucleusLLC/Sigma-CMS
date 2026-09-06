@@ -37384,7 +37384,7 @@ function _adsPanelInit(){
       +     '<li><b>Access to the ad account.</b> In Business Manager the token’s user (or System User) must be assigned to the ad account with at least <b>Analyst</b>. Analyst is enough for everything SIGMA does.</li>'
       +     '<li><b>A token with <code>ads_read</code>.</b> Prefer a <b>System User token</b> from Business Manager → it does not expire. A long-lived User token works but lasts ~60 days and will silently stop one morning.</li>'
       +     '<li><b>Store it as a Supabase secret</b> named <code>META_ACCESS_TOKEN</code> (Project Settings → Edge Functions → Secrets). Optionally also <code>META_AD_ACCOUNT_ID</code>.</li>'
-      +     '<li><b>Deploy the function:</b> <code>supabase functions deploy meta-ads --no-verify-jwt</code>. It is written and in the repo but deliberately <b>not deployed</b> — that call is yours.</li>'
+      +     '<li><b>The function is deployed.</b> <code>meta-ads</code> went live on 6 Sep 2026 with <code>--no-verify-jwt</code>, and the Endpoint URL above already points at it — there is nothing to do here. Redeploy only after changing its source: <code>supabase functions deploy meta-ads --no-verify-jwt</code>.</li>'
       +     '<li><b>Record the ad account id above</b> and press <b>Test connection</b>.</li>'
       +   '</ol>'
       +   '<h5 style="margin:18px 0 7px;font-size:13px;font-weight:800;">Creating campaigns from inside SIGMA</h5>'
