@@ -19038,7 +19038,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.428';
+var APP_VERSION = 'v2.429';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19076,6 +19076,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.429',type:'fix',date:'09-07-2026',ts:'09-07-2026 03:00',_static:true,title:'The page-overflow fix now runs after the report has finished laying out',desc:'v2.428 added the pass that carries overflowing text onto a continuation sheet, but ran it the instant the report was parsed \u2014 before the photographs and the report font had loaded. Every height it measured was therefore the wrong one, it concluded nothing was overflowing, and a real report still printed under its own footer. It now waits for the fonts and images to land before measuring, with a four-second backstop so a missing image can never leave it unrun, and it also runs if you print before then. It still runs exactly once, because it MOVES text rather than copying it and a second pass could not put anything back. The console now always reports how many pages it examined and what it measured on the first few, so a page that still overruns can be diagnosed from the report window.'},
   {v:'v2.428',type:'fix',date:'09-06-2026',ts:'09-06-2026 14:00',_static:true,title:'Report text that does not fit now continues on the next sheet instead of printing under the footer',desc:'A report page is a fixed 297mm box and its footer is anchored to the page rather than sitting in the text flow, so the footer reserved no space: a long passage was painted straight through it and then cut off at the paper edge. Nothing errored \u2014 the sentence simply stopped existing. It showed up worst on Certification \u0026 Limiting Conditions and on the condition-matrix notes. Any content that no longer fits above the footer band is now carried onto a continuation sheet that keeps the running header, the footer line and the appraiser stamp, and repeats its page number with \u201c(cont.)\u201d so no page number and no Index row moves. Section headings travel with their own text rather than being left stranded at the foot of a sheet, and a heading is never duplicated onto the continuation sheet. A single block taller than a whole page is left where it is and reported to the console, because that one needs shortening rather than paginating. Turn it off with rcPageSpill:false in Report Customization if the old behaviour is wanted back.'},
   {v:'v2.427',type:'feature',date:'09-06-2026',ts:'09-06-2026 10:00',_static:true,title:'Day Sheet \u2014 the day\u2019s inspections by inspector, and one WhatsApp per inspector',desc:'A new Day Sheet on the Calendar lists every inspection booked on a chosen day, grouped by the inspector it is assigned to, in time order, with the address, the type, the status and whether the order carries a real GPS pin or none. Orders with nobody assigned are grouped separately so they cannot be missed. Arrows step a day at a time; open it from the Calendar toolbar or from inside the Day view. Each inspector\u2019s card carries a WhatsApp button that opens WhatsApp with THEIR whole day typed in as one message \u2014 job order, time, address, type and map link for each inspection \u2014 instead of one message per booking. As everywhere else in SIGMA, this does not send: WhatsApp opens with the message ready and a person presses Send from their own number. The number is resolved through the same roster lookup the per-booking WhatsApp button uses, so the two can never name different people, and there is no fallback number: an inspector who is not on the roster, or has no number, or has a number that cannot be read, is reported as such and nothing is opened. A map link that is only an address search is labelled as a search, never as a location. Inspections with a date but no agreed time are included and listed separately as having no time, rather than being hidden or given an hour nobody agreed to. A Copy button puts the same text on the clipboard for any other channel.'},
   {v:'v2.426',type:'feature',date:'09-05-2026',ts:'09-05-2026 09:00',_static:true,title:'Inspection Calendar — a 2-per-hour booking limit, and a calendar that shows the load',desc:'The Calendar now enforces a firm-wide maximum of 2 inspections in any one clock hour. A third booking in a full hour is refused wherever it is attempted — the Calendar’s New Inspection dialog, Quick-View’s Schedule, and the time picker that appears when an inspection date is set in Project Data — and the refusal names the hour, the count and the order numbers already holding it. In the time picker, an hour that is already full is shown as full and cannot be chosen at all. An order being re-saved never blocks itself. Bookings made before this release are left exactly as they are: an hour that already holds more than two is shown in red rather than trimmed, because those are real appointments. The calendar itself was drawing three different things as the same kind of pill: a real booking, an inspection with a date but no agreed hour, and an order with no inspection date at all, which fell back to the REPORT DUE date. Anything without a time was dropped into the 8am row, so 8am read as the busiest hour of every week and none of it was true. Each kind now looks like what it is — booked inspections sit in their hour, a date with no agreed time sits in a No time lane above the clock, and a report due date is labelled DUE and never counted as an inspection. Week and Day views mark every open hour with how many of the 2 slots are still free and let you click one to book straight into it; Month shows each day as a ten-segment load strip, one segment per bookable hour, so a full week is readable at a glance; the List view flags any hour that is over the limit.'},
@@ -49974,7 +49975,7 @@ function _pgSpillRuntime(OPT) {
     }
 
     var pages = [].slice.call(document.querySelectorAll('.page'));
-    var spilled = 0, refused = 0;
+    var spilled = 0, refused = 0, examined = 0, probes = [];
 
     for (var p = 0; p < pages.length; p++) {
       var page = pages[p];
@@ -49991,6 +49992,19 @@ function _pgSpillRuntime(OPT) {
         var pageRect = source.getBoundingClientRect();
         var limit = bandTop(source, pageRect) - CLEAR_MM * MM;
         if (!(limit > 0)) break;
+        if (guard === 1) {
+          examined++;
+          if (probes.length < 6) {
+            var deepest = 0, all = inner.querySelectorAll('*');
+            for (var z = 0; z < all.length; z++) {
+              if (isChrome(all[z]) || isOutOfFlow(all[z])) continue;
+              if (all[z].children.length || !(all[z].textContent || '').trim()) continue;
+              var zb = all[z].getBoundingClientRect().bottom - pageRect.top;
+              if (zb > deepest) deepest = zb;
+            }
+            probes.push('p' + (p + 1) + ':' + Math.round(limit) + '/' + Math.round(deepest));
+          }
+        }
 
         var hit = findSplit(inner, limit, pageRect.top);
         if (!hit) break;
@@ -50077,10 +50091,10 @@ function _pgSpillRuntime(OPT) {
       }
     }
 
-    if (spilled || refused) {
-      log('[pg-spill] ' + spilled + ' continuation sheet(s) added' +
-          (refused ? ', ' + refused + ' oversized block(s) left in place' : ''));
-    }
+    log('[pg-spill] examined ' + examined + ' page(s), ' + spilled + ' continuation sheet(s) added'
+        + (refused ? ', ' + refused + ' oversized block(s) left in place' : '')
+        + ' | ' + Math.round(MM * 100) / 100 + 'px per mm'
+        + (probes.length ? ' | first pages, band top vs content bottom (px): ' + probes.join('  ') : ''));
   } catch (e) {
     try { console.warn('[pg-spill] failed, report left exactly as it was:', e); } catch (_) {}
   }
@@ -50094,8 +50108,38 @@ try {
     // this hid its bug. Written normally and stringified, it is the same code the next
     // person reads. Runs AFTER §SEC-DEDUP-INLINE and §SEC-DISABLE by construction: it is
     // appended last, so the DOM it measures is the final one.
-    var _spillScript = '<scr' + 'ipt>(' + _pgSpillRuntime.toString() + ')('
-      + JSON.stringify({ clearMm: 2, fallbackMm: 12, maxSheets: 12 }) + ');</scr' + 'ipt>';
+    // §PG-SPILL-TIMING (v2.429) — run ONCE, and LATE.
+    //
+    //   The first cut ran the pass inline at parse time, which is the one moment the
+    //   heights are guaranteed WRONG: a report is mostly data-URL photographs and a
+    //   web font, and both land after first paint and change every measurement. The
+    //   pass duly measured a half-laid-out document, found nothing crossing the footer
+    //   band, and did nothing at all — which is exactly what shipped in v2.428 and why
+    //   a real report still printed under its own footer.
+    //
+    //   §MF-PRINT has always done this correctly (it rebuilds on 'load' AND on
+    //   document.fonts.ready); this is the same discipline, with one difference that
+    //   matters. The Master Fees paginator REBUILDS from an off-screen source table, so
+    //   re-running it is free. This pass MOVES nodes out of the page, so a second run
+    //   cannot pull content back onto a sheet it already emptied — re-running would
+    //   leave permanently under-filled pages. Hence: once, but not until the document
+    //   has stopped moving.
+    //
+    //   The 4-second backstop is deliberate. A font that never arrives, or an image
+    //   that 404s, must not be able to leave the pass unrun — silently doing nothing is
+    //   the failure this whole section exists to end.
+    var _spillScript = '<scr' + 'ipt>(function(){'
+      + 'var RUN=' + _pgSpillRuntime.toString() + ';'
+      + 'var OPT=' + JSON.stringify({ clearMm: 2, fallbackMm: 12, maxSheets: 12 }) + ';'
+      + 'var done=false;'
+      + 'function go(){ if(done) return; done=true; try{ RUN(OPT); }catch(e){ try{ console.warn("[pg-spill]",e); }catch(_){} } }'
+      + 'var waits=[];'
+      + 'try{ if(document.fonts && document.fonts.ready) waits.push(document.fonts.ready); }catch(e){}'
+      + 'if(document.readyState!=="complete"){ waits.push(new Promise(function(r){ addEventListener("load",r,{once:true}); })); }'
+      + 'try{ (waits.length?Promise.all(waits):Promise.resolve()).then(function(){ setTimeout(go,0); }); }catch(e){ setTimeout(go,0); }'
+      + 'setTimeout(go,4000);'                     // backstop: never leave it unrun
+      + 'addEventListener("beforeprint",go);'      // printing early still gets a paginated document
+      + '})();</scr' + 'ipt>';
     if (/<\/body>/i.test(html)) html = html.replace(/<\/body>(?![\s\S]*<\/body>)/i, _spillScript + '</body>');
     else html = html + _spillScript;
     try { console.log('[PG-SPILL] pagination pass embedded'); } catch (e) {}
