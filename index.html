@@ -19038,7 +19038,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.429';
+var APP_VERSION = 'v2.430';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19076,7 +19076,8 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
-  {v:'v2.429',type:'fix',date:'09-07-2026',ts:'09-07-2026 03:00',_static:true,title:'The page-overflow fix now runs after the report has finished laying out',desc:'v2.428 added the pass that carries overflowing text onto a continuation sheet, but ran it the instant the report was parsed \u2014 before the photographs and the report font had loaded. Every height it measured was therefore the wrong one, it concluded nothing was overflowing, and a real report still printed under its own footer. It now waits for the fonts and images to land before measuring, with a four-second backstop so a missing image can never leave it unrun, and it also runs if you print before then. It still runs exactly once, because it MOVES text rather than copying it and a second pass could not put anything back. The console now always reports how many pages it examined and what it measured on the first few, so a page that still overruns can be diagnosed from the report window.'},
+  {v:'v2.430',type:'fix',date:'09-07-2026',ts:'09-07-2026 04:00',_static:true,title:'An opinion longer than a page is now split across sheets instead of overrunning the next footer too',desc:'With Text Formatting off \u2014 which is the default \u2014 an opinion field is stored as one unbroken block of text, so the page-overflow pass could only move it somewhere else, never break it. A long Opinion of Floor Plan was therefore carried onto a continuation sheet where it ran over that sheet\u2019s footer as well, while the page it came from was left holding a heading and an empty box. An opinion too long to fit on any single sheet is now split at a word boundary and continues on the next one; anything short enough to fit still travels in one piece. The pass also now waits for the report\u2019s photographs to finish loading before it measures, not just the font \u2014 at the moment a report is parsed every photograph still measures zero.'},
+  {v:'v2.429',type:'fix',date:'09-07-2026',ts:'09-07-2026 03:00',_static:true,title:'The page-overflow fix now runs after the report has finished laying out',desc:'v2.428 added the pass that carries overflowing text onto a continuation sheet, but ran it the instant the report was parsed \u2014 before the photographs and the report font had loaded. Every height it measured was therefore the wrong one \u2014 on a page of photographs it saw nothing overflowing, and on a page of pure text it saw too MUCH, because the fallback font is about 14% taller than the report font it was still waiting for. It now waits for the fonts and images to land before measuring, with a four-second backstop so a missing image can never leave it unrun, and it also runs if you print before then. It still runs exactly once, because it MOVES text rather than copying it and a second pass could not put anything back. The console now always reports how many pages it examined and what it measured on the first few, so a page that still overruns can be diagnosed from the report window.'},
   {v:'v2.428',type:'fix',date:'09-06-2026',ts:'09-06-2026 14:00',_static:true,title:'Report text that does not fit now continues on the next sheet instead of printing under the footer',desc:'A report page is a fixed 297mm box and its footer is anchored to the page rather than sitting in the text flow, so the footer reserved no space: a long passage was painted straight through it and then cut off at the paper edge. Nothing errored \u2014 the sentence simply stopped existing. It showed up worst on Certification \u0026 Limiting Conditions and on the condition-matrix notes. Any content that no longer fits above the footer band is now carried onto a continuation sheet that keeps the running header, the footer line and the appraiser stamp, and repeats its page number with \u201c(cont.)\u201d so no page number and no Index row moves. Section headings travel with their own text rather than being left stranded at the foot of a sheet, and a heading is never duplicated onto the continuation sheet. A single block taller than a whole page is left where it is and reported to the console, because that one needs shortening rather than paginating. Turn it off with rcPageSpill:false in Report Customization if the old behaviour is wanted back.'},
   {v:'v2.427',type:'feature',date:'09-06-2026',ts:'09-06-2026 10:00',_static:true,title:'Day Sheet \u2014 the day\u2019s inspections by inspector, and one WhatsApp per inspector',desc:'A new Day Sheet on the Calendar lists every inspection booked on a chosen day, grouped by the inspector it is assigned to, in time order, with the address, the type, the status and whether the order carries a real GPS pin or none. Orders with nobody assigned are grouped separately so they cannot be missed. Arrows step a day at a time; open it from the Calendar toolbar or from inside the Day view. Each inspector\u2019s card carries a WhatsApp button that opens WhatsApp with THEIR whole day typed in as one message \u2014 job order, time, address, type and map link for each inspection \u2014 instead of one message per booking. As everywhere else in SIGMA, this does not send: WhatsApp opens with the message ready and a person presses Send from their own number. The number is resolved through the same roster lookup the per-booking WhatsApp button uses, so the two can never name different people, and there is no fallback number: an inspector who is not on the roster, or has no number, or has a number that cannot be read, is reported as such and nothing is opened. A map link that is only an address search is labelled as a search, never as a location. Inspections with a date but no agreed time are included and listed separately as having no time, rather than being hidden or given an hour nobody agreed to. A Copy button puts the same text on the clipboard for any other channel.'},
   {v:'v2.426',type:'feature',date:'09-05-2026',ts:'09-05-2026 09:00',_static:true,title:'Inspection Calendar — a 2-per-hour booking limit, and a calendar that shows the load',desc:'The Calendar now enforces a firm-wide maximum of 2 inspections in any one clock hour. A third booking in a full hour is refused wherever it is attempted — the Calendar’s New Inspection dialog, Quick-View’s Schedule, and the time picker that appears when an inspection date is set in Project Data — and the refusal names the hour, the count and the order numbers already holding it. In the time picker, an hour that is already full is shown as full and cannot be chosen at all. An order being re-saved never blocks itself. Bookings made before this release are left exactly as they are: an hour that already holds more than two is shown in red rather than trimmed, because those are real appointments. The calendar itself was drawing three different things as the same kind of pill: a real booking, an inspection with a date but no agreed hour, and an order with no inspection date at all, which fell back to the REPORT DUE date. Anything without a time was dropped into the 8am row, so 8am read as the busiest hour of every week and none of it was true. Each kind now looks like what it is — booked inspections sit in their hour, a date with no agreed time sits in a No time lane above the clock, and a report due date is labelled DUE and never counted as an inspection. Week and Day views mark every open hour with how many of the 2 slots are still free and let you click one to book straight into it; Month shows each day as a ten-segment load strip, one segment per bookable hour, so a full week is readable at a glance; the List view flags any hour that is over the limit.'},
@@ -49948,6 +49949,73 @@ function _pgSpillRuntime(OPT) {
       return walk(root);
     }
 
+    // ── SPLITTING A PARAGRAPH THAT IS TALLER THAN THE PAGE ──────────────────
+    //
+    //   Moving a block whole is the right answer only while the block CAN fit on a
+    //   sheet of its own. An opinion field cannot. `_opFmt` returns bare `esc(t)`
+    //   whenever Text Formatting is off — which is the default — and `esc` does not
+    //   convert newlines, so `.rep-op` and `.disc-text` each arrive as ONE text node
+    //   with no element children. To this pass that is a single indivisible atom.
+    //
+    //   Relocating it therefore achieved nothing: the paragraph landed on the
+    //   continuation sheet and overran ITS footer too (measured on the shipped
+    //   runtime: +32px of overrun at ~4,600 characters, +485px — about 128mm of text
+    //   under the footer — at ~6,700), while the page it left behind kept the heading
+    //   and an empty bordered box. Both of those are the same bug.
+    //
+    //   So a leaf that cannot fit is split at a WORD BOUNDARY, by binary search on the
+    //   live layout rather than on an estimate of character widths. The remainder goes
+    //   into a clone of the element itself — safe, because a clone here copies a text
+    //   container and its styling, never a `.sec-h`; section headers are moved, never
+    //   copied, and `canSplitLeaf` refuses to touch one.
+    function canSplitLeaf(el) {
+      if (!el || el.children.length) return false;
+      if (isSecHead(el)) return false;                       // never split a heading
+      var t = el.textContent || '';
+      return t.trim().length > 80 && /\s/.test(t.trim());
+    }
+
+    // Largest prefix of `el`'s text that still ends above `limit`. Returns the element
+    // holding the remainder, inserted nowhere yet, or null when nothing sensible splits.
+    function splitTextLeaf(el, limit, pageTop) {
+      var full = el.textContent || '';
+      // word boundaries, so a sentence is never cut mid-word
+      var cuts = [], re = /\s+/g, m;
+      while ((m = re.exec(full))) cuts.push(m.index);
+      if (!cuts.length) return null;
+
+      var fits = function (n) {
+        el.textContent = full.slice(0, n);
+        return el.getBoundingClientRect().bottom - pageTop <= limit;
+      };
+
+      if (!fits(cuts[0])) { el.textContent = full; return null; }   // not even one word fits
+
+      var lo = 0, hi = cuts.length - 1;                             // lo always fits
+      while (lo < hi) {
+        var mid = Math.ceil((lo + hi) / 2);
+        if (fits(cuts[mid])) lo = mid; else hi = mid - 1;
+      }
+
+      var at = cuts[lo];
+      var head = full.slice(0, at), tail = full.slice(at).replace(/^\s+/, '');
+      if (!head.trim() || !tail.trim()) { el.textContent = full; return null; }
+
+      // Widow control: a split leaving one dangling line at the foot of the page reads
+      // worse than moving the whole paragraph down, so it is declined and the caller
+      // falls back to relocating the block intact.
+      el.textContent = head;
+      var lh = parseFloat(getComputedStyle(el).lineHeight);
+      if (!(lh > 0)) lh = parseFloat(getComputedStyle(el).fontSize) * 1.4;
+      if (el.getBoundingClientRect().height < lh * 1.8) { el.textContent = full; return null; }
+
+      var rest = el.cloneNode(false);
+      rest.removeAttribute('id');
+      rest.setAttribute('data-spill-cont', '1');
+      rest.textContent = tail;
+      return rest;
+    }
+
     // The layout wrappers between `.inner` and the split point, outermost first.
     // These are the only elements ever recreated on a spill sheet, and they are
     // recreated EMPTY (cloneNode(false)) — never with content in them.
@@ -50007,6 +50075,21 @@ function _pgSpillRuntime(OPT) {
         }
 
         var hit = findSplit(inner, limit, pageRect.top);
+
+        // A leaf too tall to fit on ANY sheet is split here rather than moved whole:
+        // moving it only carries the overrun onto the next page. Only when it genuinely
+        // cannot fit — a shorter paragraph still travels intact, which reads better.
+        if (hit && canSplitLeaf(hit.node)) {
+          var lr = hit.node.getBoundingClientRect();
+          var straddles = (lr.top - pageRect.top) < limit && (lr.bottom - pageRect.top) > limit;
+          if (straddles) {
+            var rest = splitTextLeaf(hit.node, limit, pageRect.top);
+            if (rest) {
+              hit.node.parentNode.insertBefore(rest, hit.node.nextSibling);
+              hit = { node: rest, parent: hit.parent };
+            }
+          }
+        }
         if (!hit) break;
 
         // Refuse rather than manufacture blank paper: only when moving the split would
@@ -50137,7 +50220,14 @@ try {
       + 'try{ if(document.fonts && document.fonts.ready) waits.push(document.fonts.ready); }catch(e){}'
       + 'if(document.readyState!=="complete"){ waits.push(new Promise(function(r){ addEventListener("load",r,{once:true}); })); }'
       + 'try{ (waits.length?Promise.all(waits):Promise.resolve()).then(function(){ setTimeout(go,0); }); }catch(e){ setTimeout(go,0); }'
-      + 'setTimeout(go,4000);'                     // backstop: never leave it unrun
+      // Images are the ones that actually matter: a report is mostly data-URL
+      // photographs, and at parse time every one of them measures ZERO pixels tall
+      // (measured on a 14-page report: 0 of 14 sized). Fonts alone are not enough to
+      // wait for. The ceiling is generous because a photo-heavy report can take longer
+      // than four seconds to decode on a cold profile, and firing early is precisely
+      // the failure being fixed.
+      + 'try{ [].forEach.call(document.images, function(im){ if(!im.complete){ waits.push(new Promise(function(r){ im.addEventListener("load",r,{once:true}); im.addEventListener("error",r,{once:true}); })); } }); }catch(e){}'
+      + 'setTimeout(go,20000);'                    // backstop: never leave it unrun
       + 'addEventListener("beforeprint",go);'      // printing early still gets a paginated document
       + '})();</scr' + 'ipt>';
     if (/<\/body>/i.test(html)) html = html.replace(/<\/body>(?![\s\S]*<\/body>)/i, _spillScript + '</body>');
