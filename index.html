@@ -7593,6 +7593,12 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
         Online AD Management
       </button>
+      <!-- §CAM-SECURITY (v2.431) — the fourth tab. The strip already wraps
+           (§DASH-TABS-N), so a fourth button needed no layout change. -->
+      <button id="dashTabBtnCam" onclick="dashSetTab('cam')" style="display:flex;align-items:center;gap:7px;border:0;cursor:pointer;border-radius:10px;padding:8px 17px;font-family:Sora,sans-serif;font-size:12.5px;font-weight:700;letter-spacing:.01em;transition:all .18s;background:transparent;color:rgba(255,255,255,.55);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        CAM Security
+      </button>
     </div>
   </div>
   <!-- ══ TAB 1: SIGMA Orders & Tasks (the original dashboard) ══ -->
@@ -7743,6 +7749,33 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
   <div id="dashTabAds" style="display:none;">
     <div id="mAdBox"></div>
   </div><!-- /#dashTabAds -->
+  <!-- ══ TAB 4: CAM Security (v2.431) — §CAM-SECURITY ═══════════════════════════
+       Tactical camera surveillance panel. Two layers, both real, neither faked:
+
+         PROXIMITY — cameras attached to THIS machine (built-in, USB, capture
+           cards). navigator.mediaDevices. Works with no setup at all, and is the
+           only layer a browser can do unaided.
+
+         NETWORK — cameras on the local network, reached THROUGH A BRIDGE. This is
+           not a shortcut; it is the only way. A browser cannot speak RTSP, cannot
+           send the UDP multicast that ONVIF discovery is made of, cannot scan a
+           subnet (Private Network Access forbids a public HTTPS origin from
+           touching 192.168.x.x), and cannot load an http:// stream into an https://
+           page. Those are four separate walls, all of them in the browser, none of
+           them removable by writing better code here. The bridge (go2rtc / MediaMTX
+           / Frigate) sits on the LAN where it CAN do all four, and re-serves each
+           camera as WebRTC or HLS over a name this page is allowed to fetch.
+
+       EMPTY ON PURPOSE, exactly like #dashTabAds. Every state is painted by
+       camRender(). The FIRST state is prose and a checklist. §CAM-HONESTY forbids
+       a tile that is not backed by a live MediaStream or a real element source —
+       no placeholder cameras, no invented IP addresses, no scan animation walking
+       a subnet it never touched. A dark rectangle labelled CAM-03 reads as a
+       camera that is connected and looking at a dark room. It must never appear
+       unless one is. ══ -->
+  <div id="dashTabCam" style="display:none;">
+    <div id="camBox"></div>
+  </div><!-- /#dashTabCam -->
 </div><!-- /#view-dashboard -->
 
 <!-- §ARCHIVE-UNNEST (v2.147) — Archive view as a proper top-level sibling (was
@@ -15789,6 +15822,7 @@ function settingsTab(pid){
   if(pid==="pref-voice"){ try{ if(typeof _voicePanelInit==="function") _voicePanelInit(); }catch(e){} }
   if(pid==="pref-chatsound"){ try{ if(typeof _chatSndPanelInit==="function") _chatSndPanelInit(); }catch(e){} }   // §CHAT-SOUND
   if(pid==="pref-ads"){ try{ if(typeof _adsPanelInit==="function") _adsPanelInit(); }catch(e){} }                  // §AD-CAMPAIGNS
+  if(pid==="pref-cam"){ try{ if(typeof _camPanelInit==="function") _camPanelInit(); }catch(e){} }                  // §CAM-SECURITY
   if(pid==="pref-inspopts"){ try{ if(typeof _inspOptsPanelInit==="function") _inspOptsPanelInit(); }catch(e){} }   // §INSP-OPTS
 }
 function _settingsHighlightNav(pid){document.querySelectorAll("#prefSidebar .pref-nav-item").forEach(function(n){var oc=n.getAttribute("onclick")||"";n.classList.toggle("active",oc.indexOf("'"+pid+"'")!==-1);});}
@@ -19038,7 +19072,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.430';
+var APP_VERSION = 'v2.431';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19076,6 +19110,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.431',type:'feature',date:'09-07-2026',ts:'09-07-2026 09:00',_static:true,title:'CAM Security \u2014 a fourth dashboard tab that watches the cameras SIGMA can actually reach',desc:'THE ASK. \u201cOn the Dashboard, there are three tabs. Create one more, call it CAM Security, and connect cameras in close proximity and on the close networks. Go Military.\u201d WHAT SHIPPED. A fourth tab beside SIGMA Orders & Tasks, Database Metrics and Online AD Management. It is a monitoring wall: live tiles with corner brackets, scanlines and a burned-in Zulu timestamp, an ARM / DISARM posture with a CONDITION readout that goes STANDBY \u2192 ARMED \u2192 ALERT, per-feed motion detection with a level bar, snapshots, local recording, a Zulu event log, and keyboard control (A arms, 1\u20139 blows a feed up full, G returns to the grid, S grabs a still). THE CAMERAS IT REACHES, AND THE ONES IT CANNOT. Cameras attached to the machine \u2014 the built-in one, anything on USB, a capture card \u2014 work immediately with nothing to configure. That is the PROXIMITY half and it is genuinely finished. The NETWORK half needs one piece of software on the office LAN, and it is worth writing down why, because it is not a shortcut. A web page cannot speak RTSP, which is the protocol every IP camera on earth actually uses, and no browser has ever implemented it. It has no UDP, so it cannot send the multicast datagram that ONVIF discovery is made of. Private Network Access forbids a page served from the public internet from so much as probing 192.168.x.x, so a subnet scan dies before the first packet. And mixed content forbids an https:// page from loading an http:// stream, which is what essentially every camera serves. Four separate walls, all four of them in the browser, none of them removable by writing better code in SIGMA. So the network layer runs through a bridge \u2014 go2rtc is one file, no Docker, no runtime \u2014 which sits on the LAN where it has none of those restrictions, finds the ONVIF cameras itself, holds the RTSP connections and republishes each camera as WebRTC. SIGMA then reads it over WHEP in about thirty lines and no library. Give that bridge an https:// name (a free Cloudflare Tunnel is one command) and DISCOVER lists exactly what it publishes. THE PART THAT MATTERS MOST. \u00a7CAM-HONESTY, which is \u00a7AD-HONESTY applied somewhere it bites harder. On a metrics panel a fake number is a wrong number; on a surveillance wall a fake tile is worse than wrong, because a black rectangle captioned CAM-03 \u00b7 REAR YARD is indistinguishable from a working camera looking at a dark room, and somebody will believe the yard is covered. So there are no placeholder cameras, no invented IP addresses and no scan animation walking a subnet it never touched. An integrity check runs after every repaint and physically tears out any tile that is not backed by a live stream. Discovery lists only what the bridge itself reported. A camera the browser can count but not yet name is reported as exactly that \u2014 \u201c2 cameras present, not yet identified\u201d \u2014 rather than as nothing. Every connection fault names which of the four walls it hit and what to do about it, because \u201cfailed to fetch\u201d tells the owner nothing. And ARMED is never restored from storage: the panel always opens disarmed, whatever state it was left in, because a panel that claims to be watching before a single camera has connected is the one failure worth designing against. PRIVACY. No frame ever leaves the machine. Snapshots and recordings are made in the browser and handed straight to the downloads folder \u2014 nothing is uploaded, attached to a job order or written to Supabase. Only the feed list and the settings are stored, in that browser, on that device. Motion watch runs only while the tab is open; it is not a DVR and the panel says so on screen rather than in a comment. ALSO. New Settings panel, CAM Security: the bridge address, motion sensitivity, the alert tone and the snapshot timestamp. The dashboard tab strip needed no layout change \u2014 \u00a7DASH-TABS-N already wrapped and is table-driven, so the fourth tab was one row. The whole feature is scoped to .cam-hud and injects its own stylesheet, so not one pixel of the rest of SIGMA changes.'},
   {v:'v2.430',type:'fix',date:'09-07-2026',ts:'09-07-2026 04:00',_static:true,title:'An opinion longer than a page is now split across sheets instead of overrunning the next footer too',desc:'With Text Formatting off \u2014 which is the default \u2014 an opinion field is stored as one unbroken block of text, so the page-overflow pass could only move it somewhere else, never break it. A long Opinion of Floor Plan was therefore carried onto a continuation sheet where it ran over that sheet\u2019s footer as well, while the page it came from was left holding a heading and an empty box. An opinion too long to fit on any single sheet is now split at a word boundary and continues on the next one; anything short enough to fit still travels in one piece. The pass also now waits for the report\u2019s photographs to finish loading before it measures, not just the font \u2014 at the moment a report is parsed every photograph still measures zero.'},
   {v:'v2.429',type:'fix',date:'09-07-2026',ts:'09-07-2026 03:00',_static:true,title:'The page-overflow fix now runs after the report has finished laying out',desc:'v2.428 added the pass that carries overflowing text onto a continuation sheet, but ran it the instant the report was parsed \u2014 before the photographs and the report font had loaded. Every height it measured was therefore the wrong one \u2014 on a page of photographs it saw nothing overflowing, and on a page of pure text it saw too MUCH, because the fallback font is about 14% taller than the report font it was still waiting for. It now waits for the fonts and images to land before measuring, with a four-second backstop so a missing image can never leave it unrun, and it also runs if you print before then. It still runs exactly once, because it MOVES text rather than copying it and a second pass could not put anything back. The console now always reports how many pages it examined and what it measured on the first few, so a page that still overruns can be diagnosed from the report window.'},
   {v:'v2.428',type:'fix',date:'09-06-2026',ts:'09-06-2026 14:00',_static:true,title:'Report text that does not fit now continues on the next sheet instead of printing under the footer',desc:'A report page is a fixed 297mm box and its footer is anchored to the page rather than sitting in the text flow, so the footer reserved no space: a long passage was painted straight through it and then cut off at the paper edge. Nothing errored \u2014 the sentence simply stopped existing. It showed up worst on Certification \u0026 Limiting Conditions and on the condition-matrix notes. Any content that no longer fits above the footer band is now carried onto a continuation sheet that keeps the running header, the footer line and the appraiser stamp, and repeats its page number with \u201c(cont.)\u201d so no page number and no Index row moves. Section headings travel with their own text rather than being left stranded at the foot of a sheet, and a heading is never duplicated onto the continuation sheet. A single block taller than a whole page is left where it is and reported to the console, because that one needs shortening rather than paginating. Turn it off with rcPageSpill:false in Report Customization if the old behaviour is wanted back.'},
@@ -24767,7 +24802,15 @@ var DASH_TABS = [
     // never touches the network
     always:function(){ try{ mAdRender(); }catch(e){} },
     // the only automatic Meta call in the whole app, once per session
-    once:function(){ try{ mAdLoad(false); }catch(e){} } }
+    once:function(){ try{ mAdLoad(false); }catch(e){} } },
+  // §CAM-SECURITY (v2.431). `always` repaints the panel (no network, no camera).
+  // `once` enumerates the machine's own cameras and, only if a bridge address has
+  // been saved, asks that bridge what it publishes. enumerateDevices() switches
+  // nothing on and shows no light; the bridge call is a single GET. Neither opens
+  // a camera — a camera opens when, and only when, somebody presses OPEN.
+  { key:'cam',     pane:'dashTabCam',  btn:'dashTabBtnCam',
+    always:function(){ try{ camShow(); }catch(e){} },
+    once:function(){   try{ camBoot(); }catch(e){} } }
 ];
 var DASH_TAB_DEFAULT = 'orders';
 if(!window._dashTabOnce) window._dashTabOnce = {};
@@ -37884,6 +37927,1337 @@ function _adsPanelInit(){
       + '</div></div>';
   }catch(e){ try{ console.warn('[ads-pref] register failed:', e); }catch(_){} }
 })();
+
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §CAM-SECURITY (v2.431) — CAM Security, the fourth dashboard tab             ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+//
+// WHAT THIS IS. A tactical monitoring wall for the cameras SIGMA can actually
+// reach, with arm/disarm posture, client-side motion detection, snapshots, local
+// recording and an event log.
+//
+// ── THE FOUR WALLS ────────────────────────────────────────────────────────────
+// The ask was "connect cameras in close proximity and on close networks". Half of
+// that a browser can do; half of it a browser is forbidden to do. Written down
+// here because it will be asked again, and because the answer is not "we did not
+// try hard enough":
+//
+//   1. RTSP. Every IP camera on earth speaks rtsp://. No browser has ever
+//      implemented RTSP and none intends to. There is no flag, no polyfill and no
+//      library — a page cannot open a TCP socket to begin with.
+//   2. ONVIF discovery is WS-Discovery: a SOAP envelope in a UDP datagram sent to
+//      the multicast group 239.255.255.250:3702. A browser has no UDP.
+//   3. Subnet scanning. Probing 192.168.1.1-254 from https://sigma-cms.com is
+//      Private Network Access: public origin to private address. Chrome requires a
+//      preflight the camera will never answer, so the request dies before it is
+//      sent. Timing an <img> onerror does not get round it either.
+//   4. Mixed content. Even given the exact URL, an https:// page may not load an
+//      http:// stream, and essentially no camera ships a valid TLS certificate.
+//
+// So the network layer runs through a BRIDGE — a small binary on the LAN that has
+// none of those four restrictions. go2rtc is one file, no Docker, no runtime; it
+// does the ONVIF discovery, holds the RTSP connections, and re-publishes each
+// camera as WebRTC (WHEP) or HLS on an ordinary HTTP endpoint. Give that endpoint
+// an https:// name and this page can read it like any other API.
+//
+// ── §CAM-HONESTY ──────────────────────────────────────────────────────────────
+// The same rule the AD tab runs under (§AD-HONESTY), for the same reason, and it
+// bites harder here. On a metrics panel a fake number is a wrong number. On a
+// surveillance wall a fake tile is worse than wrong: a black rectangle captioned
+// CAM-03 · REAR YARD is indistinguishable from a working camera watching a dark
+// room, and somebody will believe the yard is covered. So:
+//
+//   • camAssertHonest() runs after every paint. A tile carrying data-cam-live="1"
+//     whose <video>/<img> has no actual source is torn out of the DOM and replaced
+//     with a fault card. There is no path where an unsourced tile stays on screen.
+//   • Discovery lists only what the bridge itself reported. There is no synthetic
+//     scan, no progress bar over addresses never contacted, no example cameras.
+//   • ARMED is never assumed. It is off on load, always, no matter how SIGMA was
+//     left, because "I thought it was armed" is the failure that matters.
+//   • Motion detection says out loud that it only runs while the tab is open. A
+//     browser tab is not a DVR and must not be mistaken for one.
+//
+// ── PRIVACY ───────────────────────────────────────────────────────────────────
+// No frame ever leaves the machine. Snapshots and recordings are produced by
+// canvas / MediaRecorder and handed to the browser's own download. Nothing is
+// uploaded to Supabase, nothing is written to an order, no frame touches the
+// network. The only things persisted are the feed list and the settings, in
+// localStorage. Said plainly in the panel too, not just here.
+
+// The skin is injected once, from JS, so the whole feature is one contiguous
+// block of this file instead of a stylesheet 30,000 lines away from its markup.
+(function _camSkin(){
+  try{
+    if(document.getElementById('camSkin')) return;
+    var st = document.createElement('style');
+    st.id = 'camSkin';
+    st.textContent = "/* \u00a7CAM-SECURITY (v2.431) \u2014 the tactical skin.\n   Scoped hard to .cam-hud so nothing here can leak into the rest of SIGMA, which\n   is a light, serif, professional appraisal tool and must stay that way. This one\n   panel is deliberately the opposite: monospace, phosphor, uppercase, black.\n   The look carries meaning \u2014 condition colour is the same in the bar, the tile\n   border and the log, so posture is readable from across the room. */\n.cam-hud{\n  --cg:#00ff9c; --ca:#ffb000; --cr:#ff3b30; --cbg:#05080a; --cpanel:#0a0f12;\n  --cline:rgba(0,255,156,.20); --cdim:rgba(0,255,156,.55); --ctxt:#c8f5e2;\n  font-family:ui-monospace,\"SFMono-Regular\",Menlo,Consolas,\"Liberation Mono\",monospace;\n  font-size:12px; line-height:1.5; color:var(--ctxt);\n  background:var(--cbg); border:1px solid var(--cline); border-radius:10px;\n  padding:12px; letter-spacing:.04em;\n  background-image:linear-gradient(rgba(0,255,156,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,156,.028) 1px,transparent 1px);\n  background-size:34px 34px;\n}\n.cam-hud b{color:#fff;font-weight:700}\n.cam-hud code{font-family:inherit;background:rgba(0,255,156,.10);border:1px solid var(--cline);border-radius:3px;padding:0 4px;color:var(--cg)}\n.cam-spacer{flex:1}\n\n/* \u2500\u2500 status bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.cam-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;\n  border:1px solid var(--cline);border-left:4px solid var(--cdim);background:rgba(0,255,156,.05);\n  border-radius:7px;padding:9px 12px;margin-bottom:10px}\n.cam-bar-l,.cam-bar-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}\n.cam-cond{font-weight:700;letter-spacing:.14em;color:var(--cg)}\n.cam-sep{opacity:.3}\n.cam-meta{opacity:.75;letter-spacing:.10em}\n.cam-meta b{color:var(--cg)}\n.cam-dot{width:9px;height:9px;border-radius:50%;background:var(--cg);box-shadow:0 0 9px var(--cg);flex:none}\n.cam-clock{color:var(--cg);letter-spacing:.12em;font-weight:700}\n.cam-br.ok{color:var(--cg)} .cam-br.warn{color:var(--ca)} .cam-br.bad{color:var(--cr)} .cam-br.idle{opacity:.45}\n.cam-bar.is-armed{border-left-color:var(--cg)}\n.cam-bar.is-standby{border-left-color:var(--ca);background:rgba(255,176,0,.05)}\n.cam-bar.is-standby .cam-cond,.cam-bar.is-standby .cam-dot{color:var(--ca);background:var(--ca);box-shadow:0 0 9px var(--ca)}\n.cam-bar.is-standby .cam-cond{background:none}\n.cam-bar.is-off{border-left-color:rgba(255,255,255,.22);background:rgba(255,255,255,.03)}\n.cam-bar.is-off .cam-cond{color:rgba(255,255,255,.5)} .cam-bar.is-off .cam-dot{background:rgba(255,255,255,.35);box-shadow:none}\n.cam-bar.is-alert{border-left-color:var(--cr);background:rgba(255,59,48,.10);animation:camPulse 1s steps(2) infinite}\n.cam-bar.is-alert .cam-cond{color:var(--cr)} .cam-bar.is-alert .cam-dot{background:var(--cr);box-shadow:0 0 12px var(--cr)}\n@keyframes camPulse{50%{background:rgba(255,59,48,.02)}}\n\n.cam-btn{font:inherit;letter-spacing:.10em;font-weight:700;cursor:pointer;border-radius:5px;padding:6px 13px;\n  background:transparent;color:var(--cdim);border:1px solid var(--cline);transition:.15s}\n.cam-btn:hover:not(:disabled){color:var(--cg);border-color:var(--cg);background:rgba(0,255,156,.09)}\n.cam-btn.is-on{background:var(--cg);color:#04120b;border-color:var(--cg);box-shadow:0 0 14px rgba(0,255,156,.35)}\n.cam-btn:disabled{opacity:.28;cursor:not-allowed}\n.cam-mini{font:inherit;font-size:10.5px;letter-spacing:.09em;font-weight:700;cursor:pointer;border-radius:4px;\n  padding:3px 8px;background:transparent;color:var(--cdim);border:1px solid var(--cline);transition:.15s}\n.cam-mini:hover{color:var(--cg);border-color:var(--cg);background:rgba(0,255,156,.10)}\n.cam-mini.is-x{color:rgba(255,120,110,.75);border-color:rgba(255,59,48,.28)}\n.cam-mini.is-x:hover{color:#fff;background:var(--cr);border-color:var(--cr)}\n.cam-mini.is-rec{color:#fff;background:var(--cr);border-color:var(--cr)}\n\n/* \u2500\u2500 alert banner \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.cam-alert{display:flex;gap:12px;align-items:center;margin-bottom:10px;padding:8px 12px;border-radius:6px;\n  color:#fff;background:repeating-linear-gradient(45deg,rgba(255,59,48,.30) 0 12px,rgba(255,59,48,.14) 12px 24px);\n  border:1px solid var(--cr)}\n.cam-alert-tag{font-weight:700;letter-spacing:.20em;background:var(--cr);padding:2px 9px;border-radius:3px}\n.cam-alert-txt{flex:1;font-weight:700;letter-spacing:.06em}\n.cam-alert-z{opacity:.8}\n\n/* \u2500\u2500 the wall \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.cam-wall{display:grid;gap:10px;margin-bottom:12px;\n  grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr))}\n.cam-wall.is-solo{grid-template-columns:1fr}\n.cam-tile{position:relative;border:1px solid var(--cline);border-radius:7px;background:#000;overflow:hidden}\n.cam-tile[data-cam-hit=\"1\"]{border-color:var(--cr);box-shadow:0 0 0 1px var(--cr),0 0 22px rgba(255,59,48,.35)}\n.cam-tile[data-cam-live=\"0\"]{border-color:var(--ca)}\n/* corner brackets \u2014 the one purely decorative element, and the one that makes a\n   rectangle read as an instrument rather than a photograph */\n.cam-br-tl,.cam-br-tr,.cam-br-bl,.cam-br-br{position:absolute;width:15px;height:15px;z-index:3;pointer-events:none;opacity:.8}\n.cam-br-tl{top:5px;left:5px;border-top:2px solid var(--cg);border-left:2px solid var(--cg)}\n.cam-br-tr{top:5px;right:5px;border-top:2px solid var(--cg);border-right:2px solid var(--cg)}\n.cam-br-bl{bottom:5px;left:5px;border-bottom:2px solid var(--cg);border-left:2px solid var(--cg)}\n.cam-br-br{bottom:5px;right:5px;border-bottom:2px solid var(--cg);border-right:2px solid var(--cg)}\n.cam-tile[data-cam-hit=\"1\"] .cam-br-tl,.cam-tile[data-cam-hit=\"1\"] .cam-br-tr,\n.cam-tile[data-cam-hit=\"1\"] .cam-br-bl,.cam-tile[data-cam-hit=\"1\"] .cam-br-br{border-color:var(--cr)}\n\n.cam-tile-hd{display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(0,255,156,.07);\n  border-bottom:1px solid var(--cline);font-size:10.5px;letter-spacing:.11em}\n.cam-tile-n{font-weight:700;color:#04120b;background:var(--cg);border-radius:3px;padding:1px 6px}\n.cam-tile-name{font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.cam-tile-zone{color:var(--ca);opacity:.9}\n.cam-tile-badge{margin-left:auto;opacity:.55;flex:none}\n.cam-rec{color:#fff;background:var(--cr);border-radius:3px;padding:1px 6px;font-weight:700;animation:camBlink 1s steps(2) infinite;flex:none}\n@keyframes camBlink{50%{opacity:.25}}\n\n.cam-tile-body{position:relative;aspect-ratio:16/9;background:#000;display:flex;align-items:center;justify-content:center}\n.cam-media{width:100%;height:100%;object-fit:contain;display:block;background:#000}\n.cam-scan{position:absolute;inset:0;pointer-events:none;z-index:2;\n  background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.20) 2px 4px);mix-blend-mode:multiply}\n.cam-retic{position:absolute;inset:0;pointer-events:none;z-index:2;opacity:.28}\n.cam-retic span{position:absolute;background:var(--cg)}\n.cam-retic span:first-child{left:50%;top:calc(50% - 9px);width:1px;height:18px}\n.cam-retic span:last-child{top:50%;left:calc(50% - 9px);height:1px;width:18px}\n.cam-burn{position:absolute;left:10px;bottom:8px;z-index:3;font-size:10.5px;font-weight:700;color:var(--cg);\n  letter-spacing:.10em;text-shadow:0 0 5px #000,0 1px 2px #000}\n.cam-acq{position:absolute;z-index:3;color:var(--ca);letter-spacing:.22em;font-weight:700;animation:camBlink 1.1s steps(2) infinite}\n.cam-tile-fault{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;gap:6px;\n  align-items:center;justify-content:center;text-align:center;padding:16px;background:rgba(5,8,10,.93)}\n.cam-tile-fault b{color:var(--ca);letter-spacing:.20em}\n.cam-tile-fault span{max-width:46ch;opacity:.8;letter-spacing:.02em;line-height:1.6}\n\n.cam-tile-ft{display:flex;align-items:center;gap:7px;padding:6px 9px;border-top:1px solid var(--cline);\n  background:rgba(0,0,0,.45)}\n.cam-mbar{width:74px;height:5px;border:1px solid var(--cline);border-radius:3px;overflow:hidden;flex:none}\n.cam-mbar i{display:block;height:100%;width:0;background:var(--cg);transition:width .2s}\n.cam-tile[data-cam-hit=\"1\"] .cam-mbar i{background:var(--cr)}\n.cam-mval{font-size:10.5px;opacity:.65;min-width:44px}\n\n.cam-empty{border:1px dashed var(--cline);border-radius:8px;padding:34px 20px;text-align:center;margin-bottom:12px}\n.cam-empty-i{font-size:30px;color:var(--cdim);opacity:.5}\n.cam-empty-t{font-weight:700;letter-spacing:.22em;color:var(--ca);margin:8px 0 6px}\n.cam-empty-s{max-width:70ch;margin:0 auto;opacity:.65;letter-spacing:.01em;line-height:1.7}\n\n/* \u2500\u2500 panels \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.cam-cols{display:grid;grid-template-columns:1.15fr .85fr;gap:10px}\n@media(max-width:1080px){.cam-cols{grid-template-columns:1fr}}\n.cam-panel{border:1px solid var(--cline);border-radius:7px;background:var(--cpanel);overflow:hidden;display:flex;flex-direction:column}\n.cam-panel-hd{display:flex;align-items:center;gap:8px;padding:7px 11px;background:rgba(0,255,156,.07);\n  border-bottom:1px solid var(--cline);font-weight:700;letter-spacing:.16em;font-size:10.5px;color:var(--cg)}\n.cam-panel-bd{padding:11px;display:flex;flex-direction:column;gap:13px}\n.cam-grp-hd,.cam-sub-hd{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.18em;\n  color:var(--ca);opacity:.85;padding-bottom:5px;border-bottom:1px dashed var(--cline);margin-bottom:8px}\n.cam-sub-hd{margin-top:12px}\n.cam-srcs{display:flex;flex-direction:column;gap:5px}\n.cam-src{display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid transparent;border-radius:5px;\n  background:rgba(255,255,255,.025)}\n.cam-src:hover{border-color:var(--cline)}\n.cam-src.is-on{border-color:var(--cg);background:rgba(0,255,156,.09)}\n.cam-src-i{color:var(--cdim);flex:none}\n.cam-src.is-on .cam-src-i{color:var(--cg)}\n.cam-src-n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}\n.cam-src-n em{font-style:normal;color:var(--ca);opacity:.85}\n.cam-src-t{font-size:9.5px;opacity:.45;letter-spacing:.12em;flex:none}\n.cam-thin{opacity:.5;font-size:11px;line-height:1.65;letter-spacing:.01em}\n\n.cam-note{display:flex;flex-direction:column;gap:5px;padding:9px 11px;border-radius:5px;\n  border:1px solid var(--cline);background:rgba(255,255,255,.03)}\n.cam-note b{letter-spacing:.06em}\n.cam-note span{opacity:.7;letter-spacing:.01em;line-height:1.65;font-size:11px}\n.cam-note.is-act{border-color:var(--ca);background:rgba(255,176,0,.08);align-items:flex-start}\n.cam-note.is-act .cam-btn{margin-top:4px}\n.cam-note.is-bad{border-color:var(--cr);background:rgba(255,59,48,.09)}\n.cam-note.is-bad b{color:var(--cr)}\n.cam-fix{color:var(--cg)!important;opacity:.95!important}\n\n/* \u2500\u2500 the unconnected card \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.cam-setup{border:1px solid var(--ca);border-radius:6px;background:rgba(255,176,0,.05);padding:13px}\n.cam-setup-hd{font-weight:700;letter-spacing:.20em;color:var(--ca);margin-bottom:9px;\n  padding-bottom:7px;border-bottom:1px solid rgba(255,176,0,.28)}\n.cam-setup p{margin:0 0 9px;opacity:.78;line-height:1.75;letter-spacing:.01em;font-size:11.5px}\n.cam-chk{margin:0 0 11px;padding-left:19px;display:flex;flex-direction:column;gap:7px}\n.cam-chk li{opacity:.8;line-height:1.7;letter-spacing:.01em;font-size:11.5px}\n.cam-chk li::marker{color:var(--ca);font-weight:700}\n.cam-setup-ft{display:flex;gap:11px;align-items:center;flex-wrap:wrap}\n.cam-setup-ft span{opacity:.6;font-size:11px;line-height:1.6;flex:1;min-width:220px}\n\n/* \u2500\u2500 add-feed form \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.cam-form{display:flex;flex-direction:column;gap:8px;padding:11px;margin-bottom:9px;\n  border:1px solid var(--cg);border-radius:6px;background:rgba(0,255,156,.06)}\n.cam-form-hd{font-weight:700;letter-spacing:.18em;color:var(--cg);font-size:10.5px}\n.cam-form label{display:flex;flex-direction:column;gap:3px;font-size:10px;letter-spacing:.14em;opacity:.75}\n.cam-form label span{opacity:.5;letter-spacing:.06em}\n.cam-form input,.cam-form select{font:inherit;font-size:11.5px;letter-spacing:.02em;padding:6px 8px;border-radius:4px;\n  background:#04070a;color:var(--ctxt);border:1px solid var(--cline);width:100%;box-sizing:border-box}\n.cam-form input:focus,.cam-form select:focus{outline:none;border-color:var(--cg)}\n.cam-form-note{font-size:10.5px;opacity:.65;line-height:1.6;letter-spacing:.01em}\n.cam-form-ft{display:flex;gap:8px}\n\n/* \u2500\u2500 event log \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.cam-log{padding:8px 10px;max-height:330px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}\n.cam-lrow{display:flex;gap:9px;font-size:10.5px;letter-spacing:.02em;padding:2px 0;border-bottom:1px solid rgba(0,255,156,.06)}\n.cam-lz{color:var(--cdim);opacity:.7;flex:none}\n.cam-lk{font-weight:700;flex:none;width:44px;opacity:.75}\n.cam-lt{flex:1;opacity:.85;word-break:break-word}\n.cam-lrow.is-alert .cam-lk,.cam-lrow.is-alert .cam-lt{color:var(--cr);opacity:1;font-weight:700}\n.cam-lrow.is-cam .cam-lk{color:var(--cg)}\n.cam-lrow.is-sys .cam-lk{color:var(--ca)}\n\n/* \u2500\u2500 footer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.cam-foot{display:flex;flex-direction:column;gap:5px;margin-top:11px;padding-top:9px;\n  border-top:1px dashed var(--cline);font-size:10.5px;opacity:.55;line-height:1.7;letter-spacing:.01em}\n.cam-keys{opacity:.75;letter-spacing:.06em}\n.cam-keys b{color:var(--cg)}\n\n/* Solo view gets the height back that the grid was spending on neighbours. */\n.cam-wall.is-solo .cam-tile-body{aspect-ratio:auto;height:min(62vh,660px)}\n/* In the grid the 16:9 box is a ceiling, not a demand: object-fit:contain\n   letterboxes a 4:3 camera rather than letting one tile run off the screen. */\n.cam-wall:not(.is-solo) .cam-tile-body{max-height:min(38vh,300px)}\n\n@media(prefers-reduced-motion:reduce){\n  .cam-bar.is-alert,.cam-rec,.cam-acq{animation:none}\n}\n";
+    document.head.appendChild(st);
+  }catch(e){}
+})();
+
+// ── the state ─────────────────────────────────────────────────────────────────
+var _CAM = {
+  devices:  [],      // camera MediaDeviceInfo[] on this machine
+  perm:     'unknown', // unknown | prompt | granted | denied | insecure | unsupported
+  feeds:    [],      // network feeds: {id,name,kind,url,zone,src}
+  tiles:    {},      // id -> {stream,pc,rec,chunks,motion,el,kind,startedAt}
+  armed:    false,   // NEVER restored from storage. See §CAM-HONESTY.
+  solo:     null,    // id of the tile blown up to full panel, or null
+  events:   [],      // newest first
+  bridge:   { url:'', state:'idle', err:null, streams:null, at:0 },
+  adding:   false,   // the ADD-FEED form is open
+  booting:  false,
+  err:      null
+};
+var _CAM_MAXEV   = 200;         // event log ring
+var _CAM_DIFFW   = 64;          // motion is judged on a 64x48 grayscale thumbnail
+var _CAM_DIFFH   = 48;
+var _CAM_MOTIONMS= 250;         // 4 fps is plenty to see a person walk
+
+function _camLS(k,d){ try{ var v=localStorage.getItem(k); return (v==null||v==='')?d:v; }catch(e){ return d; } }
+function _camEsc(v){ return (typeof _apqEsc==='function') ? _apqEsc(v) : String(v==null?'':v).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function _camId(){ return 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function camCfg(){
+  return {
+    bridge:  String(_camLS('sigmaCam_bridge','')).trim(),
+    sens:    Math.max(1, Math.min(99, parseInt(_camLS('sigmaCam_sens','18'),10) || 18)),
+    beep:    _camLS('sigmaCam_beep','1') === '1',
+    mirror:  _camLS('sigmaCam_mirror','0') === '1',
+    stamp:   _camLS('sigmaCam_stamp','1') === '1'
+  };
+}
+function camFeeds(){
+  try{
+    var raw = _camLS('sigmaCam_feeds','');
+    if(!raw) return [];
+    var a = JSON.parse(raw);
+    return Object.prototype.toString.call(a) === '[object Array]' ? a : [];
+  }catch(e){ return []; }
+}
+function camFeedsSave(list){
+  try{ localStorage.setItem('sigmaCam_feeds', JSON.stringify(list||[])); }catch(e){}
+  _CAM.feeds = list || [];
+}
+
+// ── the event log ─────────────────────────────────────────────────────────────
+// Kinds: SYS (posture, faults), CAM (a feed opened or closed), ALERT (motion).
+// Zulu-stamped because that is what a log written at 03:00 has to survive.
+function camEvent(kind, text, id){
+  var d = new Date();
+  _CAM.events.unshift({
+    kind: kind, text: String(text||''), id: id||'',
+    t: d.getTime(),
+    z: _camZulu(d)
+  });
+  if(_CAM.events.length > _CAM_MAXEV) _CAM.events.length = _CAM_MAXEV;
+  var log = document.getElementById('camLog');
+  if(log) log.innerHTML = _camLogRows();
+}
+function _camZulu(d){
+  function p(n){ return (n<10?'0':'') + n; }
+  return p(d.getUTCDate()) + ' ' + ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getUTCMonth()]
+       + ' ' + p(d.getUTCHours()) + p(d.getUTCMinutes()) + p(d.getUTCSeconds()) + 'Z';
+}
+
+// ── PROXIMITY: cameras attached to this machine ───────────────────────────────
+// enumerateDevices() is deliberately coy: before permission is granted it returns
+// the right NUMBER of cameras with empty labels. That is still useful — "2 cameras
+// present, not yet identified" is a true statement — so the panel reports the
+// count honestly and asks for permission to name them, rather than pretending it
+// found nothing.
+function camSupported(){
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && navigator.mediaDevices.enumerateDevices);
+}
+function camScanDevices(){
+  if(!window.isSecureContext){ _CAM.perm='insecure'; _CAM.devices=[]; return Promise.resolve([]); }
+  if(!camSupported()){       _CAM.perm='unsupported'; _CAM.devices=[]; return Promise.resolve([]); }
+  return navigator.mediaDevices.enumerateDevices().then(function(list){
+    var cams = [];
+    for(var i=0;i<list.length;i++) if(list[i].kind === 'videoinput') cams.push(list[i]);
+    _CAM.devices = cams;
+    // A non-empty label is the only reliable proof the grant already happened.
+    var named = false;
+    for(var j=0;j<cams.length;j++) if(cams[j].label) named = true;
+    if(_CAM.perm !== 'denied') _CAM.perm = named ? 'granted' : (cams.length ? 'prompt' : 'granted');
+    return cams;
+  }).catch(function(e){
+    _CAM.devices = []; _CAM.err = (e && e.message) || String(e);
+    return [];
+  });
+}
+
+// Asking for permission needs a real getUserMedia call; there is no other way to
+// make the labels appear. The probe stream is stopped immediately — the point was
+// the grant, not the picture.
+function camRequestPerm(){
+  if(!camSupported()) return;
+  camEvent('SYS','requesting camera authorisation');
+  navigator.mediaDevices.getUserMedia({ video:true, audio:false }).then(function(s){
+    try{ s.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+    _CAM.perm = 'granted';
+    camEvent('SYS','camera authorisation granted');
+    return camScanDevices();
+  }).then(function(){ camRender(); }).catch(function(e){
+    var n = (e && e.name) || '';
+    _CAM.perm = (n === 'NotAllowedError' || n === 'SecurityError') ? 'denied' : _CAM.perm;
+    camEvent('SYS','camera authorisation refused (' + (n || 'error') + ')');
+    camRender();
+  });
+}
+
+// Opening one device as a tile. `exact` so the browser gives us the camera asked
+// for rather than its idea of the best one.
+function camOpenDevice(deviceId, label){
+  if(_CAM.tiles[deviceId]) return;
+  if(!camSupported()) return;
+  camEvent('CAM','opening ' + (label || deviceId.slice(0,8)), deviceId);
+  navigator.mediaDevices.getUserMedia({
+    video: { deviceId: { exact: deviceId }, width:{ideal:1280}, height:{ideal:720} },
+    audio: false
+  }).then(function(stream){
+    _CAM.tiles[deviceId] = {
+      kind:'device', stream:stream, pc:null, rec:null, chunks:[],
+      label: label || 'CAMERA', startedAt: Date.now(),
+      motion:{ level:0, peak:0, tripped:false, last:null, at:0 }
+    };
+    camEvent('CAM','online — ' + (label || deviceId.slice(0,8)), deviceId);
+    camRender();
+  }).catch(function(e){
+    var n = (e && e.name) || 'Error';
+    var why = n === 'NotAllowedError'  ? 'authorisation refused'
+            : n === 'NotReadableError' ? 'device busy — another application holds it'
+            : n === 'OverconstrainedError' ? 'device no longer present'
+            : n === 'NotFoundError'    ? 'device no longer present'
+            : (e && e.message) || n;
+    camEvent('SYS','FAULT opening ' + (label || deviceId.slice(0,8)) + ' — ' + why, deviceId);
+    camRender();
+  });
+}
+
+// ── NETWORK: the bridge ───────────────────────────────────────────────────────
+// go2rtc and MediaMTX both expose the same two things this needs: a JSON list of
+// configured streams, and a WHEP endpoint per stream. Discovery here means asking
+// the bridge what IT found. Nothing is guessed and no address is probed from the
+// browser — see the four walls at the top of this section.
+function camBridgeStreamsUrl(base){ return base.replace(/\/+$/,'') + '/api/streams'; }
+function camBridgeWhepUrl(base, name){
+  return base.replace(/\/+$/,'') + '/api/whep?src=' + encodeURIComponent(name);
+}
+
+function camBridgeProbe(force){
+  var cfg = camCfg();
+  if(!cfg.bridge){
+    _CAM.bridge = { url:'', state:'unset', err:null, streams:null, at:0 };
+    camRender(); return;
+  }
+  if(_CAM.bridge.state === 'probing' && !force) return;
+  _CAM.bridge = { url:cfg.bridge, state:'probing', err:null, streams:_CAM.bridge.streams, at:_CAM.bridge.at };
+  camRender();
+
+  var done = false;
+  var kill = setTimeout(function(){
+    if(done) return; done = true;
+    _CAM.bridge.state = 'fail';
+    _CAM.bridge.err = {
+      title:'No answer from the bridge',
+      detail:'The request to ' + cfg.bridge + ' did not come back within 8 seconds.',
+      remedy:'Check the bridge is running and that this address is reachable from this machine. Open it in a browser tab: if the tab does not load either, the problem is the bridge or the network, not SIGMA.'
+    };
+    camEvent('SYS','FAULT bridge timeout — ' + cfg.bridge);
+    camRender();
+  }, 8000);
+
+  fetch(camBridgeStreamsUrl(cfg.bridge), { method:'GET', mode:'cors', cache:'no-store' })
+  .then(function(r){
+    if(!r.ok) throw { _http:r.status };
+    return r.json();
+  })
+  .then(function(j){
+    if(done) return; done = true; clearTimeout(kill);
+    // go2rtc answers an object keyed by stream name; MediaMTX answers {items:[...]}.
+    var names = [], i, k;
+    if(j && Object.prototype.toString.call(j.items) === '[object Array]'){
+      for(i=0;i<j.items.length;i++){ var n = j.items[i] && (j.items[i].name || j.items[i].path); if(n) names.push(String(n)); }
+    } else if(j && typeof j === 'object'){
+      for(k in j) if(Object.prototype.hasOwnProperty.call(j,k)) names.push(k);
+    }
+    names.sort();
+    _CAM.bridge.state   = 'ok';
+    _CAM.bridge.streams = names;
+    _CAM.bridge.at      = Date.now();
+    _CAM.bridge.err     = null;
+    camEvent('SYS','bridge online — ' + names.length + ' stream' + (names.length===1?'':'s') + ' published');
+    camRender();
+  })
+  .catch(function(e){
+    if(done) return; done = true; clearTimeout(kill);
+    _CAM.bridge.state = 'fail';
+    _CAM.bridge.err   = _camBridgeErr(e, cfg.bridge);
+    camEvent('SYS','FAULT bridge — ' + _CAM.bridge.err.title);
+    camRender();
+  });
+}
+
+// Naming the wall precisely, because every one of these has a different fix and
+// "failed to fetch" tells the owner nothing about which of them he hit.
+function _camBridgeErr(e, base){
+  var httpS = e && e._http;
+  if(httpS === 401 || httpS === 403)
+    return { title:'The bridge refused the request',
+             detail:'HTTP ' + httpS + ' from ' + base + '.',
+             remedy:'The bridge has authentication switched on. Either turn it off for the local network, or put it behind a proxy that authenticates for you.' };
+  if(httpS === 404)
+    return { title:'That address answered, but it is not a bridge',
+             detail:'HTTP 404 for ' + camBridgeStreamsUrl(base) + '.',
+             remedy:'Check the base address. go2rtc normally listens on port 1984 and its API lives at /api/streams.' };
+  if(httpS)
+    return { title:'The bridge answered with an error',
+             detail:'HTTP ' + httpS + '.',
+             remedy:'Read the bridge log — it will name the fault.' };
+
+  var page   = (location.protocol === 'https:');
+  var isHttp = /^http:\/\//i.test(base);
+  var loop   = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])/i.test(base);
+  var priv   = /^https?:\/\/(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/i.test(base);
+
+  if(page && isHttp && !loop)
+    return { title:'Blocked before it was sent — mixed content',
+             detail:'SIGMA is served over https://, and ' + base + ' is http://. A browser will not load an insecure address into a secure page, so this request never left the machine.',
+             remedy:'Give the bridge an https:// address. A Cloudflare Tunnel does it in one command and costs nothing; the NVR’s own TLS certificate works too if it has one.' };
+  if(page && priv)
+    return { title:'Blocked by Private Network Access',
+             detail:base + ' is a private address, and this page came from the public internet. Chrome requires the bridge to answer a preflight with Access-Control-Allow-Private-Network: true, which it does not send.',
+             remedy:'Reach the bridge through an https:// hostname instead of its LAN address — a Cloudflare Tunnel is the short route.' };
+  if(loop)
+    return { title:'Nothing is listening on that port',
+             detail:'The address is loopback, so it is not a network problem: the bridge is not running, or not on that port.',
+             remedy:'Start the bridge and confirm the port. Note that a loopback bridge only ever works on the machine it runs on.' };
+  return { title:'The bridge could not be reached',
+           detail:'The request to ' + base + ' failed before any answer came back. A browser is not told why — CORS, DNS, TLS and a refused connection all look identical from here.',
+           remedy:'Open ' + camBridgeStreamsUrl(base) + ' in a tab. If it shows JSON, the fault is CORS: allow this origin on the bridge. If it does not load, the bridge or the route is down.' };
+}
+
+// ── WHEP ──────────────────────────────────────────────────────────────────────
+// WebRTC-HTTP Egress Protocol: POST an SDP offer, get an SDP answer. Thirty lines
+// and no library, which is why the network layer speaks it in preference to HLS.
+function camWhep(url, video, onFail){
+  var pc;
+  try{ pc = new RTCPeerConnection({ iceServers: [] }); }
+  catch(e){ onFail(new Error('WebRTC is unavailable in this browser')); return null; }
+
+  var ms = new MediaStream();
+  pc.addTransceiver('video', { direction:'recvonly' });
+  pc.addTransceiver('audio', { direction:'recvonly' });
+  pc.ontrack = function(ev){
+    try{ ms.addTrack(ev.track); if(video.srcObject !== ms) video.srcObject = ms; }catch(e){}
+  };
+  pc.oniceconnectionstatechange = function(){
+    if(pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected')
+      onFail(new Error('the media connection dropped (ICE ' + pc.iceConnectionState + ')'));
+  };
+
+  pc.createOffer()
+  .then(function(o){ return pc.setLocalDescription(o); })
+  .then(function(){ return _camIceSettled(pc); })
+  .then(function(){
+    return fetch(url, {
+      method:'POST', mode:'cors',
+      headers:{ 'Content-Type':'application/sdp' },
+      body: pc.localDescription.sdp
+    });
+  })
+  .then(function(r){ if(!r.ok) throw new Error('the bridge answered HTTP ' + r.status + ' to the WHEP offer'); return r.text(); })
+  .then(function(sdp){ return pc.setRemoteDescription({ type:'answer', sdp:sdp }); })
+  .catch(function(e){ try{ pc.close(); }catch(_e){} onFail(e); });
+
+  return pc;
+}
+// Wait for ICE, but never longer than 1.5s — trickle is not worth the complexity
+// on a LAN where the first host candidate is almost always the working one.
+function _camIceSettled(pc){
+  return new Promise(function(res){
+    if(pc.iceGatheringState === 'complete') return res();
+    var t = setTimeout(fin, 1500);
+    function fin(){ clearTimeout(t); try{ pc.removeEventListener('icegatheringstatechange', chk); }catch(e){} res(); }
+    function chk(){ if(pc.iceGatheringState === 'complete') fin(); }
+    pc.addEventListener('icegatheringstatechange', chk);
+  });
+}
+
+// ── opening a network feed as a tile ──────────────────────────────────────────
+// Three transports, chosen by the feed's own kind. WHEP is preferred; HLS is
+// offered because some NVRs publish it directly; MJPEG exists because a handful
+// of older cameras speak nothing else, and it is an <img>, not a <video>.
+function camOpenFeed(feed){
+  if(!feed || !feed.id || _CAM.tiles[feed.id]) return;
+  _CAM.tiles[feed.id] = {
+    kind:'net', transport:feed.kind, url:feed.url, stream:null, pc:null,
+    rec:null, chunks:[], label:feed.name || 'FEED', zone:feed.zone || '',
+    startedAt: Date.now(), fault:null,
+    motion:{ level:0, peak:0, tripped:false, last:null, at:0 }
+  };
+  camEvent('CAM','opening ' + (feed.name||feed.id) + ' [' + String(feed.kind).toUpperCase() + ']', feed.id);
+  camRender();   // paints the tile shell; the transport attaches in camBindTiles()
+}
+
+function camFeedFault(id, msg){
+  var t = _CAM.tiles[id]; if(!t) return;
+  t.fault = msg;
+  camEvent('SYS','FAULT ' + (t.label||id) + ' — ' + msg, id);
+  camRender();
+}
+
+// ── closing a tile ────────────────────────────────────────────────────────────
+// Everything a tile holds has to be let go explicitly. A MediaStreamTrack that is
+// not stopped keeps the camera light on after the tile is gone, which is exactly
+// the kind of thing that destroys trust in a surveillance panel.
+function camCloseTile(id){
+  var t = _CAM.tiles[id]; if(!t) return;
+  try{ if(t.rec && t.rec.state !== 'inactive') t.rec.stop(); }catch(e){}
+  try{ if(t.stream) t.stream.getTracks().forEach(function(k){ k.stop(); }); }catch(e){}
+  try{ if(t.pc) t.pc.close(); }catch(e){}
+  var el = document.getElementById('camV_' + id);
+  try{ if(el){ el.srcObject = null; if(el.tagName === 'IMG') el.src = ''; } }catch(e){}
+  delete _CAM.tiles[id];
+  if(_CAM.solo === id) _CAM.solo = null;
+  camEvent('CAM','closed ' + (t.label || id), id);
+  camRender();
+}
+function camCloseAll(){
+  var ids = Object.keys(_CAM.tiles);
+  for(var i=0;i<ids.length;i++) camCloseTile(ids[i]);
+}
+
+// ── posture ───────────────────────────────────────────────────────────────────
+// ARMED is a runtime state and is deliberately NOT persisted. Restoring "armed"
+// from localStorage would mean SIGMA claims to be watching from the instant the
+// page paints — before a single camera has actually opened. §CAM-HONESTY.
+function camArm(on){
+  var want = !!on;
+  if(want && !Object.keys(_CAM.tiles).length){
+    camEvent('SYS','ARM REFUSED — no feed is online');
+    camRender(); return;
+  }
+  _CAM.armed = want;
+  if(want){
+    for(var id in _CAM.tiles) if(_CAM.tiles[id]) { _CAM.tiles[id].motion.tripped = false; _CAM.tiles[id].motion.last = null; }
+    camEvent('SYS','*** ARMED *** ' + Object.keys(_CAM.tiles).length + ' feed(s) under watch');
+    camMotionStart();
+  }else{
+    camEvent('SYS','disarmed — motion watch stopped');
+    camMotionStop();
+  }
+  camRender();
+}
+
+// ── motion detection ──────────────────────────────────────────────────────────
+// Frame differencing on a 64x48 grayscale thumbnail, four times a second. That is
+// coarse on purpose: it is meant to notice a person crossing a room, not to count
+// them, and a coarse buffer costs almost nothing next to the video decode that is
+// happening anyway. Every tile keeps its own previous frame.
+//
+// SAY IT OUT LOUD: this only runs while the tab is open. It is not a DVR, it does
+// not record in the background, and closing SIGMA stops it dead. The panel prints
+// that sentence next to the ARM control rather than burying it here.
+var _camMotionTimer = null;
+function camMotionStart(){
+  if(_camMotionTimer) return;
+  _camMotionTimer = setInterval(camMotionTick, _CAM_MOTIONMS);
+}
+function camMotionStop(){
+  if(_camMotionTimer){ clearInterval(_camMotionTimer); _camMotionTimer = null; }
+  for(var id in _CAM.tiles) if(_CAM.tiles[id]) _CAM.tiles[id].motion.level = 0;
+}
+function _camDiffCanvas(){
+  if(!window._camDiffC){
+    var c = document.createElement('canvas');
+    c.width = _CAM_DIFFW; c.height = _CAM_DIFFH;
+    window._camDiffC = c;
+    window._camDiffX = c.getContext('2d', { willReadFrequently:true });
+  }
+  return window._camDiffX;
+}
+function camMotionTick(){
+  if(!_CAM.armed) return;
+  var cfg = camCfg(), ctx = _camDiffCanvas(), id;
+  for(id in _CAM.tiles){
+    var t = _CAM.tiles[id]; if(!t) continue;
+    var el = document.getElementById('camV_' + id);
+    if(!el) continue;
+    // A <video> with no dimensions yet has nothing to compare.
+    var w = el.videoWidth || el.naturalWidth || 0;
+    var h = el.videoHeight || el.naturalHeight || 0;
+    if(!w || !h) continue;
+
+    var cur;
+    try{
+      ctx.drawImage(el, 0, 0, _CAM_DIFFW, _CAM_DIFFH);
+      cur = ctx.getImageData(0, 0, _CAM_DIFFW, _CAM_DIFFH).data;
+    }catch(e){
+      // A cross-origin MJPEG taints the canvas. Motion cannot be computed on it,
+      // and pretending otherwise would mean a feed that is silently never watched.
+      if(!t.motion.tainted){
+        t.motion.tainted = true;
+        camEvent('SYS','motion watch unavailable on ' + (t.label||id) + ' — the image is cross-origin and cannot be read', id);
+        camRender();
+      }
+      continue;
+    }
+
+    var prev = t.motion.last, i, n = 0, sum = 0;
+    if(prev){
+      for(i=0;i<cur.length;i+=4){
+        var g1 = (cur[i]*0.299 + cur[i+1]*0.587 + cur[i+2]*0.114);
+        var g2 = (prev[i]*0.299 + prev[i+1]*0.587 + prev[i+2]*0.114);
+        var d = g1 - g2; if(d < 0) d = -d;
+        if(d > 24) n++;
+        sum += d;
+      }
+      var pct = (n / (_CAM_DIFFW * _CAM_DIFFH)) * 100;
+      t.motion.level = pct;
+      if(pct > t.motion.peak) t.motion.peak = pct;
+
+      var trip = pct >= cfg.sens;
+      if(trip && !t.motion.tripped){
+        t.motion.tripped = true;
+        t.motion.at = Date.now();
+        camEvent('ALERT','MOTION — ' + (t.label || id) + (t.zone ? ' [' + t.zone + ']' : '') + '  ' + pct.toFixed(1) + '%', id);
+        if(cfg.beep) camBeep();
+        camPaintStatus();
+      } else if(!trip && t.motion.tripped && (Date.now() - t.motion.at) > 4000){
+        t.motion.tripped = false;
+        camPaintStatus();
+      }
+    }
+    t.motion.last = cur;
+  }
+  camPaintMotionBars();
+}
+
+// A two-tone alert from the oscillator — no audio asset to ship, and it works
+// offline. Kept short; a surveillance panel that shrieks gets muted, and a muted
+// alarm is no alarm.
+function camBeep(){
+  try{
+    var AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+    if(!window._camAC) window._camAC = new AC();
+    var ac = window._camAC; if(ac.state === 'suspended') ac.resume();
+    [[880,0],[660,0.14]].forEach(function(p){
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'square'; o.frequency.value = p[0];
+      g.gain.setValueAtTime(0.0001, ac.currentTime + p[1]);
+      g.gain.exponentialRampToValueAtTime(0.06, ac.currentTime + p[1] + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + p[1] + 0.12);
+      o.connect(g); g.connect(ac.destination);
+      o.start(ac.currentTime + p[1]); o.stop(ac.currentTime + p[1] + 0.13);
+    });
+  }catch(e){}
+}
+
+// ── snapshot ──────────────────────────────────────────────────────────────────
+// Canvas grab, burned-in Zulu stamp, straight to the browser's download. Never
+// uploaded, never attached to an order, never sent to Supabase.
+function camSnapshot(id){
+  var t = _CAM.tiles[id]; if(!t) return;
+  var el = document.getElementById('camV_' + id); if(!el) return;
+  var w = el.videoWidth || el.naturalWidth, h = el.videoHeight || el.naturalHeight;
+  if(!w || !h){ camEvent('SYS','snapshot failed — no frame yet on ' + (t.label||id), id); return; }
+  try{
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var x = c.getContext('2d');
+    x.drawImage(el, 0, 0, w, h);
+    if(camCfg().stamp){
+      var stamp = _camZulu(new Date()) + '   ' + (t.label || id) + (t.zone ? '  [' + t.zone + ']' : '');
+      var fs = Math.max(12, Math.round(w / 46));
+      x.font = '700 ' + fs + 'px ui-monospace, Menlo, Consolas, monospace';
+      x.textBaseline = 'bottom';
+      var tw = x.measureText(stamp).width;
+      x.fillStyle = 'rgba(0,0,0,.62)';
+      x.fillRect(10, h - fs - 18, tw + 16, fs + 12);
+      x.fillStyle = '#00ff9c';
+      x.fillText(stamp, 18, h - 12);
+    }
+    c.toBlob(function(b){
+      if(!b){ camEvent('SYS','snapshot failed — the frame could not be encoded', id); return; }
+      _camDownload(b, 'SIGMA-CAM_' + (t.label||'feed').replace(/[^A-Za-z0-9_-]+/g,'-') + '_' + _camFileStamp() + '.png');
+      camEvent('CAM','snapshot saved — ' + (t.label || id), id);
+    }, 'image/png');
+  }catch(e){
+    camEvent('SYS','snapshot failed on ' + (t.label||id) + ' — ' + ((e && e.message) || e) + (String(e).indexOf('aint') >= 0 ? ' (the image is cross-origin)' : ''), id);
+  }
+}
+
+// ── recording ─────────────────────────────────────────────────────────────────
+// MediaRecorder over the tile's own stream. Local file, nothing else. An <img>
+// MJPEG feed has no stream to record, and that is reported rather than silently
+// producing an empty file.
+function camRecord(id){
+  var t = _CAM.tiles[id]; if(!t) return;
+  if(t.rec && t.rec.state === 'recording'){
+    try{ t.rec.stop(); }catch(e){}
+    return;
+  }
+  var el = document.getElementById('camV_' + id);
+  var src = t.stream || (el && el.srcObject) || null;
+  if(!src && el && el.captureStream){ try{ src = el.captureStream(); }catch(e){} }
+  if(!src){
+    camEvent('SYS','cannot record ' + (t.label||id) + ' — this transport has no recordable stream', id);
+    camRender(); return;
+  }
+  if(typeof MediaRecorder === 'undefined'){
+    camEvent('SYS','cannot record — MediaRecorder is unavailable in this browser', id);
+    return;
+  }
+  var mime = '';
+  var want = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
+  for(var i=0;i<want.length;i++){ if(MediaRecorder.isTypeSupported(want[i])){ mime = want[i]; break; } }
+  try{
+    var rec = new MediaRecorder(src, mime ? { mimeType:mime } : undefined);
+    t.chunks = [];
+    rec.ondataavailable = function(ev){ if(ev.data && ev.data.size) t.chunks.push(ev.data); };
+    rec.onstop = function(){
+      var blob = new Blob(t.chunks, { type: mime || 'video/webm' });
+      t.chunks = [];
+      _camDownload(blob, 'SIGMA-CAM_' + (t.label||'feed').replace(/[^A-Za-z0-9_-]+/g,'-') + '_' + _camFileStamp() + (/mp4/.test(mime) ? '.mp4' : '.webm'));
+      camEvent('CAM','recording saved — ' + (t.label || id) + '  ' + Math.round(blob.size/1024) + ' KB', id);
+      t.rec = null; camRender();
+    };
+    rec.start(1000);
+    t.rec = rec;
+    camEvent('CAM','RECORDING — ' + (t.label || id), id);
+    camRender();
+  }catch(e){
+    camEvent('SYS','recording failed on ' + (t.label||id) + ' — ' + ((e && e.message) || e), id);
+  }
+}
+
+function _camDownload(blob, name){
+  try{
+    var u = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = u; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(u); }catch(e){} }, 1500);
+  }catch(e){}
+}
+function _camFileStamp(){
+  var d = new Date();
+  function p(n){ return (n<10?'0':'') + n; }
+  return d.getUTCFullYear() + p(d.getUTCMonth()+1) + p(d.getUTCDate()) + '-' + p(d.getUTCHours()) + p(d.getUTCMinutes()) + p(d.getUTCSeconds()) + 'Z';
+}
+
+// ── the paint ─────────────────────────────────────────────────────────────────
+// One innerHTML for the shell, then camBindTiles() attaches the live sources to
+// the elements that were just created. Video elements cannot survive innerHTML,
+// so the rule is: the shell is re-rendered freely, and any tile already carrying
+// a source is re-attached from _CAM.tiles rather than re-negotiated.
+function camRender(){
+  var host = document.getElementById('camBox'); if(!host) return;
+  var open = Object.keys(_CAM.tiles);
+
+  var h = ''
+    + '<div class="cam-hud">'
+    +   _camStatusBar()
+    +   _camAlertBanner()
+    +   (open.length ? _camWall(open) : _camNoFeedCard())
+    +   '<div class="cam-cols">'
+    +     '<div class="cam-col">' + _camSourceRail() + '</div>'
+    +     '<div class="cam-col">' + _camLogPanel() + '</div>'
+    +   '</div>'
+    +   _camFooter()
+    + '</div>';
+
+  host.innerHTML = h;
+  camBindTiles();
+  camAssertHonest();
+  camBindHost(host);
+}
+
+// ── §CAM-HONESTY, enforced ────────────────────────────────────────────────────
+// Every tile that claims to be live must have a real source behind it. A <video>
+// with a MediaStream, an <img> with a src, or a WHEP peer connection still being
+// negotiated (which paints as ACQUIRING, not as a picture). Anything else is torn
+// out. A black rectangle with a camera name under it is the single most dangerous
+// thing this panel could render, so it is made structurally impossible.
+function camAssertHonest(){
+  var host = document.getElementById('camBox'); if(!host) return;
+  var tiles = host.querySelectorAll('[data-cam-live="1"]'), bad = 0, i;
+  for(i=0;i<tiles.length;i++){
+    var id  = tiles[i].getAttribute('data-cam-id');
+    var st  = _CAM.tiles[id];
+    var el  = document.getElementById('camV_' + id);
+    var live = !!(st && el && (el.srcObject || (el.tagName === 'IMG' && el.getAttribute('src')) || st.pc || st.stream));
+    if(!live){
+      bad++;
+      tiles[i].setAttribute('data-cam-live','0');
+      var body = tiles[i].querySelector('.cam-tile-body');
+      if(body) body.innerHTML = '<div class="cam-tile-fault"><b>NO SOURCE</b><span>This tile was showing without a stream behind it and has been pulled.</span></div>';
+    }
+  }
+  if(bad) camEvent('SYS','INTEGRITY — ' + bad + ' unsourced tile(s) pulled from the wall');
+}
+
+// ── status bar ────────────────────────────────────────────────────────────────
+function _camStatusBar(){
+  var open   = Object.keys(_CAM.tiles);
+  var alerts = 0, id;
+  for(id in _CAM.tiles) if(_CAM.tiles[id] && _CAM.tiles[id].motion.tripped) alerts++;
+  var cond = !open.length ? 'OFFLINE' : (_CAM.armed ? (alerts ? 'ALERT' : 'ARMED') : 'STANDBY');
+  var cls  = cond === 'ALERT' ? 'is-alert' : cond === 'ARMED' ? 'is-armed' : cond === 'STANDBY' ? 'is-standby' : 'is-off';
+
+  var br = _CAM.bridge, brTxt, brCls;
+  if(br.state === 'ok'){        brTxt = 'BRIDGE ONLINE · ' + (br.streams ? br.streams.length : 0) + ' PUBLISHED'; brCls = 'ok'; }
+  else if(br.state === 'probing'){ brTxt = 'BRIDGE — PROBING';   brCls = 'warn'; }
+  else if(br.state === 'fail'){    brTxt = 'BRIDGE UNREACHABLE'; brCls = 'bad';  }
+  else {                           brTxt = 'BRIDGE NOT SET';     brCls = 'idle'; }
+
+  return ''
+  + '<div class="cam-bar ' + cls + '" id="camBar">'
+  +   '<div class="cam-bar-l">'
+  +     '<span class="cam-dot"></span>'
+  +     '<span class="cam-cond">CONDITION: ' + cond + '</span>'
+  +     '<span class="cam-sep">//</span>'
+  +     '<span class="cam-meta">FEEDS <b>' + open.length + '</b></span>'
+  +     '<span class="cam-sep">//</span>'
+  +     '<span class="cam-meta">ALERTS <b>' + alerts + '</b></span>'
+  +     '<span class="cam-sep">//</span>'
+  +     '<span class="cam-meta cam-br ' + brCls + '">' + brTxt + '</span>'
+  +   '</div>'
+  +   '<div class="cam-bar-r">'
+  +     '<span class="cam-clock" id="camClock">' + _camEsc(_camZulu(new Date())) + '</span>'
+  +     '<button class="cam-btn ' + (_CAM.armed ? 'is-on' : '') + '" data-cam-act="arm" ' + (!open.length ? 'disabled' : '') + '>'
+  +       (_CAM.armed ? '■ DISARM' : '▲ ARM') + '</button>'
+  +     '<button class="cam-btn" data-cam-act="closeall" ' + (!open.length ? 'disabled' : '') + '>✕ ALL FEEDS</button>'
+  +     '<button class="cam-btn" data-cam-act="settings">⚙ SETUP</button>'
+  +   '</div>'
+  + '</div>';
+}
+// Cheap partial repaints so a motion trip does not rebuild the whole wall (which
+// would drop every <video> element and re-negotiate every WHEP session).
+function camPaintStatus(){
+  var bar = document.getElementById('camBar'); if(!bar) return;
+  var tmp = document.createElement('div');
+  tmp.innerHTML = _camStatusBar();
+  var fresh = tmp.firstChild;
+  bar.className = fresh.className;
+  bar.innerHTML = fresh.innerHTML;
+  var ban = document.getElementById('camAlert');
+  if(ban){ var t2 = document.createElement('div'); t2.innerHTML = _camAlertBanner(); ban.outerHTML = t2.innerHTML || '<div id="camAlert"></div>'; }
+  var wall = document.getElementById('camWall');
+  if(wall){
+    for(var id in _CAM.tiles){
+      var frame = document.getElementById('camT_' + id); if(!frame) continue;
+      frame.setAttribute('data-cam-hit', _CAM.tiles[id].motion.tripped ? '1' : '0');
+    }
+  }
+}
+function camPaintMotionBars(){
+  for(var id in _CAM.tiles){
+    var t = _CAM.tiles[id]; if(!t) continue;
+    var b = document.getElementById('camM_' + id);
+    if(b) b.style.width = Math.max(0, Math.min(100, t.motion.level * 2)).toFixed(0) + '%';
+    var v = document.getElementById('camMv_' + id);
+    if(v) v.textContent = t.motion.tainted ? 'N/A' : (t.motion.level || 0).toFixed(1) + '%';
+  }
+}
+
+function _camAlertBanner(){
+  var hits = [], id;
+  for(id in _CAM.tiles){
+    var t = _CAM.tiles[id];
+    if(t && t.motion.tripped) hits.push((t.label || id) + (t.zone ? ' [' + t.zone + ']' : ''));
+  }
+  if(!hits.length) return '<div id="camAlert" hidden></div>';
+  return '<div id="camAlert" class="cam-alert">'
+       + '<span class="cam-alert-tag">MOTION</span>'
+       + '<span class="cam-alert-txt">' + _camEsc(hits.join('  ·  ')) + '</span>'
+       + '<span class="cam-alert-z">' + _camEsc(_camZulu(new Date())) + '</span>'
+       + '</div>';
+}
+
+// ── the wall ──────────────────────────────────────────────────────────────────
+// The column count is the grid's job, not this function's. An explicit
+// `repeat(n, 1fr)` made one camera a 1500px-wide, 840px-tall tile — a wall of one
+// is still a wall, and a tile has a sensible size whatever the count. auto-fill
+// with a floor keeps every tile the same size and simply uses fewer tracks.
+function _camWall(ids){
+  var solo = _CAM.solo && _CAM.tiles[_CAM.solo] ? _CAM.solo : null;
+  var list = solo ? [solo] : ids;
+  return '<div class="cam-wall' + (solo ? ' is-solo' : '') + '" id="camWall">'
+       + list.map(function(id, i){ return _camTile(id, _CAM.tiles[id], i + 1); }).join('')
+       + '</div>';
+}
+function _camTile(id, t, n){
+  if(!t) return '';
+  var isImg = (t.transport === 'mjpeg');
+  var media = isImg
+    ? '<img id="camV_' + id + '" class="cam-media" alt="" crossorigin="anonymous">'
+    : '<video id="camV_' + id + '" class="cam-media" autoplay playsinline muted></video>';
+
+  var rec = !!(t.rec && t.rec.state === 'recording');
+  var badge = t.kind === 'device' ? 'PROXIMITY' : String(t.transport || 'NET').toUpperCase();
+
+  return ''
+  // data-cam-live is the tile's CLAIM to be showing a picture, and it is what
+  // camAssertHonest() audits. A faulted tile makes no such claim — it is already
+  // saying, in its own words, that it has no signal and why. Marking it live would
+  // have the integrity check overwrite that specific diagnosis (and its RETRY) with
+  // a generic NO SOURCE, which is less honest, not more.
+  + '<div class="cam-tile" id="camT_' + id + '" data-cam-live="' + (t.fault ? '0' : '1') + '" data-cam-id="' + _camEsc(id) + '" data-cam-hit="' + (t.motion.tripped?'1':'0') + '">'
+  +   '<span class="cam-br-tl"></span><span class="cam-br-tr"></span><span class="cam-br-bl"></span><span class="cam-br-br"></span>'
+  +   '<div class="cam-tile-hd">'
+  +     '<span class="cam-tile-n">' + (n<10?'0':'') + n + '</span>'
+  +     '<span class="cam-tile-name">' + _camEsc(t.label || id) + '</span>'
+  +     (t.zone ? '<span class="cam-tile-zone">' + _camEsc(t.zone) + '</span>' : '')
+  +     '<span class="cam-tile-badge">' + badge + '</span>'
+  +     (rec ? '<span class="cam-rec">● REC</span>' : '')
+  +   '</div>'
+  +   '<div class="cam-tile-body">'
+  +     media
+  +     '<div class="cam-scan"></div>'
+  +     '<div class="cam-retic"><span></span><span></span></div>'
+  +     (t.fault
+        ? '<div class="cam-tile-fault"><b>SIGNAL FAULT</b><span>' + _camEsc(t.fault) + '</span>'
+          + '<button class="cam-mini" data-cam-act="retry" data-cam-id="' + _camEsc(id) + '">⟳ RETRY</button></div>'
+        : '<div class="cam-acq" id="camA_' + id + '">ACQUIRING…</div>')
+  +     '<div class="cam-burn" id="camB_' + id + '">' + _camEsc(_camZulu(new Date())) + '</div>'
+  +   '</div>'
+  +   '<div class="cam-tile-ft">'
+  +     '<div class="cam-mbar"><i id="camM_' + id + '"></i></div>'
+  +     '<span class="cam-mval" id="camMv_' + id + '">' + (t.motion.tainted ? 'N/A' : '0.0%') + '</span>'
+  +     '<span class="cam-spacer"></span>'
+  +     '<button class="cam-mini" data-cam-act="solo" data-cam-id="' + _camEsc(id) + '">' + (_CAM.solo === id ? '⤡ GRID' : '⤢ SOLO') + '</button>'
+  +     '<button class="cam-mini" data-cam-act="snap" data-cam-id="' + _camEsc(id) + '">⬗ SNAP</button>'
+  +     '<button class="cam-mini' + (rec ? ' is-rec' : '') + '" data-cam-act="rec" data-cam-id="' + _camEsc(id) + '">' + (rec ? '■ STOP' : '● REC') + '</button>'
+  +     '<button class="cam-mini is-x" data-cam-act="close" data-cam-id="' + _camEsc(id) + '">✕</button>'
+  +   '</div>'
+  + '</div>';
+}
+
+// Attach real sources to the elements the last innerHTML created.
+function camBindTiles(){
+  for(var id in _CAM.tiles){
+    (function(id){
+      var t  = _CAM.tiles[id]; if(!t) return;
+      // A faulted tile is left alone. camFeedFault() repaints, and the repaint used
+      // to re-attach the source that had just failed — which failed again, which
+      // repainted again. A dead camera hammered the bridge and filled the log for
+      // as long as the tab stayed open. Retry is a button now, not a side effect.
+      if(t.fault) return;
+      var el = document.getElementById('camV_' + id); if(!el) return;
+      var acq = document.getElementById('camA_' + id);
+      function acquired(){ if(acq) acq.style.display = 'none'; }
+
+      if(t.kind === 'device'){
+        if(el.srcObject !== t.stream) el.srcObject = t.stream;
+        el.onloadedmetadata = acquired;
+        if(el.videoWidth) acquired();
+        return;
+      }
+      if(t.transport === 'mjpeg'){
+        if(el.getAttribute('src') !== t.url){
+          el.onload  = acquired;
+          el.onerror = function(){ camFeedFault(id, 'the image could not be loaded — check the URL, and remember an http:// image cannot load into this https:// page'); };
+          el.setAttribute('src', t.url);
+        } else if(el.naturalWidth) acquired();
+        return;
+      }
+      if(t.transport === 'hls'){
+        var native = el.canPlayType && el.canPlayType('application/vnd.apple.mpegurl');
+        if(!native){
+          camFeedFault(id, 'this browser cannot play HLS without a helper library, which SIGMA does not ship. Publish this camera as WebRTC on the bridge instead — that path needs no library.');
+          return;
+        }
+        if(el.getAttribute('src') !== t.url){
+          el.onloadedmetadata = acquired;
+          el.onerror = function(){ camFeedFault(id, 'the HLS playlist could not be played'); };
+          el.setAttribute('src', t.url);
+        } else if(el.videoWidth) acquired();
+        return;
+      }
+      // WHEP — negotiate once. A repaint must not re-offer.
+      if(!t.pc){
+        el.onloadedmetadata = acquired;
+        t.pc = camWhep(t.url, el, function(err){
+          t.pc = null;
+          camFeedFault(id, (err && err.message) || String(err));
+        });
+      } else if(el.srcObject) acquired();
+    })(id);
+  }
+}
+
+// ── the source rail ───────────────────────────────────────────────────────────
+// Everything SIGMA can actually reach, in two blocks, each honest about its own
+// state. Nothing appears here that was not either enumerated by the browser or
+// published by the bridge.
+function _camSourceRail(){
+  return '<div class="cam-panel">'
+       + '<div class="cam-panel-hd"><span>◈</span>SOURCES<span class="cam-spacer"></span>'
+       +   '<button class="cam-mini" data-cam-act="rescan">⟳ RESCAN</button></div>'
+       + '<div class="cam-panel-bd">'
+       +   _camProximityBlock()
+       +   _camNetworkBlock()
+       + '</div></div>';
+}
+
+function _camProximityBlock(){
+  var h = '<div class="cam-grp"><div class="cam-grp-hd">PROXIMITY — THIS MACHINE</div>';
+
+  if(_CAM.perm === 'insecure')
+    return h + _camNote('Cameras need a secure context', 'This page is not on https://, and a browser will not hand any camera to an insecure page. Nothing here can work until SIGMA is served over https:// (it is, in production — this will be a local file or a plain-http host).') + '</div>';
+  if(_CAM.perm === 'unsupported')
+    return h + _camNote('This browser has no camera API', 'navigator.mediaDevices is absent. Chrome, Edge, Firefox and Safari all have it; a very old or heavily locked-down browser may not.') + '</div>';
+  if(_CAM.perm === 'denied')
+    return h + _camNote('Camera access is blocked for this site', 'The browser is refusing, not SIGMA. Click the camera or padlock icon in the address bar, allow this site, then press RESCAN.') + '</div>';
+
+  if(!_CAM.devices.length)
+    return h + _camNote('No camera attached to this machine', 'The browser reports no video input. Plug in a USB camera and press RESCAN. Network cameras do not appear here — they belong to the block below.') + '</div>';
+
+  if(_CAM.perm === 'prompt'){
+    h += '<div class="cam-note is-act"><b>' + _CAM.devices.length + ' camera' + (_CAM.devices.length===1?'':'s') + ' present, not yet identified</b>'
+      +  '<span>The browser will not reveal a camera name until access is granted once. The count above is real; the names are withheld.</span>'
+      +  '<button class="cam-btn is-on" data-cam-act="perm">GRANT ACCESS</button></div>';
+  }
+
+  h += '<div class="cam-srcs">';
+  for(var i=0;i<_CAM.devices.length;i++){
+    var d = _CAM.devices[i];
+    var lab = d.label || ('CAMERA ' + (i+1) + ' (name withheld)');
+    var on  = !!_CAM.tiles[d.deviceId];
+    h += '<div class="cam-src' + (on ? ' is-on' : '') + '">'
+      +    '<span class="cam-src-i">▣</span>'
+      +    '<span class="cam-src-n">' + _camEsc(lab) + '</span>'
+      +    (on ? '<button class="cam-mini is-x" data-cam-act="close" data-cam-id="' + _camEsc(d.deviceId) + '">✕ CLOSE</button>'
+               : '<button class="cam-mini" data-cam-act="opendev" data-cam-id="' + _camEsc(d.deviceId) + '" data-cam-label="' + _camEsc(lab) + '">▶ OPEN</button>')
+      +  '</div>';
+  }
+  return h + '</div></div>';
+}
+
+function _camNetworkBlock(){
+  var cfg = camCfg();
+  var h = '<div class="cam-grp"><div class="cam-grp-hd">NETWORK — VIA BRIDGE'
+        + '<span class="cam-spacer"></span>'
+        + (cfg.bridge ? '<button class="cam-mini" data-cam-act="probe">⟳ DISCOVER</button>' : '')
+        + '</div>';
+
+  if(!cfg.bridge) return h + _camBridgeSetupCard() + '</div>';
+
+  if(_CAM.bridge.state === 'probing')
+    return h + '<div class="cam-note"><b>Asking the bridge what it has…</b><span>' + _camEsc(cfg.bridge) + '</span></div></div>';
+
+  if(_CAM.bridge.state === 'fail'){
+    var e = _CAM.bridge.err || {};
+    h += '<div class="cam-note is-bad"><b>' + _camEsc(e.title || 'The bridge could not be reached') + '</b>'
+      +  '<span>' + _camEsc(e.detail || '') + '</span>'
+      +  '<span class="cam-fix">FIX — ' + _camEsc(e.remedy || '') + '</span></div>';
+    return h + _camFeedList() + '</div>';
+  }
+
+  if(_CAM.bridge.state === 'ok'){
+    var names = _CAM.bridge.streams || [];
+    if(!names.length){
+      h += _camNote('The bridge is online but publishes nothing', 'It answered, so the connection is good — it simply has no camera configured yet. Add the cameras on the bridge (go2rtc will find ONVIF cameras for you), then press DISCOVER.');
+    }else{
+      h += '<div class="cam-srcs">';
+      for(var i=0;i<names.length;i++){
+        var nm = names[i];
+        var fid = 'br:' + nm;
+        var on  = !!_CAM.tiles[fid];
+        h += '<div class="cam-src' + (on ? ' is-on' : '') + '">'
+          +    '<span class="cam-src-i">◉</span>'
+          +    '<span class="cam-src-n">' + _camEsc(nm) + '</span>'
+          +    '<span class="cam-src-t">WHEP</span>'
+          +    (on ? '<button class="cam-mini is-x" data-cam-act="close" data-cam-id="' + _camEsc(fid) + '">✕ CLOSE</button>'
+                   : '<button class="cam-mini" data-cam-act="openbr" data-cam-id="' + _camEsc(nm) + '">▶ OPEN</button>')
+          +  '</div>';
+      }
+      h += '</div>';
+    }
+  }
+  return h + _camFeedList() + '</div>';
+}
+
+// Manually registered feeds, for an NVR that already publishes a playable URL and
+// needs no discovery at all.
+function _camFeedList(){
+  var f = _CAM.feeds || [];
+  var h = '<div class="cam-sub-hd">MANUAL FEEDS<span class="cam-spacer"></span>'
+        + '<button class="cam-mini" data-cam-act="addfeed">＋ ADD</button></div>';
+  h += _camAddForm();
+  if(!f.length) return h + '<div class="cam-thin">None registered. Use ADD for a camera or NVR that already serves a WebRTC (WHEP), HLS or MJPEG URL this browser can reach.</div>';
+  h += '<div class="cam-srcs">';
+  for(var i=0;i<f.length;i++){
+    var on = !!_CAM.tiles[f[i].id];
+    h += '<div class="cam-src' + (on ? ' is-on' : '') + '">'
+      +    '<span class="cam-src-i">◉</span>'
+      +    '<span class="cam-src-n">' + _camEsc(f[i].name || 'FEED') + (f[i].zone ? ' <em>' + _camEsc(f[i].zone) + '</em>' : '') + '</span>'
+      +    '<span class="cam-src-t">' + _camEsc(String(f[i].kind||'').toUpperCase()) + '</span>'
+      +    (on ? '<button class="cam-mini is-x" data-cam-act="close" data-cam-id="' + _camEsc(f[i].id) + '">✕</button>'
+               : '<button class="cam-mini" data-cam-act="openfeed" data-cam-id="' + _camEsc(f[i].id) + '">▶ OPEN</button>')
+      +    '<button class="cam-mini is-x" data-cam-act="delfeed" data-cam-id="' + _camEsc(f[i].id) + '" title="Remove this feed">🗑</button>'
+      +  '</div>';
+  }
+  return h + '</div>';
+}
+
+// The unconnected state. Prose and a checklist — the §AD-HONESTY shape, because a
+// greyed-out camera grid here would read as cameras that exist and are merely dim.
+function _camBridgeSetupCard(){
+  return ''
+  + '<div class="cam-setup">'
+  +   '<div class="cam-setup-hd">NO BRIDGE CONFIGURED</div>'
+  +   '<p>A browser cannot reach an IP camera on its own, and this is not a limitation of SIGMA. '
+  +     'It cannot speak <b>RTSP</b> (the protocol every camera uses), it has no <b>UDP</b> and so cannot send the '
+  +     'multicast that ONVIF discovery is made of, it is forbidden by <b>Private Network Access</b> from probing '
+  +     '192.168.x.x from a public page, and it may not load an <b>http://</b> stream into this https:// page. '
+  +     'Four separate walls, all of them in the browser.</p>'
+  +   '<p>A bridge on the office network has none of those restrictions. It finds the cameras, holds the RTSP '
+  +     'connections, and re-publishes each one as WebRTC — which this page <i>can</i> read.</p>'
+  +   '<ol class="cam-chk">'
+  +     '<li><b>Install go2rtc</b> on a machine that stays on. One file, no Docker, no runtime. '
+  +       '<code>go2rtc.exe</code> on Windows.</li>'
+  +     '<li><b>Let it find the cameras.</b> Open its page on port 1984 and use ONVIF discovery, or paste each '
+  +       '<code>rtsp://</code> URL into <code>go2rtc.yaml</code> under <code>streams:</code>.</li>'
+  +     '<li><b>Give it an https:// address.</b> This is the step that is skipped and then blamed on SIGMA. '
+  +       'A public https:// page may not fetch a private http:// address. A free Cloudflare Tunnel '
+  +       '(<code>cloudflared tunnel --url http://localhost:1984</code>) is the shortest route; the NVR’s own TLS '
+  +       'certificate also works.</li>'
+  +     '<li><b>Allow this origin</b> on the bridge, so the browser CORS check passes.</li>'
+  +     '<li><b>Paste that https:// address</b> into Settings › CAM Security, then press DISCOVER.</li>'
+  +   '</ol>'
+  +   '<div class="cam-setup-ft">'
+  +     '<button class="cam-btn is-on" data-cam-act="settings">⚙ OPEN SETUP</button>'
+  +     '<span>Until then the PROXIMITY block above works with no setup at all — it is the cameras attached to this machine.</span>'
+  +   '</div>'
+  + '</div>';
+}
+
+function _camNote(title, body){
+  return '<div class="cam-note"><b>' + _camEsc(title) + '</b><span>' + _camEsc(body) + '</span></div>';
+}
+
+function _camNoFeedCard(){
+  return '<div class="cam-empty">'
+       + '<div class="cam-empty-i">▣</div>'
+       + '<div class="cam-empty-t">NO FEED ON THE WALL</div>'
+       + '<div class="cam-empty-s">Open a camera from SOURCES below. Nothing is shown here that is not a live picture — '
+       +   'this panel will not draw a placeholder tile, because a dark rectangle labelled with a camera name is '
+       +   'indistinguishable from a camera watching a dark room.</div>'
+       + '</div>';
+}
+
+// ── event log ─────────────────────────────────────────────────────────────────
+function _camLogPanel(){
+  return '<div class="cam-panel">'
+       + '<div class="cam-panel-hd"><span>▤</span>EVENT LOG<span class="cam-spacer"></span>'
+       +   '<button class="cam-mini" data-cam-act="clearlog">CLEAR</button></div>'
+       + '<div class="cam-log" id="camLog">' + _camLogRows() + '</div></div>';
+}
+function _camLogRows(){
+  if(!_CAM.events.length) return '<div class="cam-thin">No events this session.</div>';
+  var h = '', i;
+  for(i=0;i<_CAM.events.length;i++){
+    var e = _CAM.events[i];
+    h += '<div class="cam-lrow is-' + e.kind.toLowerCase() + '">'
+      +    '<span class="cam-lz">' + _camEsc(e.z) + '</span>'
+      +    '<span class="cam-lk">' + _camEsc(e.kind) + '</span>'
+      +    '<span class="cam-lt">' + _camEsc(e.text) + '</span>'
+      +  '</div>';
+  }
+  return h;
+}
+
+function _camFooter(){
+  var cfg = camCfg();
+  return '<div class="cam-foot">'
+    + '<span><b>Nothing leaves this machine.</b> Snapshots and recordings are written by the browser straight to your '
+    +   'downloads. No frame is uploaded, attached to an order or sent to Supabase. Only the feed list and these '
+    +   'settings are stored, in this browser.</span>'
+    + '<span><b>Motion watch runs only while this tab is open.</b> It is not a recorder. Sensitivity '
+    +   '<b>' + cfg.sens + '%</b> · alert tone <b>' + (cfg.beep ? 'ON' : 'OFF') + '</b>.</span>'
+    + '<span class="cam-keys">KEYS — <b>A</b> arm/disarm · <b>1…9</b> solo a feed · <b>G</b> grid · <b>S</b> snapshot the solo feed</span>'
+    + '</div>';
+}
+
+// ── the add-feed form ─────────────────────────────────────────────────────────
+// Inline, not a browser prompt(): a modal dialog inside this app blocks the whole
+// page, and the URL being typed here is long enough that it needs a real field.
+function _camAddForm(){
+  if(!_CAM.adding) return '';
+  return '<div class="cam-form">'
+    + '<div class="cam-form-hd">REGISTER A FEED</div>'
+    + '<label>NAME<input id="camF_name" type="text" placeholder="FRONT GATE"></label>'
+    + '<label>ZONE <span>optional</span><input id="camF_zone" type="text" placeholder="PERIMETER"></label>'
+    + '<label>TRANSPORT<select id="camF_kind">'
+    +   '<option value="whep">WebRTC / WHEP — preferred</option>'
+    +   '<option value="hls">HLS (.m3u8) — Safari plays it natively; Chrome needs the bridge WebRTC path</option>'
+    +   '<option value="mjpeg">MJPEG — an image URL, older cameras only</option>'
+    + '</select></label>'
+    + '<label>URL<input id="camF_url" type="text" placeholder="https://bridge.example.com/api/whep?src=frontgate"></label>'
+    + '<div class="cam-form-note">It must be an <b>https://</b> URL. This page is served over https:// and a browser '
+    +   'will not load an http:// stream into it — that request is stopped before it is sent.</div>'
+    + '<div class="cam-form-ft">'
+    +   '<button class="cam-btn is-on" data-cam-act="savefeed">SAVE</button>'
+    +   '<button class="cam-btn" data-cam-act="cancelfeed">CANCEL</button>'
+    + '</div></div>';
+}
+function camSaveFeed(){
+  function v(id){ var e = document.getElementById(id); return e ? String(e.value||'').trim() : ''; }
+  var name = v('camF_name'), zone = v('camF_zone'), kind = v('camF_kind'), url = v('camF_url');
+  if(!url){ camEvent('SYS','feed not saved — no URL given'); return; }
+  if(location.protocol === 'https:' && /^http:\/\//i.test(url)){
+    camEvent('SYS','feed not saved — an http:// stream cannot load into this https:// page. Give the bridge an https:// address.');
+    camRender(); return;
+  }
+  var list = camFeeds();
+  list.push({ id:_camId(), name:name || 'FEED ' + (list.length+1), zone:zone, kind:kind || 'whep', url:url });
+  camFeedsSave(list);
+  _CAM.adding = false;
+  camEvent('CAM','feed registered — ' + (name || 'FEED') + ' [' + String(kind).toUpperCase() + ']');
+  camRender();
+}
+function camDelFeed(id){
+  var list = camFeeds(), out = [], i;
+  for(i=0;i<list.length;i++) if(list[i].id !== id) out.push(list[i]);
+  camFeedsSave(out);
+  if(_CAM.tiles[id]) camCloseTile(id);
+  camEvent('CAM','feed removed');
+  camRender();
+}
+
+// ── one delegated handler for the whole panel ─────────────────────────────────
+function camBindHost(host){
+  if(host._camBound) return;
+  host._camBound = true;
+  host.addEventListener('click', function(ev){
+    var t = ev.target; if(!t || !t.closest) return;
+    var a = t.closest('[data-cam-act]'); if(!a) return;
+    var act = a.getAttribute('data-cam-act');
+    var id  = a.getAttribute('data-cam-id') || '';
+
+    if(act === 'arm')       { camArm(!_CAM.armed); return; }
+    if(act === 'closeall')  { camCloseAll(); return; }
+    if(act === 'close')     { camCloseTile(id); return; }
+    if(act === 'rescan')    { camScanDevices().then(camRender); return; }
+    if(act === 'perm')      { camRequestPerm(); return; }
+    if(act === 'probe')     { camBridgeProbe(true); return; }
+    if(act === 'opendev')   { camOpenDevice(id, a.getAttribute('data-cam-label') || ''); return; }
+    if(act === 'openbr')    {
+      var cfg = camCfg();
+      camOpenFeed({ id:'br:' + id, name:id.toUpperCase(), zone:'', kind:'whep', url:camBridgeWhepUrl(cfg.bridge, id) });
+      return;
+    }
+    if(act === 'openfeed')  {
+      var f = camFeeds(), i;
+      for(i=0;i<f.length;i++) if(f[i].id === id) camOpenFeed(f[i]);
+      return;
+    }
+    if(act === 'addfeed')   { _CAM.adding = true;  camRender(); return; }
+    if(act === 'cancelfeed'){ _CAM.adding = false; camRender(); return; }
+    if(act === 'savefeed')  { camSaveFeed(); return; }
+    if(act === 'delfeed')   { camDelFeed(id); return; }
+    if(act === 'retry')     {
+      var rt = _CAM.tiles[id];
+      if(rt){ rt.fault = null; try{ if(rt.pc) rt.pc.close(); }catch(e){} rt.pc = null;
+              camEvent('CAM','retrying ' + (rt.label || id), id); camRender(); }
+      return;
+    }
+    if(act === 'solo')      { _CAM.solo = (_CAM.solo === id) ? null : id; camRender(); return; }
+    if(act === 'snap')      { camSnapshot(id); return; }
+    if(act === 'rec')       { camRecord(id); return; }
+    if(act === 'clearlog')  { _CAM.events = []; camEvent('SYS','log cleared'); camRender(); return; }
+    if(act === 'settings')  {
+      try{ showView('preferences'); }catch(e){}
+      try{ settingsTab('pref-cam'); }catch(e){}
+      return;
+    }
+  });
+}
+
+// ── keyboard ──────────────────────────────────────────────────────────────────
+// Bound once at the document, and it stands down the moment focus is in a field
+// or the CAM tab is not the one on screen — a dashboard where typing a client
+// name arms the alarm is not a feature.
+(function _camKeys(){
+  document.addEventListener('keydown', function(ev){
+    var pane = document.getElementById('dashTabCam');
+    if(!pane || pane.style.display === 'none') return;
+    var v = document.getElementById('view-dashboard');
+    if(v && v.style.display === 'none') return;
+    var el = ev.target;
+    if(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+    if(ev.ctrlKey || ev.metaKey || ev.altKey) return;
+
+    var k = String(ev.key || '').toLowerCase();
+    var ids = Object.keys(_CAM.tiles);
+    if(k === 'a'){ ev.preventDefault(); camArm(!_CAM.armed); return; }
+    if(k === 'g'){ if(_CAM.solo){ ev.preventDefault(); _CAM.solo = null; camRender(); } return; }
+    if(k === 's'){ if(_CAM.solo){ ev.preventDefault(); camSnapshot(_CAM.solo); } return; }
+    if(k >= '1' && k <= '9'){
+      var n = parseInt(k,10) - 1;
+      if(ids[n]){ ev.preventDefault(); _CAM.solo = (_CAM.solo === ids[n]) ? null : ids[n]; camRender(); }
+      return;
+    }
+    if(k === 'escape' && _CAM.solo){ ev.preventDefault(); _CAM.solo = null; camRender(); }
+  });
+})();
+
+// ── the second hand ───────────────────────────────────────────────────────────
+// One interval for the whole panel, and it does nothing at all while the tab is
+// hidden — a clock nobody is looking at should not wake the machine.
+(function _camClock(){
+  setInterval(function(){
+    var pane = document.getElementById('dashTabCam');
+    if(!pane || pane.style.display === 'none') return;
+    var z = _camZulu(new Date());
+    var c = document.getElementById('camClock'); if(c) c.textContent = z;
+    for(var id in _CAM.tiles){
+      var b = document.getElementById('camB_' + id); if(b) b.textContent = z;
+    }
+  }, 1000);
+})();
+
+// ── entering the tab ──────────────────────────────────────────────────────────
+// `always` on every show: cheap, no network, no camera opened.
+// `once` on the first explicit show: enumerate devices and, if a bridge address
+// exists, ask it what it has. Neither touches a camera — enumerateDevices does not
+// switch anything on, and the bridge call is one GET.
+function camShow(){
+  try{ camRender(); }catch(e){}
+}
+function camBoot(){
+  if(_CAM.booting) return;
+  _CAM.booting = true;
+  _CAM.feeds = camFeeds();
+  camEvent('SYS','CAM Security ready — nothing is armed');
+  camScanDevices().then(function(){
+    camRender();
+    var cfg = camCfg();
+    if(cfg.bridge) camBridgeProbe(false);
+  });
+  // Replugging a USB camera should show up without a manual rescan.
+  try{
+    if(navigator.mediaDevices && navigator.mediaDevices.addEventListener)
+      navigator.mediaDevices.addEventListener('devicechange', function(){
+        camScanDevices().then(function(){
+          camEvent('SYS','device list changed — ' + _CAM.devices.length + ' camera(s) present');
+          camRender();
+        });
+      });
+  }catch(e){}
+}
+
+// ── Settings › CAM Security ───────────────────────────────────────────────────
+// Four values, all local to this browser. There is no secret here and nothing
+// reaches Supabase: the bridge address is not a credential, and if the bridge
+// needs one it belongs on the bridge, not in a page anybody can read.
+function camSaveField(el){
+  try{
+    var k = el.getAttribute('data-k');
+    var val = (el.type === 'checkbox') ? (el.checked ? '1' : '0') : String(el.value).trim();
+    localStorage.setItem(k, val);
+    if(k === 'sigmaCam_bridge'){
+      // A new address invalidates the old discovery outright — a stream list read
+      // from the PREVIOUS bridge must never sit under the new one's name.
+      _CAM.bridge = { url:val, state:'idle', err:null, streams:null, at:0 };
+      if(val) camBridgeProbe(true);
+    }
+    try{ camRender(); }catch(e){}
+  }catch(e){}
+}
+function _camPanelInit(){
+  var cfg = camCfg();
+  function set(id, v, chk){
+    var e = document.getElementById(id); if(!e) return;
+    if(chk) e.checked = !!v; else e.value = v;
+  }
+  set('cam_bridge', cfg.bridge);
+  set('cam_sens',   String(cfg.sens));
+  var lbl = document.getElementById('cam_sens_v'); if(lbl) lbl.textContent = cfg.sens + '%';
+  set('cam_beep',   cfg.beep,   true);
+  set('cam_stamp',  cfg.stamp,  true);
+}
+
+(function _regCamPref(){
+  try{
+    if(_settingsOrder.indexOf('pref-cam') < 0){
+      var ai = _settingsOrder.indexOf('pref-ads');
+      _settingsOrder.splice(ai >= 0 ? ai + 1 : _settingsOrder.length, 0, 'pref-cam');
+    }
+    var navItem = '<div class="pref-nav-item" onclick="settingsTab(\'pref-cam\')"><span class="pref-nav-icon">🛡</span>CAM Security</div>';
+    var ni = -1;
+    for(var k = 0; k < _settingsNav.length; k++){ if(_settingsNav[k].indexOf("'pref-ads'") >= 0){ ni = k; break; } }
+    if(ni >= 0) _settingsNav.splice(ni + 1, 0, navItem); else _settingsNav.push(navItem);
+
+    _settingsPanels['pref-cam'] = ''
+      + '<style>#pref-cam input[type=text]{padding:6px 8px;border:1px solid var(--border,#d9d2c4);border-radius:6px;background:var(--surface,#fff);color:var(--ink,#111);font:inherit;width:100%;max-width:640px;box-sizing:border-box;}'
+      + '#pref-cam code{font-family:ui-monospace,monospace;font-size:11.5px;background:rgba(128,128,128,.14);border-radius:4px;padding:1px 5px;}'
+      + '#pref-cam .cam-p{font-size:12px;color:var(--muted,#888);line-height:1.6;max-width:660px;margin:0 0 12px;}'
+      + '#pref-cam .cam-row{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap;}'
+      + '#pref-cam .cam-wall-note{border-left:3px solid #d97706;background:rgba(217,119,6,.07);padding:9px 12px;border-radius:0 6px 6px 0;margin:0 0 14px;}'
+      + '#pref-cam .cam-wall-note ul{margin:6px 0 0;padding-left:18px;}'
+      + '#pref-cam .cam-wall-note li{margin:3px 0;}</style>'
+
+      + '<div class="pref-section"><div class="pref-sec-hdr"><span>🛡</span><h4>CAM Security — the bridge</h4></div><div class="pref-body">'
+      + '<div class="cam-p">The dashboard’s <b>CAM Security</b> tab shows two kinds of camera. Cameras attached to '
+      +   '<b>this machine</b> need nothing configured here and work immediately. Cameras <b>on the network</b> are '
+      +   'reached through a bridge, and this is where its address goes.</div>'
+
+      + '<div class="cam-wall-note"><b>Why a bridge is not optional.</b> A web page is forbidden from doing all four '
+      +   'of the things that talking to an IP camera requires:'
+      +   '<ul>'
+      +     '<li>It cannot speak <b>RTSP</b>, which is the protocol every camera actually uses.</li>'
+      +     '<li>It has no <b>UDP</b>, so it cannot send the multicast datagram that ONVIF discovery is made of.</li>'
+      +     '<li><b>Private Network Access</b> forbids a page from the public internet from probing <code>192.168.x.x</code>.</li>'
+      +     '<li><b>Mixed content</b> forbids an <code>https://</code> page from loading an <code>http://</code> stream.</li>'
+      +   '</ul>'
+      +   'A bridge on the office network has none of those restrictions. <b>go2rtc</b> is one file, needs no Docker '
+      +   'and no runtime, discovers ONVIF cameras itself, and republishes each one as WebRTC.</div>'
+
+      + '<label style="display:block;font-size:12px;font-weight:700;margin:0 0 5px;">Bridge address</label>'
+      + '<input id="cam_bridge" type="text" data-k="sigmaCam_bridge" placeholder="https://cams.example.com" onchange="camSaveField(this)">'
+      + '<div class="cam-p" style="margin-top:6px;">Must be <b>https://</b>. A bare LAN address such as '
+      +   '<code>http://192.168.1.9:1984</code> will be blocked by the browser before the request is sent — that is the '
+      +   'third and fourth walls above, and no setting in SIGMA can lift them. The short route is a free Cloudflare '
+      +   'Tunnel: <code>cloudflared tunnel --url http://localhost:1984</code>. Also allow this site as an origin on the '
+      +   'bridge, or its CORS check will refuse the call.</div>'
+      + '<div class="cam-row"><button type="button" onclick="try{camBridgeProbe(true);}catch(e){}" style="background:var(--au,#c8922a);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;">Test the connection</button>'
+      +   '<span style="font-size:11.5px;color:var(--muted,#888);">The result appears on the dashboard tab, naming the exact fault if there is one.</span></div>'
+      + '</div></div>'
+
+      + '<div class="pref-section"><div class="pref-sec-hdr"><span>📡</span><h4>Motion watch</h4></div><div class="pref-body">'
+      + '<div class="cam-p">Motion is judged in this browser by comparing consecutive frames. It runs <b>only while the '
+      +   'CAM Security tab is open</b> and only while the panel is <b>armed</b>. It is not a recorder and it does not '
+      +   'run in the background — closing SIGMA stops it.</div>'
+      + '<label style="display:block;font-size:12px;font-weight:700;margin:0 0 5px;">Sensitivity — the share of the picture that must change before it counts as motion</label>'
+      + '<div class="cam-row"><input id="cam_sens" type="range" min="1" max="60" step="1" data-k="sigmaCam_sens" '
+      +   'oninput="var l=document.getElementById(\'cam_sens_v\');if(l)l.textContent=this.value+\'%\';" onchange="camSaveField(this)" style="flex:1;min-width:200px;">'
+      +   '<b id="cam_sens_v" style="min-width:46px;font-family:ui-monospace,monospace;">18%</b></div>'
+      + '<div class="cam-p">Lower is twitchier. Around 18% ignores a curtain and catches a person. A camera pointed at '
+      +   'a road or a tree will need a higher number.</div>'
+      + '<div class="cam-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;">'
+      +   '<input id="cam_beep" type="checkbox" data-k="sigmaCam_beep" onchange="camSaveField(this)"> Sound a tone when motion trips</label></div>'
+      + '<div class="cam-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;">'
+      +   '<input id="cam_stamp" type="checkbox" data-k="sigmaCam_stamp" onchange="camSaveField(this)"> Burn the Zulu timestamp into snapshots</label></div>'
+      + '</div></div>'
+
+      + '<div class="pref-section"><div class="pref-sec-hdr"><span>🔒</span><h4>What leaves this machine</h4></div><div class="pref-body">'
+      + '<div class="cam-p"><b>No video ever does.</b> Snapshots and recordings are produced in the browser and handed '
+      +   'straight to your downloads folder. No frame is uploaded, attached to a job order, or written to Supabase. '
+      +   'The only things stored are the feed list and these settings, in this browser, on this device — so they do '
+      +   'not follow you to another computer, and clearing site data removes them.</div>'
+      + '<div class="cam-p"><b>ARMED is never remembered.</b> The panel always opens disarmed, whatever state it was '
+      +   'left in. A panel that claims to be watching the moment it paints — before a single camera has actually '
+      +   'connected — is the one failure mode worth designing against.</div>'
+      + '</div></div>';
+  }catch(e){}
+})();
+
 
 try{
   window.mAdRender = mAdRender; window.mAdLoad = mAdLoad; window.mAdRefresh = mAdRefresh;
