@@ -19072,7 +19072,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.433';
+var APP_VERSION = 'v2.434';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19110,6 +19110,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.434',type:'fix',date:'09-07-2026',ts:'09-07-2026 04:30',_static:true,title:'Overflowing text now continues on the next page instead of taking a blank sheet of its own',desc:'The overflow fix worked, but it always answered an overrun by inserting a brand new sheet \u2014 so a few spilled lines took a whole page to themselves and every section after them was pushed down one, leaving a mostly blank sheet in the middle of the report. The spilled text now continues at the top of the sheet that already follows, and the sections underneath carry on normally. If that sheet overruns in its turn its own tail moves on the same way, so the reflow carries through the document. Pages built around a large image \u2014 the photo contact sheet, attached documents and the Cadaster page \u2014 are never pushed onto, because prose landing on one would shove the image off its page; those still get a continuation sheet, as does an overrun on the very last page. Page numbers and the Index are unaffected: only the tail of a section ever moves, so every section still begins on the page the Index names.'},
   {v:'v2.433',type:'feature',date:'09-07-2026',ts:'09-07-2026 12:30',_static:true,title:'CAM Security connects Blink cameras — as honest cloud stills, never faked as live',desc:'THE ASK. Connect three office Blink cameras to the dashboard. THE FACT THAT SHAPES EVERYTHING. Blink is Amazon and it is cloud-only: a Blink camera serves NOTHING on the local network — no RTSP, no ONVIF, no port — so the go2rtc bridge cannot reach it and neither can a subnet scan. The only picture outside the Blink app comes from Amazon’s cloud, and a browser can neither sign in to Amazon nor hold that session. Live video is impossible, and SIGMA says so rather than showing a black tile that never fills. WHAT SHIPPED. A small always-on helper (blink-helper/, Python + blinkpy) that the owner signs in to ONCE at their own terminal — e-mail, password and 2FA are entered there and never reach SIGMA — serving one still per camera. A new BLINK — CLOUD block discovers them and opens each as a SNAPSHOT tile: a still that re-fetches on a timer (default 15s, floor 5s) with a cache-buster so a frozen frame cannot masquerade as live. HELD APART FROM LIVE. A snapshot tile is amber where a live tile is green, badged CLOUD and ribboned NOT LIVE, has no scanlines, reticle, motion bar or record button, and its stamp counts UP from capture (“CAPTURED 12s ago”) instead of running like a clock. Motion detection skips it — differencing two cloud thumbnails 15s apart would fire on every refresh and mean nothing. This is §CAM-HONESTY: a Blink still dressed as live video is the deception the tab exists to refuse. ALSO. New Settings fields (helper address + refresh cadence), the same four-wall fault naming as the bridge, and a helper README with the setup and the Cloudflare Tunnel step. Live tiles remain for any local-RTSP camera through the bridge; Blink is stills because Amazon allows nothing more.'},
   {v:'v2.432',type:'feature',date:'09-07-2026',ts:'09-07-2026 04:00',_static:true,title:'Online AD Management now reports what the advertising actually did',desc:'The dashboard tab showed one row of headline figures. It now reports what Meta will actually tell us about a campaign, and what happened at the bureau while the money was being spent. Engagement is broken out: “2,260 results” was a sum of very different things, and is now listed as link clicks, reactions, shares, saves, messaging conversations and video views, each with what it cost. Video shows how far people watched — started, a quarter, half, three quarters, finished; on the first campaign measured, 2,196 people started and 70 reached the end. A table shows where it ran and who saw it, switchable between placement, age and gender, country and device — which showed immediately that Instagram Stories returned clicks at a quarter of what the Feed was charging. Alerts now sit above the numbers: the budget is nearly gone, the campaign’s end date has passed, the ad account is not active, an active campaign delivered nothing, the Meta access is about to expire — each saying what to do about it. Two of them were true of the live account the day they shipped and nothing in SIGMA had said so. Finally, “In the same period” puts ad spend beside the enquiries, job orders and invoiced value SIGMA recorded over the same dates. It states plainly that these are side by side and NOT linked, because until now nothing recorded where an enquiry came from. Void and draft invoices are excluded and counted separately, and nothing is converted between currencies — spend is in USD, the invoices are in AWG, and a rate applied quietly is a wrong number in somebody’s books. Groundwork also went in for real attribution: an enquiry can now carry the tag of the advertising that produced it, so “in the same period” can become “from this campaign”. It counts from the day the website starts sending the tag; nothing before it can be reconstructed, and enquiries arriving by Instagram message can never carry one. Everything here is read-only — SIGMA still cannot create, edit, pause or spend anything on Meta.'},
   {v:'v2.431',type:'feature',date:'09-07-2026',ts:'09-07-2026 09:00',_static:true,title:'CAM Security \u2014 a fourth dashboard tab that watches the cameras SIGMA can actually reach',desc:'THE ASK. \u201cOn the Dashboard, there are three tabs. Create one more, call it CAM Security, and connect cameras in close proximity and on the close networks. Go Military.\u201d WHAT SHIPPED. A fourth tab beside SIGMA Orders & Tasks, Database Metrics and Online AD Management. It is a monitoring wall: live tiles with corner brackets, scanlines and a burned-in Zulu timestamp, an ARM / DISARM posture with a CONDITION readout that goes STANDBY \u2192 ARMED \u2192 ALERT, per-feed motion detection with a level bar, snapshots, local recording, a Zulu event log, and keyboard control (A arms, 1\u20139 blows a feed up full, G returns to the grid, S grabs a still). THE CAMERAS IT REACHES, AND THE ONES IT CANNOT. Cameras attached to the machine \u2014 the built-in one, anything on USB, a capture card \u2014 work immediately with nothing to configure. That is the PROXIMITY half and it is genuinely finished. The NETWORK half needs one piece of software on the office LAN, and it is worth writing down why, because it is not a shortcut. A web page cannot speak RTSP, which is the protocol every IP camera on earth actually uses, and no browser has ever implemented it. It has no UDP, so it cannot send the multicast datagram that ONVIF discovery is made of. Private Network Access forbids a page served from the public internet from so much as probing 192.168.x.x, so a subnet scan dies before the first packet. And mixed content forbids an https:// page from loading an http:// stream, which is what essentially every camera serves. Four separate walls, all four of them in the browser, none of them removable by writing better code in SIGMA. So the network layer runs through a bridge \u2014 go2rtc is one file, no Docker, no runtime \u2014 which sits on the LAN where it has none of those restrictions, finds the ONVIF cameras itself, holds the RTSP connections and republishes each camera as WebRTC. SIGMA then reads it over WHEP in about thirty lines and no library. Give that bridge an https:// name (a free Cloudflare Tunnel is one command) and DISCOVER lists exactly what it publishes. THE PART THAT MATTERS MOST. \u00a7CAM-HONESTY, which is \u00a7AD-HONESTY applied somewhere it bites harder. On a metrics panel a fake number is a wrong number; on a surveillance wall a fake tile is worse than wrong, because a black rectangle captioned CAM-03 \u00b7 REAR YARD is indistinguishable from a working camera looking at a dark room, and somebody will believe the yard is covered. So there are no placeholder cameras, no invented IP addresses and no scan animation walking a subnet it never touched. An integrity check runs after every repaint and physically tears out any tile that is not backed by a live stream. Discovery lists only what the bridge itself reported. A camera the browser can count but not yet name is reported as exactly that \u2014 \u201c2 cameras present, not yet identified\u201d \u2014 rather than as nothing. Every connection fault names which of the four walls it hit and what to do about it, because \u201cfailed to fetch\u201d tells the owner nothing. And ARMED is never restored from storage: the panel always opens disarmed, whatever state it was left in, because a panel that claims to be watching before a single camera has connected is the one failure worth designing against. PRIVACY. No frame ever leaves the machine. Snapshots and recordings are made in the browser and handed straight to the downloads folder \u2014 nothing is uploaded, attached to a job order or written to Supabase. Only the feed list and the settings are stored, in that browser, on that device. Motion watch runs only while the tab is open; it is not a DVR and the panel says so on screen rather than in a comment. ALSO. New Settings panel, CAM Security: the bridge address, motion sensitivity, the alert tone and the snapshot timestamp. The dashboard tab strip needed no layout change \u2014 \u00a7DASH-TABS-N already wrapped and is table-driven, so the fourth tab was one row. The whole feature is scoped to .cam-hud and injects its own stylesheet, so not one pixel of the rest of SIGMA changes.'},
@@ -51643,6 +51644,57 @@ function _pgSpillRuntime(OPT) {
       return walk(root);
     }
 
+    // ── CONTINUE ON THE NEXT SHEET, RATHER THAN INVENTING ONE ───────────────
+    //
+    //   The first cut always answered an overrun by inserting a fresh continuation
+    //   sheet. That is correct but wasteful, and on a real report it read as a bug:
+    //   five spilled lines took a whole sheet of their own and every following section
+    //   was pushed down a page, so the reader got a mostly-blank sheet in the middle of
+    //   the document.
+    //
+    //   A report already HAS a next sheet. Pushing the tail onto the top of it costs no
+    //   paper, and the sections that follow simply continue underneath, which is what
+    //   "continues on the next page" is supposed to mean. If that sheet then overruns
+    //   in its turn, the outer loop reaches it later and pushes ITS tail forward the
+    //   same way, so the reflow cascades correctly instead of stopping at one page.
+    //
+    //   THE NUMBERING CONTRACT SURVIVES THIS, and that is not an accident. Only TAILS
+    //   move forward, never the start of a section — so "this section starts on page N"
+    //   stays true for every row of the Index, and no page is created or destroyed, so
+    //   `_pgList`, `_pg(id)`, `__TPAGES__` and the §TOC-ANCHORS ids are all untouched.
+    //   A continuation sheet is still built when there is no next sheet to push onto,
+    //   i.e. at the very end of the document.
+    //
+    //   Not every sheet may be pushed onto. A photo contact sheet, an attached document
+    //   and the Cadaster page are all built around one large image at a fixed size;
+    //   dropping prose on top of one would shove that image off its own page. Those are
+    //   detected by what they actually contain rather than by id, so a template that
+    //   invents a new image page is covered too.
+    function acceptsInflow(pg) {
+      if (!pg || pg.hasAttribute('data-sigma-cover')) return false;
+      if (!pg.querySelector(':scope > .inner')) return false;
+      var imgs = pg.querySelectorAll('.inner img');
+      for (var i = 0; i < imgs.length; i++) {
+        // 40mm is comfortably above a letterhead mark and comfortably below a plan,
+        // a photo tile or a rasterised document page.
+        if (imgs[i].getBoundingClientRect().height > 40 * MM) return false;
+      }
+      return true;
+    }
+
+    /** The flow container a pushed tail belongs in, and what it must sit before. */
+    function inflowPoint(pg) {
+      var inner = pg.querySelector(':scope > .inner');
+      if (!inner) return null;
+      var host = inner.querySelector(':scope > .page-body') || inner;
+      var kids = host.children;
+      for (var i = 0; i < kids.length; i++) {
+        if (isChrome(kids[i]) || isOutOfFlow(kids[i])) continue;
+        return { host: host, before: kids[i] };
+      }
+      return { host: host, before: null };
+    }
+
     // ── SPLITTING A PARAGRAPH THAT IS TALLER THAN THE PAGE ──────────────────
     //
     //   Moving a block whole is the right answer only while the block CAN fit on a
@@ -51737,7 +51789,7 @@ function _pgSpillRuntime(OPT) {
     }
 
     var pages = [].slice.call(document.querySelectorAll('.page'));
-    var spilled = 0, refused = 0, examined = 0, probes = [];
+    var spilled = 0, refused = 0, examined = 0, pushed = 0, probes = [];
 
     for (var p = 0; p < pages.length; p++) {
       var page = pages[p];
@@ -51801,6 +51853,54 @@ function _pgSpillRuntime(OPT) {
           log('[pg-spill] page ' + (p + 1) + ': a single block is taller than the page — ' +
               'left in place, it needs shortening rather than paginating');
           break;
+        }
+
+        // ── first choice: continue on the sheet that already follows ────────────
+        var nextPg = source.nextElementSibling;
+        while (nextPg && !(nextPg.classList && nextPg.classList.contains('page'))) {
+          nextPg = nextPg.nextElementSibling;
+        }
+        if (nextPg && !nextPg.hasAttribute('data-spill') && acceptsInflow(nextPg)) {
+          var pt = inflowPoint(nextPg);
+          if (pt) {
+            // Rebuild the wrapper nesting EMPTY on the receiving sheet, exactly as the
+            // continuation-sheet path does, then move the tail into the deepest one. The
+            // wrappers are cloned; the content is only ever moved.
+            var pChain = wrapperChain(inner, hit.parent);
+            var pSink = pt.host, pOuter = null;
+            for (var pw = 0; pw < pChain.length; pw++) {
+              var pClone = pChain[pw].cloneNode(false);
+              pClone.removeAttribute('id');
+              if (pw === 0) { pOuter = pClone; pt.host.insertBefore(pClone, pt.before); }
+              else pSink.appendChild(pClone);
+              pSink = pClone;
+            }
+            if (!pChain.length) pOuter = null;
+
+            var pTarget = pChain.length ? pSink : pt.host;
+            var pAnchor = pChain.length ? null : pt.before;
+
+            pullTrailingHeadings(hit.parent, hit.node, pTarget);
+
+            var pMove = hit.node, pNext;
+            while (pMove) {
+              pNext = pMove.nextElementSibling;
+              if (!isChrome(pMove) && !isOutOfFlow(pMove)) pTarget.insertBefore(pMove, pAnchor);
+              pMove = pNext;
+            }
+            for (var pa = pChain.length - 1; pa >= 0; pa--) {
+              var pLvl = pOuter;
+              for (var pd = 0; pd < pa; pd++) pLvl = pLvl.children[pLvl.children.length - 1];
+              var pAfter = pChain[pa].nextElementSibling;
+              while (pAfter) {
+                var pAfterNext = pAfter.nextElementSibling;
+                if (!isChrome(pAfter) && !isOutOfFlow(pAfter)) pLvl.appendChild(pAfter);
+                pAfter = pAfterNext;
+              }
+            }
+            pushed++;
+            break;   // this sheet now fits; the receiving sheet is handled by the outer loop
+          }
         }
 
         // ── build the spill sheet: chrome CLONED, content MOVED ──────────────────
@@ -51868,7 +51968,8 @@ function _pgSpillRuntime(OPT) {
       }
     }
 
-    log('[pg-spill] examined ' + examined + ' page(s), ' + spilled + ' continuation sheet(s) added'
+    log('[pg-spill] examined ' + examined + ' page(s), ' + pushed + ' tail(s) continued on the next sheet, '
+        + spilled + ' continuation sheet(s) added'
         + (refused ? ', ' + refused + ' oversized block(s) left in place' : '')
         + ' | ' + Math.round(MM * 100) / 100 + 'px per mm'
         + (probes.length ? ' | first pages, band top vs content bottom (px): ' + probes.join('  ') : ''));
