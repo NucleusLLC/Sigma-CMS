@@ -19013,7 +19013,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.427';
+var APP_VERSION = 'v2.428';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19051,6 +19051,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.428',type:'fix',date:'09-06-2026',ts:'09-06-2026 14:00',_static:true,title:'Report text that does not fit now continues on the next sheet instead of printing under the footer',desc:'A report page is a fixed 297mm box and its footer is anchored to the page rather than sitting in the text flow, so the footer reserved no space: a long passage was painted straight through it and then cut off at the paper edge. Nothing errored \u2014 the sentence simply stopped existing. It showed up worst on Certification \u0026 Limiting Conditions and on the condition-matrix notes. Any content that no longer fits above the footer band is now carried onto a continuation sheet that keeps the running header, the footer line and the appraiser stamp, and repeats its page number with \u201c(cont.)\u201d so no page number and no Index row moves. Section headings travel with their own text rather than being left stranded at the foot of a sheet, and a heading is never duplicated onto the continuation sheet. A single block taller than a whole page is left where it is and reported to the console, because that one needs shortening rather than paginating. Turn it off with rcPageSpill:false in Report Customization if the old behaviour is wanted back.'},
   {v:'v2.427',type:'feature',date:'09-06-2026',ts:'09-06-2026 10:00',_static:true,title:'Day Sheet \u2014 the day\u2019s inspections by inspector, and one WhatsApp per inspector',desc:'A new Day Sheet on the Calendar lists every inspection booked on a chosen day, grouped by the inspector it is assigned to, in time order, with the address, the type, the status and whether the order carries a real GPS pin or none. Orders with nobody assigned are grouped separately so they cannot be missed. Arrows step a day at a time; open it from the Calendar toolbar or from inside the Day view. Each inspector\u2019s card carries a WhatsApp button that opens WhatsApp with THEIR whole day typed in as one message \u2014 job order, time, address, type and map link for each inspection \u2014 instead of one message per booking. As everywhere else in SIGMA, this does not send: WhatsApp opens with the message ready and a person presses Send from their own number. The number is resolved through the same roster lookup the per-booking WhatsApp button uses, so the two can never name different people, and there is no fallback number: an inspector who is not on the roster, or has no number, or has a number that cannot be read, is reported as such and nothing is opened. A map link that is only an address search is labelled as a search, never as a location. Inspections with a date but no agreed time are included and listed separately as having no time, rather than being hidden or given an hour nobody agreed to. A Copy button puts the same text on the clipboard for any other channel.'},
   {v:'v2.426',type:'feature',date:'09-05-2026',ts:'09-05-2026 09:00',_static:true,title:'Inspection Calendar — a 2-per-hour booking limit, and a calendar that shows the load',desc:'The Calendar now enforces a firm-wide maximum of 2 inspections in any one clock hour. A third booking in a full hour is refused wherever it is attempted — the Calendar’s New Inspection dialog, Quick-View’s Schedule, and the time picker that appears when an inspection date is set in Project Data — and the refusal names the hour, the count and the order numbers already holding it. In the time picker, an hour that is already full is shown as full and cannot be chosen at all. An order being re-saved never blocks itself. Bookings made before this release are left exactly as they are: an hour that already holds more than two is shown in red rather than trimmed, because those are real appointments. The calendar itself was drawing three different things as the same kind of pill: a real booking, an inspection with a date but no agreed hour, and an order with no inspection date at all, which fell back to the REPORT DUE date. Anything without a time was dropped into the 8am row, so 8am read as the busiest hour of every week and none of it was true. Each kind now looks like what it is — booked inspections sit in their hour, a date with no agreed time sits in a No time lane above the clock, and a report due date is labelled DUE and never counted as an inspection. Week and Day views mark every open hour with how many of the 2 slots are still free and let you click one to book straight into it; Month shows each day as a ten-segment load strip, one segment per bookable hour, so a full week is readable at a glance; the List view flags any hour that is over the limit.'},
   {v:'v2.425',type:'fix',date:'09-04-2026',ts:'09-04-2026 16:00',_static:true,title:'Empty Ground Floor and Upper Floor lines no longer print on a parcel-only valuation',desc:'On a Parcel Only appraisal the Valuation table could show a Ground Floor and an Upper Floor row with nothing in them \u2014 no area, no rate, only dashes \u2014 as seen on 2026-108 with the SIGMA_Type1.T0-LotsofOwners template. The Valuation screen starts every order with a few named building rows ready to be filled in, and an order that never uses them still keeps them. The report was asking whether any building rows existed, not whether they said anything, so those blank starters printed as though they were findings. A building row now has to carry an area or a rate to appear. Nothing else changes: a Parcel + Building or New Build report shows its building rows exactly as before, and so does a parcel-only order where a building really was measured. No saved data was altered \u2014 the blank rows stay on the order, they simply stop printing.'},
@@ -44632,6 +44633,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       rcPageNumColor:'#8a7a6a', rcPageNumFormat:'Page X of Y',
       rcRunningHeader:true, rcRunningFooter:true,
       rcMarginTop:20, rcMarginBottom:8, rcMarginLeft:18, rcMarginRight:18,
+      rcPageSpill:true,   // §PG-SPILL (v2.428) — overflow continues on the next sheet; false = the old clip-under-the-footer behaviour
       rcPageCover:true, rcPageTOC:true,
       rcPageProjInsp1:true, rcPageInsp2:true,
       rcPageSummary:true, rcPageValuation:true, rcPageSignoff:true,
@@ -44677,6 +44679,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       rcPageNumColor:'#8a7a6a',rcPageNumFormat:'Page X of Y',
       rcRunningHeader:true,rcRunningFooter:true,
       rcMarginTop:20,rcMarginBottom:8,rcMarginLeft:18,rcMarginRight:18,
+      rcPageSpill:true,   // §PG-SPILL (v2.428) — overflow continues on the next sheet; false = the old clip-under-the-footer behaviour
       rcPageCover:true,rcPageTOC:true,rcPageProjInsp1:true,rcPageInsp2:true,
       rcPageSummary:true,rcPageValuation:true,rcPageSignoff:true,
       rcPageDocs:true,rcPagePhotos1:true,rcPagePhotos2:true,rcPageCadaster:true,
@@ -49540,6 +49543,294 @@ try {
     try{ console.log('[SEC-DISABLE] queued removal of', _disT.length, 'section(s):', _disT.join(' | ')); }catch(e){}
   }
 } catch(_disErr){ try{ console.warn('[SEC-DISABLE] failed', _disErr); }catch(e){} }
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §PG-SPILL (v2.428) — content that does not fit continues on the next sheet   ║
+// ║                                                                              ║
+// ║  THE BUG IT CLOSES. `.page` is a fixed 297mm box with `overflow:hidden`, and  ║
+// ║  the footer is `position:absolute; bottom:12mm` — OUT OF FLOW, so it reserves ║
+// ║  no space at all. `.inner` ends at 297 − rcMarginBottom (8mm) = 289mm while   ║
+// ║  the footer band starts around 281mm, so prose is painted straight through    ║
+// ║  the footer for ~8mm and then hard-clipped. Nothing errors; the sentence just  ║
+// ║  stops existing. Worst offenders: Certification & Limiting Conditions         ║
+// ║  (.disc-text, 13px/1.7) and the nine condition-matrix note fields.            ║
+// ║                                                                              ║
+// ║  THE HOUSE RULE, WHICH THIS APPLIES TO THE REPORT AT LAST. §OVL-PRINT,        ║
+// ║  §SYN-PRINT and §MF-PRINT already carry it: the chrome is not in the content  ║
+// ║  flow, so its height must be SUBTRACTED from the content box, and whatever    ║
+// ║  no longer fits continues on the next sheet. The report generator was the one ║
+// ║  surface that never adopted it.                                              ║
+// ║                                                                              ║
+// ║  ── WHY THIS IS NOT §TEXT-REFLOW (v2.319, reverted the same day) ──────────   ║
+// ║  That attempt CLONED a whole `.page` and moved the overflow into the copy.    ║
+// ║  Cloning a page clones its `.sec-h` headers, and §SEC-DEDUP-INLINE /          ║
+// ║  §SEC-DISABLE / Report Section Order all key off those headers by text — so   ║
+// ║  it manufactured duplicate section headers that the dedup pass had already    ║
+// ║  run past, and Section Order came apart.                                     ║
+// ║                                                                              ║
+// ║  This pass NEVER CLONES CONTENT. It MOVES nodes. Duplicate headers are        ║
+// ║  therefore impossible by construction, not by care. The only things cloned    ║
+// ║  are chrome (the running header, the footer band, the page number, the        ║
+// ║  appraiser stamp, the DRAFT watermark) and EMPTY layout wrappers — a wrapper   ║
+// ║  is cloned with `cloneNode(false)` and its children are moved into it.        ║
+// ║                                                                              ║
+// ║  It also runs LAST, after the dedup and disable scripts, and that is now      ║
+// ║  correct rather than dangerous: it must measure the FINAL content, and since  ║
+// ║  it duplicates nothing there is nothing left for dedup to have missed.        ║
+// ║                                                                              ║
+// ║  ── THE NUMBERING CONTRACT IS UNTOUCHED ──────────────────────────────────    ║
+// ║  `_pgList` / `_pg(id)` / `__TPAGES__` / `__DEDPG_*__` / §TOC-ANCHORS are all   ║
+// ║  resolved long before this runs, in the generator. A spill sheet is NOT a new ║
+// ║  numbered page: it repeats its source page's number with " (cont.)" appended,  ║
+// ║  and carries no `id`, so no anchor is duplicated and no TOC row moves. That    ║
+// ║  is the same choice §TEXT-REFLOW made and the one part of it that was right.  ║
+// ║                                                                              ║
+// ║  ── IT CANNOT MANUFACTURE A BLANK SHEET ──────────────────────────────────    ║
+// ║  If the first content node on a page is itself taller than the content box,   ║
+// ║  moving it would leave the source page empty and the spill sheet would        ║
+// ║  overflow identically — an infinite ladder of blank paper. That case is       ║
+// ║  refused: the block stays and is reported to the console, which is the honest  ║
+// ║  answer (a single 280mm block needs shortening, not paginating).              ║
+// ║                                                                              ║
+// ║  OFF SWITCH: RC.rcPageSpill === false. Absent key = on.                       ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+function _pgSpillRuntime(OPT) {
+  try {
+    var CLEAR_MM   = OPT.clearMm;      // breathing room above the footer band
+    var FALLBACK   = OPT.fallbackMm;   // band depth when a page shows no footer at all
+    var MAX_SHEETS = OPT.maxSheets;    // spill sheets allowed per source page
+    var log = function () { try { console.log.apply(console, arguments); } catch (e) {} };
+
+    // px-per-mm measured, never assumed: zoom and display scaling both move it, and a
+    // wrong factor puts every boundary in the wrong place.
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;left:-99999px;top:0;width:1mm;height:100mm;';
+    document.body.appendChild(probe);
+    var MM = (probe.getBoundingClientRect().height || 377.95) / 100;
+    probe.parentNode.removeChild(probe);
+    if (!(MM > 0)) return;
+
+    var isChrome = function (el) {
+      return el.classList && (el.classList.contains('pg-ftr-fixed') ||
+                              el.classList.contains('pg-num') ||
+                              el.classList.contains('pg-hdr'));
+    };
+    var isOutOfFlow = function (el) {
+      var p = '';
+      try { p = getComputedStyle(el).position; } catch (e) {}
+      return p === 'absolute' || p === 'fixed';
+    };
+    var isSecHead = function (el) {
+      return el.classList && (el.classList.contains('sec-h') || el.classList.contains('sec-sub'));
+    };
+
+    // Where the footer band begins on THIS page, measured off the live chrome rather
+    // than from a constant copied out of the CSS — a constant is exactly the second
+    // copy that drifts. Only bottom-anchored chrome counts: the page number can be
+    // placed at the TOP, and a top-placed number must not cap the content box.
+    function bandTop(page, pageRect) {
+      var best = null;
+      var els = page.querySelectorAll('.pg-ftr-fixed, .pg-num');
+      for (var i = 0; i < els.length; i++) {
+        var r = els[i].getBoundingClientRect();
+        if (!r.height) continue;
+        var top = r.top - pageRect.top;
+        if (top < pageRect.height * 0.5) continue;           // top-placed chrome
+        if (best === null || top < best) best = top;
+      }
+      return best === null ? pageRect.height - FALLBACK * MM : best;
+    }
+
+    // The first node that must leave this page, found by descending only into blocks
+    // that STRADDLE the limit. A block wholly above it is fine; a block wholly below
+    // it moves whole; only a straddler is worth opening up.
+    function findSplit(container, limit, pageTop) {
+      var kids = container.children;
+      for (var i = 0; i < kids.length; i++) {
+        var k = kids[i];
+        if (isChrome(k) || isOutOfFlow(k)) continue;
+        var r = k.getBoundingClientRect();
+        var top = r.top - pageTop, bot = r.bottom - pageTop;
+        if (bot <= limit) continue;
+        if (top >= limit) return { node: k, parent: container };
+        if (k.children.length) {
+          var deeper = findSplit(k, limit, pageTop);
+          if (deeper) return deeper;
+        }
+        return { node: k, parent: container };   // straddling leaf: moves whole
+      }
+      return null;
+    }
+
+    // The first thing the reader actually sees on this sheet, in document order,
+    // ignoring chrome and layout wrappers. Used only by the blank-sheet guard.
+    function firstFlowLeaf(root) {
+      function walk(el) {
+        for (var i = 0; i < el.children.length; i++) {
+          var k = el.children[i];
+          if (isChrome(k) || isOutOfFlow(k)) continue;
+          if (k.children.length) { var deep = walk(k); if (deep) return deep; }
+          else if ((k.textContent || '').trim()) return k;
+        }
+        return null;
+      }
+      return walk(root);
+    }
+
+    // The layout wrappers between `.inner` and the split point, outermost first.
+    // These are the only elements ever recreated on a spill sheet, and they are
+    // recreated EMPTY (cloneNode(false)) — never with content in them.
+    function wrapperChain(inner, parent) {
+      var chain = [], p = parent;
+      while (p && p !== inner) { chain.unshift(p); p = p.parentNode; }
+      return chain;
+    }
+
+    // A heading is not allowed to be the last thing on a sheet. If what remains above
+    // the split is a section header (and its subtitle), it travels with its content.
+    function pullTrailingHeadings(fromParent, firstMoved, sink) {
+      var prev = firstMoved.previousElementSibling, run = [];
+      while (prev && isSecHead(prev)) { run.unshift(prev); prev = prev.previousElementSibling; }
+      // Never strip the page bare: if the headings are all that is left, leave them.
+      var remaining = 0, kids = fromParent.children;
+      for (var i = 0; i < kids.length; i++) {
+        var k = kids[i];
+        if (isChrome(k) || isOutOfFlow(k)) continue;
+        if (run.indexOf(k) >= 0) continue;
+        remaining++;
+      }
+      if (!remaining) return;
+      for (var j = 0; j < run.length; j++) sink.insertBefore(run[j], null);
+    }
+
+    var pages = [].slice.call(document.querySelectorAll('.page'));
+    var spilled = 0, refused = 0;
+
+    for (var p = 0; p < pages.length; p++) {
+      var page = pages[p];
+      if (page.hasAttribute('data-sigma-cover')) continue;   // the cover is its own layout
+      if (page.hasAttribute('data-spill')) continue;         // already a spill sheet
+
+      var guard = 0;
+      var source = page;
+
+      while (guard++ < MAX_SHEETS) {
+        var inner = source.querySelector(':scope > .inner');
+        if (!inner) break;
+
+        var pageRect = source.getBoundingClientRect();
+        var limit = bandTop(source, pageRect) - CLEAR_MM * MM;
+        if (!(limit > 0)) break;
+
+        var hit = findSplit(inner, limit, pageRect.top);
+        if (!hit) break;
+
+        // Refuse rather than manufacture blank paper: only when moving the split would
+        // leave the sheet with NO content at all does the spill become an endless ladder
+        // (the spill sheet overflows identically, forever). That is a single block taller
+        // than the page, which needs shortening, not paginating.
+        //
+        // The test is deliberately "is this the first content on the page", NOT "is this
+        // the first child of its wrapper" — the first attempt asked the second question
+        // and refused every real overrun, because a .disc-text IS the first child of its
+        // own .disc even when six blocks sit above it.
+        var firstLeaf = firstFlowLeaf(inner);
+        if (firstLeaf && (hit.node === firstLeaf || hit.node.contains(firstLeaf))) {
+          refused++;
+          log('[pg-spill] page ' + (p + 1) + ': a single block is taller than the page — ' +
+              'left in place, it needs shortening rather than paginating');
+          break;
+        }
+
+        // ── build the spill sheet: chrome CLONED, content MOVED ──────────────────
+        var sheet = source.cloneNode(false);
+        sheet.removeAttribute('id');                       // no duplicate TOC anchors
+        sheet.setAttribute('data-spill', '1');
+        var sInner = inner.cloneNode(false);
+        sheet.appendChild(sInner);
+
+        // page-level chrome that lives beside .inner (appraiser stamp, DRAFT watermark)
+        var sib = source.children;
+        for (var s = 0; s < sib.length; s++) {
+          if (sib[s] === inner) continue;
+          sheet.appendChild(sib[s].cloneNode(true));
+        }
+        // the running header, so a continuation sheet still says whose report it is
+        var hdr = inner.querySelector(':scope > .pg-hdr');
+        if (hdr) sInner.appendChild(hdr.cloneNode(true));
+
+        // recreate the wrapper nesting, empty, and move the tail into the deepest one
+        var chain = wrapperChain(inner, hit.parent);
+        var sinkParent = sInner, sink = sInner;
+        for (var w = 0; w < chain.length; w++) {
+          var clone = chain[w].cloneNode(false);
+          sinkParent.appendChild(clone);
+          sinkParent = clone;
+        }
+        sink = sinkParent;
+
+        pullTrailingHeadings(hit.parent, hit.node, sink);
+
+        var moving = hit.node, nextNode;
+        while (moving) {
+          nextNode = moving.nextElementSibling;
+          if (!isChrome(moving) && !isOutOfFlow(moving)) sink.appendChild(moving);
+          moving = nextNode;
+        }
+        // …and everything after each wrapper we descended through, at its own level
+        for (var a = chain.length - 1; a >= 0; a--) {
+          var lvlSink = sInner, d;
+          for (d = 0; d < a; d++) lvlSink = lvlSink.children[lvlSink.children.length - 1];
+          var after = chain[a].nextElementSibling;
+          while (after) {
+            var afterNext = after.nextElementSibling;
+            if (!isChrome(after) && !isOutOfFlow(after)) lvlSink.appendChild(after);
+            after = afterNext;
+          }
+        }
+
+        // the footer band and the page number: chrome, cloned, and the number keeps the
+        // SOURCE page's figure so nothing downstream shifts
+        var ftr = inner.querySelector(':scope > .pg-ftr-fixed');
+        if (ftr) sInner.appendChild(ftr.cloneNode(true));
+        var num = inner.querySelector(':scope > .pg-num');
+        if (num) {
+          var nClone = num.cloneNode(true);
+          var t = (nClone.textContent || '').trim();
+          if (t && t.indexOf('(cont.)') < 0) nClone.textContent = t + ' (cont.)';
+          sInner.appendChild(nClone);
+        }
+
+        source.parentNode.insertBefore(sheet, source.nextSibling);
+        spilled++;
+        source = sheet;          // the spill sheet may itself overflow; keep going
+      }
+    }
+
+    if (spilled || refused) {
+      log('[pg-spill] ' + spilled + ' continuation sheet(s) added' +
+          (refused ? ', ' + refused + ' oversized block(s) left in place' : ''));
+    }
+  } catch (e) {
+    try { console.warn('[pg-spill] failed, report left exactly as it was:', e); } catch (_) {}
+  }
+}
+try {
+  if (RC.rcPageSpill !== false) {
+    // The runtime is serialised rather than hand-written as a concatenated string: the
+    // report opens from a blob: URL, so it cannot reach anything in this document and
+    // the pass HAS to travel inside the HTML — but a 200-line algorithm spelled out in
+    // '+' concatenation is unreadable and unreviewable, which is how the last attempt at
+    // this hid its bug. Written normally and stringified, it is the same code the next
+    // person reads. Runs AFTER §SEC-DEDUP-INLINE and §SEC-DISABLE by construction: it is
+    // appended last, so the DOM it measures is the final one.
+    var _spillScript = '<scr' + 'ipt>(' + _pgSpillRuntime.toString() + ')('
+      + JSON.stringify({ clearMm: 2, fallbackMm: 12, maxSheets: 12 }) + ');</scr' + 'ipt>';
+    if (/<\/body>/i.test(html)) html = html.replace(/<\/body>(?![\s\S]*<\/body>)/i, _spillScript + '</body>');
+    else html = html + _spillScript;
+    try { console.log('[PG-SPILL] pagination pass embedded'); } catch (e) {}
+  }
+} catch (_spErr) { try { console.warn('[PG-SPILL] injection failed, report unchanged', _spErr); } catch (e) {} }
+
 // §NO-PREOPEN (v1.963) — store the finished HTML and let the caller open the
 //   window on a user click. This is what removes the annoying blank pop-up that
 //   appeared during generation: NO window is opened here at all.
