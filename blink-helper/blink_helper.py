@@ -98,7 +98,12 @@ async def handle_cameras(request: web.Request) -> web.Response:
         cams.sort(key=lambda c: c["name"].lower())
         return _cors(web.json_response({"cameras": cams, "count": len(cams)}))
     except Exception as e:
-        return _cors(web.json_response({"error": str(e)}, status=502))
+        # Return 200 with an {error} body, NOT a 5xx. A tunnel/CDN in front (the
+        # documented Cloudflare setup) replaces any 5xx from the origin with its own
+        # error page, stripping this CORS header — so the browser could not read the
+        # message. 200-with-error passes through intact; SIGMA treats the error field
+        # as a failure. See §CAM-BLINK camBlinkProbe.
+        return _cors(web.json_response({"error": str(e)}))
 
 
 async def handle_snapshot(request: web.Request) -> web.Response:
