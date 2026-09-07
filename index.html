@@ -9261,6 +9261,17 @@ body.glass:not([class*="theme-dark"]) .mad-seg{ background:rgba(14,12,10,.03); }
    `warn` is money or delivery stopping now; `note` is something to plan for. The
    left rail carries the severity so the text itself needs no shouting. */
 .mad-alerts{ display:flex; flex-direction:column; gap:6px; padding:0 17px 13px; }
+
+/* §ADS-CORR — pairs, not a table: these are seven unrelated facts, and a table
+   would imply rows that belong together. */
+.mad-corr{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+           gap:8px 14px; margin-bottom:4px; }
+.mad-cc{ display:flex; flex-direction:column; gap:1px; padding:7px 10px;
+         border:1px solid var(--apq-line); border-radius:8px; }
+.mad-cc .k{ font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+            color:var(--apq-dim); }
+.mad-cc .v{ font-family:var(--apq-mono); font-variant-numeric:tabular-nums;
+            font-size:14px; font-weight:700; color:var(--apq-mut); }
 .mad-alert{ display:flex; flex-direction:column; gap:2px; padding:8px 11px;
             border-radius:8px; border:1px solid var(--apq-line);
             border-left-width:3px; font-size:11.5px; line-height:1.5; }
@@ -36986,6 +36997,96 @@ var _MADB_DIMS = [
 //   working connection, and an unreadable countdown is stated as unreadable rather
 //   than shown as "fine".
 var _MADT = { info:null, at:0, loading:false };
+
+// ══ §ADS-CORR — what the bureau received while the money was being spent ════
+// This is CORRELATION and the panel says so in as many words. SIGMA records no
+// source on an enquiry — every one of them says "website" — so nothing here can
+// claim the ad caused anything. It reports two true things side by side and lets
+// the reader draw the line, which is the only honest thing to do until the ad's
+// link carries a tag the intake form can store.
+//
+// The window is Meta's own: the date_start/date_stop it returned for the spend,
+// not a range invented here. Comparing spend over one period against enquiries
+// over another would be worse than showing nothing.
+var _MADC = { data:null, err:null, loading:false, key:'' };
+
+function _madCorrWindow(d){
+  var from = null, to = null;
+  (d.campaigns || []).forEach(function(c){
+    if(!c.insights) return;
+    if(c.insights.date_start && (!from || c.insights.date_start < from)) from = c.insights.date_start;
+    if(c.insights.date_stop  && (!to   || c.insights.date_stop  > to  )) to   = c.insights.date_stop;
+  });
+  return (from && to) ? { from:from, to:to } : null;
+}
+
+function mAdCorrLoad(d){
+  var w = _madCorrWindow(d);
+  if(!w){ _MADC.data = null; _MADC.err = null; _MADC.key = ''; return; }
+  var key = w.from + '..' + w.to;
+  if(_MADC.key === key && (_MADC.data || _MADC.err)) return;
+  if(_MADC.loading) return;
+  if(typeof _sb === 'undefined' || !_sb){
+    _MADC.err = { title:'Not connected to the SIGMA database yet.' };
+    return;
+  }
+  _MADC.loading = true; _MADC.key = key; _MADC.err = null;
+
+  // The day AFTER date_stop, so the last day of the window is included whole.
+  var toEx = new Date(Date.parse(w.to + 'T00:00:00Z') + 86400000).toISOString().slice(0,10);
+
+  _sb.schema('public').from('inquiries')
+    .select('id,created_at,status,order_id')
+    .gte('created_at', w.from).lt('created_at', toEx)
+    .then(function(r){
+      if(r.error) throw r.error;
+      var inq = r.data || [];
+      var won = inq.filter(function(x){ return !!x.order_id; });
+      var ids = won.map(function(x){ return x.order_id; });
+      if(!ids.length){
+        _MADC.loading = false;
+        _MADC.data = { window:w, enquiries:inq.length, converted:0, invoices:0,
+                       invoiced:0, paid:0, currency:null, voided:0, drafts:0 };
+        try{ mAdRender(); }catch(e){}
+        return;
+      }
+      return _sb.schema('public').from('invoices')
+        .select('order_number,status,currency,total,amount_paid')
+        .in('order_number', ids)
+        .then(function(r2){
+          if(r2.error) throw r2.error;
+          var invs = r2.data || [];
+          // A VOID invoice is not revenue and a DRAFT has not been issued. Both are
+          //   counted separately and named, never folded into the total — that is
+          //   how an ad ends up credited with money nobody was ever billed for.
+          var live = invs.filter(function(v){ return v.status !== 'void' && v.status !== 'draft'; });
+          var cur = null;
+          live.forEach(function(v){ if(v.currency && !cur) cur = v.currency; });
+          var mixed = live.some(function(v){ return v.currency && cur && v.currency !== cur; });
+          _MADC.loading = false;
+          _MADC.data = {
+            window: w,
+            enquiries: inq.length,
+            converted: won.length,
+            invoices: live.length,
+            invoiced: live.reduce(function(a,v){ return a + (Number(v.total) || 0); }, 0),
+            paid:     live.reduce(function(a,v){ return a + (Number(v.amount_paid) || 0); }, 0),
+            currency: mixed ? null : cur,
+            mixed_currency: mixed,
+            voided: invs.filter(function(v){ return v.status === 'void'; }).length,
+            drafts: invs.filter(function(v){ return v.status === 'draft'; }).length
+          };
+          try{ mAdRender(); }catch(e){}
+        });
+    })
+    .catch(function(e){
+      _MADC.loading = false;
+      _MADC.data = null;
+      _MADC.err = { title:'Could not read SIGMA\u2019s own enquiry and invoice figures.',
+                    detail:String((e && e.message) || e).slice(0,180) };
+      try{ mAdRender(); }catch(e2){}
+    });
+}
 function mAdTokenLoad(force){
   var cfg = mAdCfg(); if(!cfg.proxy) return;
   if(!force && _MADT.info && (Date.now() - _MADT.at) < 3600000) return;   // once an hour is plenty
@@ -37060,6 +37161,58 @@ function _madDimLabel(r){
 // Severity is two levels on purpose. "warn" is money or delivery stopping now;
 // "note" is something to plan for. A single visual weight for both trains people
 // to ignore the strip.
+// The section itself. Numbers on the left are Meta's, on the right are SIGMA's,
+// and the sentence between them refuses to join the two into a claim.
+function _madCorrSection(d){
+  if(_MADC.loading) return '<div class="mad-sec"><div class="mad-sec-h">In the same period</div><p class="q">Reading SIGMA\u2019s figures\u2026</p></div>';
+  if(_MADC.err) return '<div class="mad-sec"><div class="mad-sec-h">In the same period</div><p class="q mad-warn">'
+    + _madEsc(_MADC.err.title) + (_MADC.err.detail ? ' \u2014 ' + _madEsc(_MADC.err.detail) : '') + '</p></div>';
+  var c = _MADC.data; if(!c) return '';
+
+  var spend = 0, spent = false;
+  (d.campaigns || []).forEach(function(x){
+    if(x.insights && typeof x.insights.spend === 'number'){ spend += x.insights.spend; spent = true; }
+  });
+
+  var cur = c.currency;
+  var perEnq = (spent && c.enquiries > 0) ? (spend / c.enquiries) : null;
+  var perWon = (spent && c.converted > 0) ? (spend / c.converted) : null;
+
+  return '<div class="mad-sec"><div class="mad-sec-h">In the same period</div>'
+    + '<div class="mad-corr">'
+    +   '<div class="mad-cc"><span class="k">Ad spend</span><span class="v">'
+    +     (spent ? mAdMoney(spend, d.currency) : '<span class="mad-na">\u2014</span>') + '</span></div>'
+    +   '<div class="mad-cc"><span class="k">Enquiries received</span><span class="v">' + mAdN(c.enquiries) + '</span></div>'
+    +   '<div class="mad-cc"><span class="k">Became job orders</span><span class="v">' + mAdN(c.converted) + '</span></div>'
+    +   '<div class="mad-cc"><span class="k">Invoiced</span><span class="v">'
+    +     (c.invoices ? (cur ? mAdMoney(c.invoiced, cur) : mAdN(c.invoiced) + ' <span class="mad-na">(mixed currencies)</span>') : '<span class="mad-na">\u2014</span>')
+    +     '</span></div>'
+    +   '<div class="mad-cc"><span class="k">Paid so far</span><span class="v">'
+    +     (c.invoices ? (cur ? mAdMoney(c.paid, cur) : mAdN(c.paid)) : '<span class="mad-na">\u2014</span>') + '</span></div>'
+    +   '<div class="mad-cc"><span class="k">Spend per enquiry</span><span class="v">'
+    +     (perEnq !== null ? mAdMoney(perEnq, d.currency) : '<span class="mad-na">\u2014</span>') + '</span></div>'
+    +   '<div class="mad-cc"><span class="k">Spend per job order</span><span class="v">'
+    +     (perWon !== null ? mAdMoney(perWon, d.currency) : '<span class="mad-na">\u2014</span>') + '</span></div>'
+    + '</div>'
+    + '<p class="q"><b>These figures are side by side, not linked.</b> SIGMA records no source '
+    + 'on an enquiry, so none of the ' + mAdN(c.enquiries) + ' above can be shown to have come from '
+    + 'this advertising \u2014 the bureau receives enquiries regardless. Tag the ad\u2019s link and store '
+    + 'the tag on the enquiry to turn this into a real count.</p>'
+    + ((c.voided || c.drafts)
+        ? '<p class="q">Excluded from the money: '
+          + (c.voided ? c.voided + ' void invoice' + (c.voided === 1 ? '' : 's') : '')
+          + (c.voided && c.drafts ? ' and ' : '')
+          + (c.drafts ? c.drafts + ' draft' + (c.drafts === 1 ? '' : 's') + ' not yet issued' : '')
+          + '.</p>'
+        : '')
+    + ((spent && cur && d.currency && cur !== d.currency)
+        ? '<p class="q">Spend is in ' + _madEsc(d.currency) + ' and the invoices are in ' + _madEsc(cur)
+          + '. Nothing here is converted \u2014 a rate applied quietly is a wrong number in somebody\u2019s books.</p>'
+        : '')
+    + '<p class="q">Window: ' + _madEsc(c.window.from) + ' to ' + _madEsc(c.window.to) + ', as reported by Meta for the spend above.</p>'
+    + '</div>';
+}
+
 function _madAlerts(d){
   var out = [];
   var acct = d.account || {};
@@ -37145,6 +37298,7 @@ function mAdRender(){
   if(_MAD.data && !_MAD.demo){
     try{ mAdBreakLoad(false); }catch(e){}
     try{ mAdTokenLoad(false); }catch(e){}
+    try{ mAdCorrLoad(_MAD.data); }catch(e){}
   }
 
   if(!host._madBound){
@@ -37368,7 +37522,7 @@ function _madLiveCard(d){
   }
 
   // §ADS-DETAIL / §ADS-BREAKDOWN — the deeper reads, below the campaign blocks.
-  if(camps.length) h += _madDeepSections(d, camps, cur);
+  if(camps.length) h += _madCorrSection(d) + _madDeepSections(d, camps, cur);
 
   h += _madRangeBar('<span class="apq-grow"></span><span class="mad-stamp">'
       + (delivered ? delivered + ' delivering' : 'none delivering') + '</span>')
