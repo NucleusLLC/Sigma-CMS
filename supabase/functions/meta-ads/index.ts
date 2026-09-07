@@ -463,12 +463,13 @@ Deno.serve(async (req: Request) => {
 
   const action = String(payload?.action ?? "").trim() || "diagnose";
   if (action !== "diagnose" && action !== "overview" && action !== "adsets"
-      && action !== "breakdowns" && action !== "billing") {
+      && action !== "breakdowns" && action !== "billing" && action !== "ads"
+      && action !== "token") {
     return failRes({
       step: "bad_request", http: 400,
       title: "Unknown action.",
       detail: "Received: " + String(action).slice(0, 40),
-      remedy: "This function serves only: diagnose, overview, adsets, breakdowns, billing. It is read-only by design — see §ADS-NO-WRITE.",
+      remedy: "This function serves only: diagnose, overview, adsets, breakdowns, billing, ads, token. It is read-only by design — see §ADS-NO-WRITE.",
     }, ch);
   }
 
@@ -640,6 +641,141 @@ Deno.serve(async (req: Request) => {
     if (r.diag) { note(false, r.diag.step, 2); return failRes(r.diag, ch, { guard }); }
     note(true, "ok", 2);
     return jsonRes({ ok: true, guard, account: acct, adsets: (r.data?.data as unknown[]) ?? [] }, 200, ch);
+  }
+
+  // ── action: token ───────────────────────────────────────
+  // §ADS-EXPIRY — how long the credential has left. A dashboard that only finds out
+  //   the token died by failing has already failed the person reading it: the panel
+  //   went blank on a Tuesday for a reason nobody could see coming. This asks Meta.
+  //
+  //   It returns ONLY the expiry, the scopes and validity. The token itself never
+  //   leaves this function — same rule as everywhere else in this file. debug_token
+  //   is inspected with the token as its own inspector, which Meta permits for an
+  //   admin of the owning app; when it refuses, that refusal is reported plainly
+  //   rather than dressed up as "unknown".
+  if (action === "token") {
+    const dRes = await graphGet("debug_token", { input_token: token, access_token: token }, token);
+    if (dRes.diag) {
+      note(true, "ok", 2);
+      return jsonRes({
+        ok: true, guard, account: acct,
+        readable: false,
+        reason: dRes.diag.title + (dRes.diag.detail ? " — " + dRes.diag.detail : ""),
+        note: "Meta would not report this token's expiry. The connection still works; "
+          + "only the countdown is unavailable.",
+        fetched_at: new Date().toISOString(),
+      }, 200, ch);
+    }
+    const dd = ((dRes.data?.data ?? {}) as Record<string, unknown>);
+    const expiresAt = num(dd.expires_at);           // unix seconds; 0 = never
+    const dataExpires = num(dd.data_access_expires_at);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const daysLeft = (expiresAt && expiresAt > 0) ? Math.floor((expiresAt - nowSec) / 86400) : null;
+    note(true, "ok", 2);
+    return jsonRes({
+      ok: true, guard, account: acct,
+      readable: true,
+      valid: dd.is_valid === true,
+      type: str(dd.type),
+      app_id: str(dd.app_id),
+      // 0 from Meta means "does not expire" — a System User token. Named, not
+      //   silently turned into a null that reads as "unknown".
+      never_expires: expiresAt === 0,
+      expires_at: expiresAt && expiresAt > 0 ? new Date(expiresAt * 1000).toISOString() : null,
+      days_left: daysLeft,
+      data_access_expires_at: dataExpires && dataExpires > 0 ? new Date(dataExpires * 1000).toISOString() : null,
+      scopes: Array.isArray(dd.scopes) ? dd.scopes : null,
+      fetched_at: new Date().toISOString(),
+    }, 200, ch);
+  }
+
+  // ── action: ads ────────────────────────────────────────
+  // §ADS-CREATIVE — which individual ad, and which picture or video, earned the
+  //   numbers. The campaign totals say Stories is cheap; only this says WHICH ad ran
+  //   there. Two reads: the ads with their creative reference, then insights at ad
+  //   level, joined here so the caller gets one list rather than two to reconcile.
+  if (action === "ads") {
+    const cid3 = str(payload?.campaignId);
+    const target3 = (cid3 && /^\d{5,25}$/.test(cid3)) ? cid3 : account;
+    const aPresetKey = String(payload?.preset ?? "last_30d");
+    const aPreset = PRESETS[aPresetKey];
+    if (!aPreset) {
+      return failRes({
+        step: "bad_request", http: 400,
+        title: "Unknown date range.",
+        detail: "Received: " + aPresetKey.slice(0, 30),
+        remedy: "Allowed: today, last_7d, last_30d, maximum.",
+      }, ch, { guard });
+    }
+    const adRes = await graphGet(target3 + "/ads", {
+      fields: "id,name,status,effective_status,adset_id,campaign_id,created_time,"
+        + "creative{id,name,title,body,thumbnail_url,object_type}",
+      limit: "100",
+    }, token);
+    if (adRes.diag) { note(false, adRes.diag.step, 2); return failRes(adRes.diag, ch, { guard, account: acct }); }
+    const rawAds = (adRes.data?.data as Array<Record<string, unknown>>) ?? [];
+
+    // Insights at ad level. FAILS SOFT: the ad list is useful on its own, and an
+    //   account that delivered nothing in the window must still show its ads rather
+    //   than an error where a list belongs.
+    const byAd = new Map<string, Record<string, unknown>>();
+    const aInsRes = await graphGet(target3 + "/insights", {
+      level: "ad",
+      date_preset: aPreset,
+      fields: "ad_id,impressions,reach,clicks,ctr,cpc,cpm,spend,actions",
+      limit: "300",
+    }, token);
+    if (!aInsRes.diag) {
+      for (const row of ((aInsRes.data?.data as Array<Record<string, unknown>>) ?? [])) {
+        const k = str(row.ad_id);
+        if (k) byAd.set(k, row);
+      }
+    }
+
+    const ads = rawAds.map((a) => {
+      const id = str(a.id);
+      const ins = id ? byAd.get(id) : undefined;
+      const cr = (a.creative ?? null) as Record<string, unknown> | null;
+      return {
+        id,
+        name: str(a.name),
+        status: str(a.status),
+        effective_status: str(a.effective_status),
+        adset_id: str(a.adset_id),
+        campaign_id: str(a.campaign_id),
+        created_time: str(a.created_time),
+        creative: cr
+          ? {
+            id: str(cr.id),
+            name: str(cr.name),
+            title: str(cr.title),
+            body: str(cr.body),
+            object_type: str(cr.object_type),
+            thumbnail_url: str(cr.thumbnail_url),
+          }
+          : null,
+        insights: ins
+          ? {
+            impressions: num(ins.impressions),
+            reach: num(ins.reach),
+            clicks: num(ins.clicks),
+            ctr: num(ins.ctr),
+            cpc: num(ins.cpc),
+            cpm: num(ins.cpm),
+            spend: num(ins.spend),
+            actions: actionMap(ins.actions),
+          }
+          : null,
+      };
+    });
+
+    note(true, "ok", 3);
+    return jsonRes({
+      ok: true, guard, account: acct, currency: acct.currency,
+      preset: aPresetKey, ads, ad_count: ads.length,
+      insight_rows: byAd.size,
+      fetched_at: new Date().toISOString(),
+    }, 200, ch);
   }
 
   // ── action: breakdowns ──────────────────────────────
