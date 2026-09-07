@@ -111,6 +111,17 @@ Deno.serve(async (req: Request) => {
     notes: s(body.notes),
     subject: s(body.subject),
     message: s(body.message),
+    // §ADS-ATTRIB — where the visit came from, when the landing URL carried it.
+    //   Absent for a direct visit and for anything that arrives by Instagram DM,
+    //   which cannot carry a tag at all. Absent stays NULL: the Online AD
+    //   Management panel counts an untagged enquiry as "origin not recorded"
+    //   rather than assigning it to whatever campaign happened to be running.
+    utm_source:   s(body.utm_source),
+    utm_medium:   s(body.utm_medium),
+    utm_campaign: s(body.utm_campaign),
+    utm_content:  s(body.utm_content),
+    referrer:     s(body.referrer),
+    landing_url:  s(body.landing_url),
     raw: body,
   };
 
