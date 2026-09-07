@@ -9251,6 +9251,48 @@ body.glass:not([class*="theme-dark"]) .mad-seg{ background:rgba(14,12,10,.03); }
 .mad-btn.is-key{ border-color:var(--apq-accent); color:var(--apq-accent-lt); }
 .mad-stamp{ font-family:var(--apq-mono); font-size:11px; color:var(--apq-dim); }
 
+/* ── §ADS-DETAIL / §ADS-BREAKDOWN — the deeper reads ────────────────────
+   Same tokens as the rest of the panel, so these sections inherit every theme and
+   the glass card without a second palette to keep in step. Numbers are tabular and
+   right-aligned: these columns are read by comparing them down, not across. */
+.mad-sec{ border-top:1px solid var(--apq-line); padding:13px 17px 15px; }
+.mad-sec-h{ font-family:var(--apq-font,inherit); font-size:9.5px; font-weight:800;
+            letter-spacing:.14em; text-transform:uppercase; color:var(--apq-dim);
+            margin-bottom:9px; }
+.mad-tbl{ width:100%; border-collapse:collapse; font-size:12px; }
+.mad-tbl th{ text-align:left; font-size:9px; font-weight:700; letter-spacing:.1em;
+             text-transform:uppercase; color:var(--apq-dim); padding:0 0 5px;
+             border-bottom:1px solid var(--apq-line); }
+.mad-tbl td{ padding:5px 0; border-bottom:1px solid var(--apq-line); color:var(--apq-mut); }
+.mad-tbl tr:last-child td{ border-bottom:none; }
+.mad-tbl th.n, .mad-tbl td.n{ text-align:right; font-family:var(--apq-mono);
+                              font-variant-numeric:tabular-nums; white-space:nowrap;
+                              padding-left:14px; }
+.mad-na{ color:var(--apq-dim); }
+.mad-warn{ color:#c8922a; }
+
+/* dimension switch — one row is live at a time, and the live one is obvious */
+.mad-dims{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.mad-dim{ font-family:inherit; font-size:10.5px; font-weight:700; letter-spacing:.04em;
+          padding:4px 10px; border-radius:6px; cursor:pointer;
+          border:1px solid var(--apq-line); background:transparent; color:var(--apq-dim);
+          transition:background .14s ease, color .14s ease, border-color .14s ease; }
+.mad-dim:hover{ color:var(--apq-mut); border-color:var(--apq-accent-lt); }
+.mad-dim.on{ background:var(--apq-accent-lt); border-color:var(--apq-accent-lt); color:#0e0c0a; }
+
+/* video funnel — bars are proportional to the FIRST step, so the drop-off is the
+   thing the eye reads. The count sits beside each bar; the bar is never the only
+   statement of the number. */
+.mad-funnel{ display:flex; flex-direction:column; gap:5px; }
+.mad-fn-row{ display:flex; align-items:center; gap:9px; font-size:11.5px; }
+.mad-fn-lbl{ flex:0 0 62px; color:var(--apq-dim); }
+.mad-fn-bar{ flex:1 1 auto; height:9px; border-radius:5px; background:var(--apq-line);
+             overflow:hidden; min-width:40px; }
+.mad-fn-bar i{ display:block; height:100%; border-radius:5px;
+               background:linear-gradient(90deg,var(--apq-accent-lt),var(--apq-accent,#c8922a)); }
+.mad-fn-val{ flex:0 0 auto; min-width:56px; text-align:right; font-family:var(--apq-mono);
+             font-variant-numeric:tabular-nums; color:var(--apq-mut); }
+
 /* ── the account line ───────────────────────────────────────────────────── */
 .mad-acct{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
            padding:0 17px 12px; margin-top:-3px; font-size:11.5px; color:var(--apq-dim); }
@@ -36818,7 +36860,11 @@ function mAdLoad(force){
   if(_MAD.loading) return;
 
   _MAD.loading = true; mAdRender();
-  var body = { action:'overview', preset:_MAD.preset, daily:_MAD.daily };
+  // §ADS-DETAIL — the wider field list (click quality, the engagement actions behind
+  //   "Results", cost per action, video completion). The function fetches it in a
+  //   separate Graph call that fails soft, so asking for it can add figures but can
+  //   never cost us the headline ones.
+  var body = { action:'overview', preset:_MAD.preset, daily:_MAD.daily, detail:true };
   if(cfg.acct) body.accountId = cfg.acct;
 
   fetch(cfg.proxy, {
@@ -36908,6 +36954,66 @@ var _MAD_SAMPLE = {
 // ══ RENDER ════════════════════════════════════════════════════════════════════
 // One switchboard, six states. Each state is a whole card; none of them share a
 // half-painted skeleton, because a skeleton reads as "numbers are coming".
+// ══ §ADS-BREAKDOWN — who saw the ad, and where ═════════════════════════
+// A SECOND, independent request. It is deliberately not folded into the overview:
+//   Meta will not return two breakdowns in one call, the panel is useful without it,
+//   and a refused breakdown must never blank the delivery figures above it. Its own
+//   state, its own error, its own empty case.
+var _MADB = { dim:'placement', rows:null, err:null, loading:false, at:0, preset:null };
+var _MADB_DIMS = [
+  ['placement','Placement'],
+  ['age_gender','Age &amp; gender'],
+  ['country','Country'],
+  ['device','Device']
+];
+function mAdBreakLoad(force){
+  var cfg = mAdCfg(); if(!cfg.proxy) return;
+  // A range change invalidates it as surely as a dimension change does: rows read
+  //   over 30 days must never sit under a header that says 7.
+  if(!force && _MADB.rows && _MADB.preset === _MAD.preset && (Date.now() - _MADB.at) < _MAD_TTL) return;
+  if(_MADB.loading) return;
+  _MADB.loading = true; _MADB.err = null;
+  var body = { action:'breakdowns', dimension:_MADB.dim, preset:_MAD.preset };
+  if(cfg.acct) body.accountId = cfg.acct;
+  fetch(cfg.proxy, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + _madKey(), 'apikey': _madKey() },
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json().catch(function(){ return { ok:false, title:'The breakdown request did not return JSON.', detail:'HTTP ' + r.status }; }); })
+  .then(function(j){
+    _MADB.loading = false;
+    if(j && j.ok){ _MADB.rows = j.rows || []; _MADB.err = null; _MADB.at = Date.now(); _MADB.preset = _MAD.preset; }
+    else { _MADB.rows = null; _MADB.err = j || { title:'The breakdown request failed.' }; }
+    try{ mAdRender(); }catch(e){}
+  })
+  .catch(function(e){
+    _MADB.loading = false; _MADB.rows = null;
+    _MADB.err = { title:'SIGMA could not reach the endpoint for the breakdown.', detail:String(e && e.message ? e.message : e).slice(0,200) };
+    try{ mAdRender(); }catch(e2){}
+  });
+}
+function mAdSetDim(d){
+  if(!d || d === _MADB.dim) return;
+  _MADB.dim = d; _MADB.rows = null; _MADB.at = 0; _MADB.err = null;
+  mAdRender(); mAdBreakLoad(true);
+}
+
+// The label for one breakdown row — the dimension decides which fields carry it.
+function _madDimLabel(r){
+  var bits = [];
+  if(r.publisher_platform || r.platform_position){
+    bits.push(String(r.platform_position || r.publisher_platform || '')
+      .replace(/^instagram_/,'').replace(/_/g,' '));
+  }
+  if(r.age)    bits.push(r.age);
+  if(r.gender) bits.push(r.gender);
+  if(r.country) bits.push(r.country);
+  if(r.region)  bits.push(r.region);
+  if(r.impression_device) bits.push(String(r.impression_device).replace(/_/g,' '));
+  return bits.length ? bits.join(' · ') : '—';
+}
+
 function mAdRender(){
   var host = document.getElementById('mAdBox'); if(!host) return;
   var cfg = mAdCfg();
@@ -36922,6 +37028,9 @@ function mAdRender(){
 
   host.innerHTML = '<div class="mad-stack">' + h + '</div>';
   mAdAssertHonest();
+  // The breakdown is fetched only once there IS a live connection to break down.
+  //   Never for the sample card: a sample must not trigger a real Graph call.
+  if(_MAD.data && !_MAD.demo){ try{ mAdBreakLoad(false); }catch(e){} }
 
   if(!host._madBound){
     host._madBound = true;
@@ -36929,7 +37038,8 @@ function mAdRender(){
       var t = ev.target; if(!t || !t.closest) return;
       var a = t.closest('[data-mad-act]'); if(!a) return;
       var act = a.getAttribute('data-mad-act');
-      if(act === 'refresh')  { mAdRefresh(); return; }
+      if(act === 'refresh')  { mAdRefresh(); try{ mAdBreakLoad(true); }catch(e){} return; }
+      if(act === 'dim')      { mAdSetDim(a.getAttribute('data-mad-d')); return; }
       if(act === 'preset')   { mAdSetPreset(a.getAttribute('data-mad-p')); return; }
       if(act === 'demo-on')  { mAdSetDemo(true);  return; }
       if(act === 'demo-off') { mAdSetDemo(false); return; }
@@ -37139,11 +37249,107 @@ function _madLiveCard(d){
     h += camps.map(function(c){ return _madCampaign(c, cur, false); }).join('');
   }
 
+  // §ADS-DETAIL / §ADS-BREAKDOWN — the deeper reads, below the campaign blocks.
+  if(camps.length) h += _madDeepSections(d, camps, cur);
+
   h += _madRangeBar('<span class="apq-grow"></span><span class="mad-stamp">'
       + (delivered ? delivered + ' delivering' : 'none delivering') + '</span>')
     + _madCreateBar()
     + '</div>';
   return h;
+}
+
+// ══ the deeper reads ═════════════════════════════════════════
+// Three blocks, each rendered ONLY from figures Meta actually returned. Every one of
+// them can be absent, and absence is stated rather than drawn as a zero — the same
+// §AD-HONESTY rule the headline numbers follow.
+function _madDeepSections(d, camps, cur){
+  var out = '';
+  var lead = camps.filter(function(c){ return c.detail; })[0] || null;
+
+  // ── engagement, broken out of the single "Results" figure ──────────────
+  // "2,260 engagements" is a sum of very different things. This says which.
+  if(lead && lead.detail && lead.detail.actions){
+    var A = lead.detail.actions, C = lead.detail.cost_per_action_type || {};
+    var WANT = [
+      ['link_click','Link clicks'],
+      ['post_reaction','Reactions'],
+      ['comment','Comments'],
+      ['post','Shares'],
+      ['onsite_conversion.post_save','Saves'],
+      ['onsite_conversion.messaging_conversation_started_7d','Messaging conversations'],
+      ['video_view','Video views']
+    ];
+    var rows = WANT.filter(function(w){ return typeof A[w[0]] === 'number'; });
+    if(rows.length){
+      out += '<div class="mad-sec"><div class="mad-sec-h">Engagement — what the results actually were</div>'
+        + '<table class="mad-tbl"><thead><tr><th>Action</th><th class="n">Count</th><th class="n">Cost each</th></tr></thead><tbody>'
+        + rows.map(function(w){
+            var cost = (typeof C[w[0]] === 'number') ? mAdMoney(C[w[0]], cur) : '<span class="mad-na">—</span>';
+            return '<tr><td>' + _madEsc(w[1]) + '</td><td class="n">' + mAdN(A[w[0]]) + '</td><td class="n">' + cost + '</td></tr>';
+          }).join('')
+        + '</tbody></table>'
+        + '<p class="q">Click quality: ' + mAdN(lead.detail.unique_clicks) + ' unique clickers'
+        + (typeof lead.detail.cost_per_unique_click === 'number' ? ' at ' + mAdMoney(lead.detail.cost_per_unique_click, cur) + ' each' : '')
+        + '.</p></div>';
+    }
+  }
+
+  // ── video completion ─────────────────────────────────────
+  // Drawn only when there IS a video. A still-image ad has no funnel and gets none.
+  if(lead && lead.detail && lead.detail.video_watched){
+    var V = lead.detail.video_watched;
+    function vv(o){ return (o && typeof o.video_view === 'number') ? o.video_view : null; }
+    var started = (lead.detail.actions && typeof lead.detail.actions.video_view === 'number') ? lead.detail.actions.video_view : null;
+    var steps = [['Started', started], ['25%', vv(V.p25)], ['50%', vv(V.p50)], ['75%', vv(V.p75)], ['Finished', vv(V.p100)]]
+                .filter(function(x){ return typeof x[1] === 'number'; });
+    if(steps.length > 1){
+      var top = steps[0][1] || 1;
+      out += '<div class="mad-sec"><div class="mad-sec-h">Video — how far people watched</div><div class="mad-funnel">'
+        + steps.map(function(x){
+            var pct = Math.max(2, Math.round((x[1] / top) * 100));
+            return '<div class="mad-fn-row"><span class="mad-fn-lbl">' + _madEsc(x[0]) + '</span>'
+              + '<span class="mad-fn-bar"><i style="width:' + pct + '%"></i></span>'
+              + '<span class="mad-fn-val">' + mAdN(x[1]) + '</span></div>';
+          }).join('')
+        + '</div></div>';
+    }
+  }
+
+  // ── breakdown ──────────────────────────────────────────
+  out += '<div class="mad-sec"><div class="mad-sec-h">Where it ran, and who saw it</div>'
+    + '<div class="mad-dims">'
+    + _MADB_DIMS.map(function(x){
+        return '<button class="mad-dim' + (x[0] === _MADB.dim ? ' on' : '') + '" data-mad-act="dim" data-mad-d="' + x[0] + '">' + x[1] + '</button>';
+      }).join('')
+    + '</div>';
+  if(_MADB.loading){
+    out += '<p class="q">Reading from Meta…</p>';
+  }else if(_MADB.err){
+    out += '<p class="q mad-warn">' + _madEsc(_MADB.err.title || 'The breakdown could not be read.')
+        + (_MADB.err.detail ? ' — ' + _madEsc(_MADB.err.detail) : '')
+        + ' No split is shown rather than a guessed one.</p>';
+  }else if(_MADB.rows && _MADB.rows.length){
+    var rs = _MADB.rows.slice().sort(function(a,b){ return (b.impressions||0) - (a.impressions||0); }).slice(0,12);
+    out += '<table class="mad-tbl"><thead><tr><th>' + _madEsc((_MADB_DIMS.filter(function(x){return x[0]===_MADB.dim;})[0]||['','Split'])[1].replace('&amp;','&'))
+      + '</th><th class="n">Impressions</th><th class="n">Clicks</th><th class="n">Spend</th><th class="n">Cost / click</th></tr></thead><tbody>'
+      + rs.map(function(r){
+          var cpc = (typeof r.spend === 'number' && typeof r.clicks === 'number' && r.clicks > 0)
+                    ? mAdMoney(r.spend / r.clicks, cur) : '<span class="mad-na">—</span>';
+          return '<tr><td>' + _madEsc(_madDimLabel(r)) + '</td>'
+            + '<td class="n">' + mAdN(r.impressions) + '</td>'
+            + '<td class="n">' + mAdN(r.clicks) + '</td>'
+            + '<td class="n">' + mAdMoney(r.spend, cur) + '</td>'
+            + '<td class="n">' + cpc + '</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+  }else if(_MADB.rows){
+    out += '<p class="q">Meta returned no rows for this split in this date range.</p>';
+  }else{
+    out += '<p class="q">Not read yet.</p>';
+  }
+  out += '</div>';
+  return out;
 }
 
 // ── one campaign block. Used by BOTH the live and the sample card, so the sample

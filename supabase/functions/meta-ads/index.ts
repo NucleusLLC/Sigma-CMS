@@ -319,6 +319,23 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// §ADS-ACTIONMAP — Meta returns engagement as an array of {action_type, value}
+//   objects, which is unusable in a table. Flatten it to a named map, dropping
+//   anything that is not a real number. A missing action_type is ABSENT from the
+//   map rather than zero: the same §ADS-NO-FABRICATION rule the rest of this file
+//   follows — "Meta did not report it" and "it happened zero times" are different
+//   facts and the panel prints them differently.
+function actionMap(actions: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!Array.isArray(actions)) return out;
+  for (const a of actions as Array<Record<string, unknown>>) {
+    const t = str(a.action_type);
+    const v = num(a.value);
+    if (t && v !== null) out[t] = v;
+  }
+  return out;
+}
+
 function str(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
@@ -445,12 +462,13 @@ Deno.serve(async (req: Request) => {
   }
 
   const action = String(payload?.action ?? "").trim() || "diagnose";
-  if (action !== "diagnose" && action !== "overview" && action !== "adsets") {
+  if (action !== "diagnose" && action !== "overview" && action !== "adsets"
+      && action !== "breakdowns" && action !== "billing") {
     return failRes({
       step: "bad_request", http: 400,
       title: "Unknown action.",
       detail: "Received: " + String(action).slice(0, 40),
-      remedy: "This function serves only: diagnose, overview, adsets. It is read-only by design — see §ADS-NO-WRITE.",
+      remedy: "This function serves only: diagnose, overview, adsets, breakdowns, billing. It is read-only by design — see §ADS-NO-WRITE.",
     }, ch);
   }
 
@@ -624,6 +642,167 @@ Deno.serve(async (req: Request) => {
     return jsonRes({ ok: true, guard, account: acct, adsets: (r.data?.data as unknown[]) ?? [] }, 200, ch);
   }
 
+  // ── action: breakdowns ──────────────────────────────
+  // §ADS-BREAKDOWN — the same delivery numbers, split by WHO saw the ad and WHERE.
+  //   Meta will not combine arbitrary breakdowns, so the dimension is chosen from a
+  //   fixed set rather than passed through: an invalid pair is rejected by Graph with
+  //   an opaque error, and a typo must not read as "this campaign reached nobody".
+  if (action === "breakdowns") {
+    const DIMENSIONS: Record<string, string> = {
+      age_gender: "age,gender",
+      age: "age",
+      gender: "gender",
+      country: "country",
+      region: "region",
+      placement: "publisher_platform,platform_position",
+      platform: "publisher_platform",
+      device: "impression_device",
+    };
+    const dimKey = String(payload?.dimension ?? "age_gender");
+    const breakdowns = DIMENSIONS[dimKey];
+    if (!breakdowns) {
+      return failRes({
+        step: "bad_request", http: 400,
+        title: "Unknown breakdown.",
+        detail: "Received: " + dimKey.slice(0, 40),
+        remedy: "Allowed: " + Object.keys(DIMENSIONS).join(", ") + ".",
+      }, ch, { guard });
+    }
+    const bPresetKey = String(payload?.preset ?? "last_30d");
+    const bPreset = PRESETS[bPresetKey];
+    if (!bPreset) {
+      return failRes({
+        step: "bad_request", http: 400,
+        title: "Unknown date range.",
+        detail: "Received: " + bPresetKey.slice(0, 30),
+        remedy: "Allowed: today, last_7d, last_30d, maximum.",
+      }, ch, { guard });
+    }
+    const bp: Record<string, string> = {
+      level: "campaign",
+      date_preset: bPreset,
+      breakdowns,
+      fields: "campaign_id,campaign_name,impressions,reach,clicks,ctr,cpm,spend,actions",
+      limit: "500",
+    };
+    const cid2 = str(payload?.campaignId);
+    const target = (cid2 && /^\d{5,25}$/.test(cid2)) ? cid2 : account;
+    const r = await graphGet(target + "/insights", bp, token);
+    if (r.diag) { note(false, r.diag.step, 2); return failRes(r.diag, ch, { guard, account: acct }); }
+    const rows = ((r.data?.data as Array<Record<string, unknown>>) ?? []).map((row) => ({
+      campaign_id: str(row.campaign_id),
+      campaign_name: str(row.campaign_name),
+      age: str(row.age),
+      gender: str(row.gender),
+      country: str(row.country),
+      region: str(row.region),
+      publisher_platform: str(row.publisher_platform),
+      platform_position: str(row.platform_position),
+      impression_device: str(row.impression_device),
+      impressions: num(row.impressions),
+      reach: num(row.reach),
+      clicks: num(row.clicks),
+      ctr: num(row.ctr),
+      cpm: num(row.cpm),
+      spend: num(row.spend),
+      actions: actionMap(row.actions),
+    }));
+    note(true, "ok", 2);
+    return jsonRes({
+      ok: true, guard, account: acct, currency: acct.currency,
+      dimension: dimKey, breakdowns, preset: bPresetKey,
+      rows, row_count: rows.length,
+      fetched_at: new Date().toISOString(),
+    }, 200, ch);
+  }
+
+  // ── action: billing ────────────────────────────────
+  // §ADS-BILLING — what the ad account has actually COST, as opposed to what it
+  //   delivered. Two sources, and they are not equally available:
+  //
+  //     · account money fields (balance, spend cap, amount spent) — same read the
+  //       diagnose already proves, so these are reliable.
+  //     · the transactions edge — individual charges with dates and billing
+  //       references. This is the one an accountant actually wants, and Meta gates
+  //       it more tightly than ads_read. It is therefore requested SEPARATELY and
+  //       allowed to fail: a refusal is REPORTED as a refusal (transactions:null
+  //       plus the reason) instead of taking the account figures down with it, and
+  //       never as an empty list, which would read as "no money was spent".
+  //
+  //   Every amount is returned in MINOR units with the unit in the field name, and
+  //   the account currency alongside. Nothing here is converted — this account
+  //   reports in USD while SIGMA's own books are in AWG, and inventing a rate
+  //   inside a proxy is exactly how a wrong number ends up in somebody's ledger.
+  if (action === "billing") {
+    // Two tiers, because Meta prices them differently. The first list is the one
+    //   diagnose already proves works on an ads_read token. The second — balance and
+    //   the funding source — is REFUSED with "(#10) Permission Denied" on this
+    //   account, so it is asked for separately and allowed to fail. Bundling them
+    //   cost the whole call on the first attempt: one ungranted field took the
+    //   spend figures down with it.
+    const accRes = await graphGet(account, {
+      fields: "id,account_id,currency,account_status,amount_spent,spend_cap,created_time",
+    }, token);
+    if (accRes.diag) { note(false, accRes.diag.step, 2); return failRes(accRes.diag, ch, { guard, account: acct }); }
+    const a = (accRes.data ?? {}) as Record<string, unknown>;
+
+    let fund: Record<string, unknown> | null = null;
+    let balance_minor: number | null = null;
+    let funding_error: Record<string, unknown> | null = null;
+    const fundRes = await graphGet(account, { fields: "balance,funding_source_details" }, token);
+    if (fundRes.diag) {
+      funding_error = { step: fundRes.diag.step, title: fundRes.diag.title, detail: fundRes.diag.detail };
+    } else {
+      const f = (fundRes.data ?? {}) as Record<string, unknown>;
+      balance_minor = num(f.balance);
+      fund = (f.funding_source_details ?? null) as Record<string, unknown> | null;
+    }
+
+    let transactions: Array<Record<string, unknown>> | null = null;
+    let transactions_error: Record<string, unknown> | null = null;
+    const txRes = await graphGet(account + "/transactions", {
+      fields: "id,time,charge_type,status,billed_amount_details,payment_option,transaction_type",
+      limit: "50",
+    }, token);
+    if (txRes.diag) {
+      transactions_error = {
+        step: txRes.diag.step,
+        title: txRes.diag.title,
+        detail: txRes.diag.detail,
+        remedy: txRes.diag.remedy,
+      };
+    } else {
+      transactions = ((txRes.data?.data as Array<Record<string, unknown>>) ?? []).map((t) => ({
+        id: str(t.id),
+        time: str(t.time),
+        charge_type: str(t.charge_type),
+        transaction_type: str(t.transaction_type),
+        status: str(t.status),
+        payment_option: str(t.payment_option),
+        billed_amount_details: t.billed_amount_details ?? null,
+      }));
+    }
+
+    note(true, "ok", 3);
+    return jsonRes({
+      ok: true, guard, account: acct,
+      currency: str(a.currency),
+      account_status: num(a.account_status),
+      balance_minor,
+      funding_error,
+      spend_cap_minor: num(a.spend_cap),
+      amount_spent_minor: num(a.amount_spent),
+      funding_source: fund
+        ? { type: str(fund.type), display: str(fund.display_string) }
+        : null,
+      created_time: str(a.created_time),
+      transactions,
+      transaction_count: transactions ? transactions.length : null,
+      transactions_error,
+      fetched_at: new Date().toISOString(),
+    }, 200, ch);
+  }
+
   // ── action: overview ───────────────────────────────────────────────────────
   const presetKey = String(payload?.preset ?? "last_7d");
   const preset = PRESETS[presetKey];
@@ -695,6 +874,36 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // §ADS-DETAIL — the second layer: click QUALITY (unique vs repeat, outbound vs
+  //   any), the engagement actions behind the single "Results" figure, cost per
+  //   action, and video completion. Requested only when the caller asks for it, so
+  //   the ordinary refresh still costs 3 Graph calls.
+  //
+  //   It FAILS SOFT, exactly like the sparkline above and for the same reason: this
+  //   is a wider field list, and one field Meta decides to reject for this account
+  //   or objective must never take the working panel down with it. On failure the
+  //   detail is absent and every headline number still prints.
+  const wantDetail = payload?.detail === true;
+  const detail = new Map<string, Record<string, unknown>>();
+  if (wantDetail) {
+    const detRes = await graphGet(account + "/insights", {
+      level: "campaign",
+      date_preset: preset,
+      fields: "campaign_id,unique_clicks,unique_ctr,outbound_clicks,outbound_clicks_ctr,"
+        + "cost_per_unique_click,cost_per_action_type,actions,"
+        + "video_p25_watched_actions,video_p50_watched_actions,"
+        + "video_p75_watched_actions,video_p100_watched_actions",
+      limit: "200",
+    }, token);
+    calls++;
+    if (!detRes.diag) {
+      for (const row of ((detRes.data?.data as Array<Record<string, unknown>>) ?? [])) {
+        const k = str(row.campaign_id);
+        if (k) detail.set(k, row);
+      }
+    }
+  }
+
   const campaigns = rawCampaigns.map((c) => {
     const id = str(c.id);
     const ins = id ? byCampaign.get(id) : undefined;
@@ -735,6 +944,28 @@ Deno.serve(async (req: Request) => {
         }
         : null,
       series: id && series.has(id) ? series.get(id) : null,
+      // §ADS-DETAIL — null when not requested OR when Meta refused the wider field
+      //   list. The panel must say which; it must not draw an empty table as if the
+      //   campaign had no engagement.
+      detail: (() => {
+        if (!id || !detail.has(id)) return null;
+        const d = detail.get(id)!;
+        return {
+          unique_clicks: num(d.unique_clicks),
+          unique_ctr: num(d.unique_ctr),
+          cost_per_unique_click: num(d.cost_per_unique_click),
+          outbound_clicks: actionMap(d.outbound_clicks),
+          outbound_clicks_ctr: actionMap(d.outbound_clicks_ctr),
+          actions: actionMap(d.actions),
+          cost_per_action_type: actionMap(d.cost_per_action_type),
+          video_watched: {
+            p25: actionMap(d.video_p25_watched_actions),
+            p50: actionMap(d.video_p50_watched_actions),
+            p75: actionMap(d.video_p75_watched_actions),
+            p100: actionMap(d.video_p100_watched_actions),
+          },
+        };
+      })(),
     };
   });
 
@@ -752,6 +983,8 @@ Deno.serve(async (req: Request) => {
     // Told, not implied: if Meta returned no insight rows at all, the panel must be
     // able to distinguish "no campaigns" from "campaigns that did not deliver".
     insight_rows: insRows.length,
+    detail_requested: wantDetail,
+    detail_rows: detail.size,
   }, 200, ch);
 });
 
