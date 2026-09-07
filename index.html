@@ -9256,6 +9256,20 @@ body.glass:not([class*="theme-dark"]) .mad-seg{ background:rgba(14,12,10,.03); }
    the glass card without a second palette to keep in step. Numbers are tabular and
    right-aligned: these columns are read by comparing them down, not across. */
 .mad-sec{ border-top:1px solid var(--apq-line); padding:13px 17px 15px; }
+
+/* ── §ADS-ALERT — two weights, and they must not look alike ─────────────
+   `warn` is money or delivery stopping now; `note` is something to plan for. The
+   left rail carries the severity so the text itself needs no shouting. */
+.mad-alerts{ display:flex; flex-direction:column; gap:6px; padding:0 17px 13px; }
+.mad-alert{ display:flex; flex-direction:column; gap:2px; padding:8px 11px;
+            border-radius:8px; border:1px solid var(--apq-line);
+            border-left-width:3px; font-size:11.5px; line-height:1.5; }
+.mad-alert b{ font-weight:800; font-size:11.5px; letter-spacing:.01em; }
+.mad-alert span{ color:var(--apq-dim); }
+.mad-alert.warn{ border-left-color:#c0392b; background:rgba(179,38,30,.10); }
+.mad-alert.warn b{ color:#e08074; }
+.mad-alert.note{ border-left-color:var(--apq-accent,#c8922a); background:rgba(200,146,42,.09); }
+.mad-alert.note b{ color:var(--apq-accent-lt,#e0a93c); }
 .mad-sec-h{ font-family:var(--apq-font,inherit); font-size:9.5px; font-weight:800;
             letter-spacing:.14em; text-transform:uppercase; color:var(--apq-dim);
             margin-bottom:9px; }
@@ -36967,6 +36981,29 @@ var _MADB_DIMS = [
   ['country','Country'],
   ['device','Device']
 ];
+// §ADS-EXPIRY — the credential's own countdown. Read once per panel session and
+//   kept apart from everything else: a refusal to report expiry must not disturb a
+//   working connection, and an unreadable countdown is stated as unreadable rather
+//   than shown as "fine".
+var _MADT = { info:null, at:0, loading:false };
+function mAdTokenLoad(force){
+  var cfg = mAdCfg(); if(!cfg.proxy) return;
+  if(!force && _MADT.info && (Date.now() - _MADT.at) < 3600000) return;   // once an hour is plenty
+  if(_MADT.loading) return;
+  _MADT.loading = true;
+  fetch(cfg.proxy, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + _madKey(), 'apikey': _madKey() },
+    body: JSON.stringify({ action:'token', accountId: cfg.acct || undefined })
+  })
+  .then(function(r){ return r.json().catch(function(){ return null; }); })
+  .then(function(j){
+    _MADT.loading = false;
+    if(j && j.ok){ _MADT.info = j; _MADT.at = Date.now(); try{ mAdRender(); }catch(e){} }
+  })
+  .catch(function(){ _MADT.loading = false; });
+}
+
 function mAdBreakLoad(force){
   var cfg = mAdCfg(); if(!cfg.proxy) return;
   // A range change invalidates it as surely as a dimension change does: rows read
@@ -37015,6 +37052,80 @@ function _madDimLabel(r){
   return bits.length ? bits.join(' · ') : '—';
 }
 
+// ══ §ADS-ALERT — things that need attention, said before they bite ════════
+// Every rule below fires on a figure Meta actually returned. None of them infer,
+// none of them fire on a missing value, and each says what to DO — an alert that
+// only announces a problem leaves the reader exactly where they started.
+//
+// Severity is two levels on purpose. "warn" is money or delivery stopping now;
+// "note" is something to plan for. A single visual weight for both trains people
+// to ignore the strip.
+function _madAlerts(d){
+  var out = [];
+  var acct = d.account || {};
+
+  // The ad account itself. Nothing else matters if this is not Active.
+  if(typeof acct.account_status === 'number' && acct.account_status !== 1){
+    out.push(['warn', 'Ad account is not active',
+      'Meta reports status: ' + _madEsc(acct.account_status_text || String(acct.account_status))
+      + '. Delivery is stopped until this is resolved in Ads Manager.']);
+  }
+
+  (d.campaigns || []).forEach(function(c){
+    var nm = c.name || 'A campaign';
+
+    // Budget nearly gone. Lifetime and daily are different questions, so they are
+    //   asked separately; a campaign with neither is skipped rather than guessed at.
+    var life = c.lifetime_budget_minor, rem = c.budget_remaining_minor;
+    if(typeof life === 'number' && life > 0 && typeof rem === 'number'){
+      var usedPct = Math.round(((life - rem) / life) * 100);
+      if(usedPct >= 90){
+        out.push([usedPct >= 100 ? 'warn' : 'note',
+          usedPct >= 100 ? 'Budget spent' : 'Budget nearly spent',
+          _madEsc(nm) + ' has used ' + usedPct + '% of its lifetime budget'
+          + (rem > 0 ? ' — ' + mAdMoney(rem / 100, d.currency) + ' left' : '')
+          + '. Raise it in Ads Manager or the campaign stops delivering.']);
+      }
+    }
+
+    // Ended, but still marked ACTIVE. Reads as running when it is not.
+    if(c.stop_time){
+      var st = Date.parse(c.stop_time);
+      if(!isNaN(st) && st < Date.now() && c.effective_status === 'ACTIVE'){
+        out.push(['note', 'Campaign end date has passed',
+          _madEsc(nm) + ' was set to stop on ' + _madEsc(mAdStamp(c.stop_time))
+          + ' and is still listed as active. It is no longer delivering.']);
+      }
+    }
+
+    // Live, but Meta reported no row at all for the selected window.
+    if(c.effective_status === 'ACTIVE' && !c.insights){
+      out.push(['note', 'Active campaign with no delivery',
+        _madEsc(nm) + ' is active but Meta returned no figures for this date range. '
+        + 'Either it has not started delivering, or the range excludes when it ran.']);
+    }
+  });
+
+  // The credential. Two weeks is enough notice to act without it being nagging.
+  var t = _MADT.info;
+  if(t && t.readable && t.valid && !t.never_expires && typeof t.days_left === 'number'){
+    if(t.days_left <= 14){
+      out.push([t.days_left <= 3 ? 'warn' : 'note',
+        'Meta access expires in ' + t.days_left + ' day' + (t.days_left === 1 ? '' : 's'),
+        'This panel goes blank when it does. Generate a new token and replace the '
+        + 'META_ACCESS_TOKEN secret in Supabase before ' + _madEsc(mAdStamp(t.expires_at)) + '.']);
+    }
+  }else if(t && t.readable === false){
+    out.push(['note', 'Meta will not report when this access expires',
+      'The connection works; only the countdown is unavailable. It will fail without notice.']);
+  }
+
+  if(!out.length) return '';
+  return '<div class="mad-alerts">' + out.map(function(a){
+    return '<div class="mad-alert ' + a[0] + '"><b>' + _madEsc(a[1]) + '</b><span>' + a[2] + '</span></div>';
+  }).join('') + '</div>';
+}
+
 function mAdRender(){
   var host = document.getElementById('mAdBox'); if(!host) return;
   var cfg = mAdCfg();
@@ -37031,7 +37142,10 @@ function mAdRender(){
   mAdAssertHonest();
   // The breakdown is fetched only once there IS a live connection to break down.
   //   Never for the sample card: a sample must not trigger a real Graph call.
-  if(_MAD.data && !_MAD.demo){ try{ mAdBreakLoad(false); }catch(e){} }
+  if(_MAD.data && !_MAD.demo){
+    try{ mAdBreakLoad(false); }catch(e){}
+    try{ mAdTokenLoad(false); }catch(e){}
+  }
 
   if(!host._madBound){
     host._madBound = true;
@@ -37224,7 +37338,10 @@ function _madLiveCard(d){
     +   (acct.account_status_text ? '<span>&middot; ' + _madEsc(acct.account_status_text) + '</span>' : '')
     +   (acct.timezone_name ? '<span>&middot; ' + _madEsc(acct.timezone_name) + '</span>' : '')
     +   (d.fetched_at ? '<span class="apq-grow"></span><span class="mad-stamp">read ' + _madEsc(mAdStamp(d.fetched_at)) + '</span>' : '')
-    + '</div>';
+    + '</div>'
+    // §ADS-ALERT — directly under the account line, above the campaigns, because it
+    //   is the one thing that should be read before the numbers.
+    + _madAlerts(d);
 
   if(!camps.length){
     // CONNECTED, NO CAMPAIGNS. Distinct from "not connected" and it says so — the
