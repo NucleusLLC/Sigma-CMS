@@ -19072,7 +19072,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.437';
+var APP_VERSION = 'v2.439';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19110,6 +19110,8 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.439',type:'fix',date:'09-07-2026',_static:true,title:'Automatic page-overflow handling switched off for now',desc:'The feature that carried overflowing text onto a following page was leaving a nearly empty sheet in the middle of some reports. It is switched off while that is traced, so reports paginate exactly as they did before it was introduced. Long text can once again run to the foot of a page; that is the older behaviour and it will return properly once the remaining fault is fixed.'},
+  {v:'v2.438',type:'fix',date:'09-07-2026',ts:'09-07-2026 19:30',_static:true,title:'Overflowing text continues on the next page again, instead of taking a near-empty sheet of its own',desc:'A report page that overran its footer could still take a whole extra sheet for a few spilled lines — on 2026-111 page 4 came out as a continuation sheet carrying one short paragraph and about 171mm of white paper, with the next section starting normally on the sheet after it. v2.434 was written to stop exactly that by continuing the overflow at the top of the page that already follows, and it was working; what stopped it was the test deciding which pages may be continued onto. That test refused any page holding a picture more than 40mm tall, on the reasoning that 40mm sits above a letterhead mark and below a plan. Measured on a real report it sits in neither place: the running-header letterhead is 22 pixels, about 6mm, so the threshold never did the job it was written for, while an ordinary photograph on a prose page is 50 to 80mm — so every prose page carrying a single photo refused, and every overrun in front of one fell back to a wasted sheet. The question is now asked the way it was always meant: is this sheet BUILT AROUND its pictures? A floor plan, a cadaster scan, a rasterised attached document and a photo contact sheet all still refuse, because their pictures fill most of the page; a prose page with one photograph now accepts the overflow and the text simply continues underneath. The measurement is taken as a share of that page’s own content box rather than a fixed millimetre count, so it holds on any paper size and any margin set, and the running header, the footer, the page number, the appraiser stamp and the DRAFT watermark are excluded from it — none of them is content and nothing an overflow does can move them. The report console now also reports how many pages declined, so a wasted sheet says why instead of having to be found on paper.'},
   {v:'v2.437',type:'fix',date:'09-07-2026',ts:'09-07-2026 06:00',_static:true,title:'No more blank page before an attachment, and no more blank sheet in the middle of a report',desc:'The page-overflow pass could carry a floorplan, site plan or cadaster image off its own page and onto a fresh sheet, leaving the page it came from holding a section heading and nothing else \u2014 which is why a blank page appeared before several attachments and before the last page. The check that was supposed to prevent this only recognised TEXT as content, and an image contains no text, so it never saw the page being emptied. It now asks the question that actually matters \u2014 after this move, is anything left on the page that a reader would call content? \u2014 and it counts anything occupying real space, so an image counts. A heading on its own does not: it is a label for content that would no longer be there. Text still breaks across pages exactly as before and still never prints under the footer.'},
   {v:'v2.436',type:'fix',date:'09-07-2026',ts:'09-07-2026 16:30',_static:true,title:'SIGMA would not load at all — fixed',desc:'Nobody could sign in. The startup screen reported LOGIN BROKEN and Local Storage unavailable, and no part of the application worked. The cause was a single stray character in the release notes added with v2.435: a line break had been written into the file as the two characters backslash-n instead of an actual new line, and it landed between two entries rather than inside the text of one. That is not valid JavaScript, so the browser refused to read the entire main block of the application — every function in it, including the one that signs you in, simply never came into existence. Removing that one character restores everything; nothing else was wrong and no data was affected. Worth knowing for next time: a fault anywhere in that block takes the whole application down, not just the feature it sits in, and the release notes are inside it.'},
   {v:'v2.435',type:'fix',date:'09-07-2026',ts:'09-07-2026 15:00',_static:true,title:'The Blink helper\u2019s own error messages now reach the dashboard through the tunnel',desc:'Finishing the Blink install surfaced a real edge. The helper is reached over a Cloudflare tunnel (the documented https:// step), and a tunnel/CDN in front replaces any 5xx status from the origin with its OWN error page \u2014 which does not carry the helper\u2019s CORS header. So when the helper reported a normal problem (most often \u201cnot signed in yet\u201d) as a 502, the browser could not read it and CAM Security showed a generic failure instead of the real reason. Fixed on both sides: the helper now returns its own application errors as 200-with-an-error-body (which the CDN passes through untouched), and the dashboard treats that error field as a failure and names it \u2014 \u201cThe helper is running but not signed in\u201d with the exact remedy (run login.py), rate-limit, or an expired session. No change to the live-camera path or to any non-Blink feature.'},
@@ -51749,16 +51751,66 @@ function _pgSpillRuntime(OPT) {
     //   dropping prose on top of one would shove that image off its own page. Those are
     //   detected by what they actually contain rather than by id, so a template that
     //   invents a new image page is covered too.
+    // True while any ancestor between `el` and `stop` is taken out of the flow. An
+    // overlay cannot be displaced by an inflow, so it must not veto one: the appraiser
+    // stamp, the DRAFT watermark and the cover's logo are all absolutely positioned
+    // wrappers holding a perfectly ordinary static <img>, so testing the image's own
+    // `position` would miss every one of them.
+    function inOverlay(el, stop) {
+      for (var n = el; n && n !== stop && n.nodeType === 1; n = n.parentNode) {
+        if (isOutOfFlow(n)) return true;
+      }
+      return false;
+    }
+
+    // §PG-SPILL-INFLOW (v2.438) — WHICH SHEETS MAY BE CONTINUED ONTO.
+    //
+    //   The first cut refused any page holding an <img> taller than 40mm anywhere inside
+    //   `.inner`, on the reasoning that 40mm is "comfortably above a letterhead mark and
+    //   comfortably below a plan". Measured against the real report, that number is in
+    //   the wrong place entirely:
+    //
+    //     • the running-header letterhead is `height:22px` — SIX millimetres — so the
+    //       threshold was never doing the job it was written for; and
+    //     • an ORDINARY content photograph on a prose page is 50–80mm, so every prose
+    //       page carrying one photo refused inflow. That is the bug: page 4 of 2026-111
+    //       fell back to building a continuation sheet that carried one short paragraph
+    //       and ~171mm of white paper (measured on this runtime), which is precisely the
+    //       waste v2.434 was written to end.
+    //
+    //   What actually has to be protected is a sheet BUILT AROUND its pictures — a floor
+    //   plan, a cadaster scan, a rasterised attached document, a photo contact sheet —
+    //   where dropping prose on top shoves the picture off its own page. That is a
+    //   question of how much of the sheet the pictures occupy, and it is asked here as a
+    //   FRACTION of this page's own content box rather than as a fixed millimetre count,
+    //   so it holds on any paper size and any margin set. A contact sheet fails it on the
+    //   total (rows of tiles), a 150mm plan fails it on its own, and a single 60mm
+    //   photograph beside 3,000 characters of prose passes — which is the whole point.
+    //
+    //   Chrome is excluded by ancestry and overlays by their positioning, for the same
+    //   reason the blank-sheet guard had to be: the letterhead and the stamp are not
+    //   content, and nothing an inflow does can move them.
     function acceptsInflow(pg) {
       if (!pg || pg.hasAttribute('data-sigma-cover')) return false;
-      if (!pg.querySelector(':scope > .inner')) return false;
-      var imgs = pg.querySelectorAll('.inner img');
-      for (var i = 0; i < imgs.length; i++) {
-        // 40mm is comfortably above a letterhead mark and comfortably below a plan,
-        // a photo tile or a rasterised document page.
-        if (imgs[i].getBoundingClientRect().height > 40 * MM) return false;
+      var inner = pg.querySelector(':scope > .inner');
+      if (!inner) return false;                       // a custom-built sheet: leave it alone
+
+      var box = bandTop(pg, pg.getBoundingClientRect());
+      if (!(box > 0)) box = pg.getBoundingClientRect().height;
+      var LIMIT = box * 0.45;
+
+      var pics = inner.querySelectorAll('img, svg, canvas, object, embed');
+      var total = 0;
+      for (var i = 0; i < pics.length; i++) {
+        var im = pics[i];
+        if (im.closest('.pg-hdr, .pg-ftr-fixed, .pg-num')) continue;   // a letterhead mark
+        if (inOverlay(im, inner)) continue;                            // a stamp, a watermark
+        var h = im.getBoundingClientRect().height;
+        if (h <= 3 * MM) continue;                                     // rules, icons, spacers
+        if (h > LIMIT) return false;                                   // one picture defines this sheet
+        total += h;
       }
-      return true;
+      return total <= LIMIT;
     }
 
     /** The flow container a pushed tail belongs in, and what it must sit before. */
@@ -51868,7 +51920,7 @@ function _pgSpillRuntime(OPT) {
     }
 
     var pages = [].slice.call(document.querySelectorAll('.page'));
-    var spilled = 0, refused = 0, examined = 0, pushed = 0, probes = [];
+    var spilled = 0, refused = 0, examined = 0, pushed = 0, declined = 0, probes = [];
 
     for (var p = 0; p < pages.length; p++) {
       var page = pages[p];
@@ -51938,7 +51990,13 @@ function _pgSpillRuntime(OPT) {
         while (nextPg && !(nextPg.classList && nextPg.classList.contains('page'))) {
           nextPg = nextPg.nextElementSibling;
         }
-        if (nextPg && !nextPg.hasAttribute('data-spill') && acceptsInflow(nextPg)) {
+        // Count the refusals. A continuation sheet built mid-document is nearly always
+        // a page that declined inflow, and without this the only evidence is a wasted
+        // sheet on paper - which is how §PG-SPILL-INFLOW went unnoticed for three
+        // versions. The log line below reports it on every real report.
+        var _canFlow = !!(nextPg && !nextPg.hasAttribute('data-spill') && acceptsInflow(nextPg));
+        if (nextPg && !_canFlow) declined++;
+        if (_canFlow) {
           var pt = inflowPoint(nextPg);
           if (pt) {
             // Rebuild the wrapper nesting EMPTY on the receiving sheet, exactly as the
@@ -52049,6 +52107,7 @@ function _pgSpillRuntime(OPT) {
     log('[pg-spill] examined ' + examined + ' page(s), ' + pushed + ' tail(s) continued on the next sheet, '
         + spilled + ' continuation sheet(s) added'
         + (refused ? ', ' + refused + ' oversized block(s) left in place' : '')
+        + (declined ? ', ' + declined + ' page(s) declined inflow' : '')
         + ' | ' + Math.round(MM * 100) / 100 + 'px per mm'
         + (probes.length ? ' | first pages, band top vs content bottom (px): ' + probes.join('  ') : ''));
   } catch (e) {
@@ -52056,7 +52115,21 @@ function _pgSpillRuntime(OPT) {
   }
 }
 try {
-  if (RC.rcPageSpill !== false) {
+  // §PG-SPILL-DISABLED (hard off) — the pagination pass is switched off at the
+  // injection site rather than through RC.rcPageSpill, deliberately: a saved report
+  // template can carry rcPageSpill:true in its stored config, and 'RC.rcPageSpill
+  // !== false' would then re-enable it for exactly the users who have templates. A
+  // literal here cannot be overridden by anything stored.
+  //
+  // WHY: the pass was leaving a near-empty continuation sheet mid-report (2026-111
+  // page 4). Turning off only the push-forward branch would have made that WORSE —
+  // every overrun would fall back to a continuation sheet — so the whole pass is off
+  // until the cause is found. Text goes back to being clipped at the footer, which is
+  // the long-standing behaviour, not a new fault.
+  //
+  // TO RE-ENABLE: set _spillOn = true.
+  var _spillOn = false;
+  if (_spillOn && RC.rcPageSpill !== false) {
     // The runtime is serialised rather than hand-written as a concatenated string: the
     // report opens from a blob: URL, so it cannot reach anything in this document and
     // the pass HAS to travel inside the HTML — but a 200-line algorithm spelled out in
