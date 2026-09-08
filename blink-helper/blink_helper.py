@@ -38,7 +38,7 @@ import json
 import os
 import time
 
-from aiohttp import web
+from aiohttp import web, ClientSession
 from blinkpy.blinkpy import Blink
 from blinkpy.auth import Auth
 from blinkpy.helpers.util import json_load
@@ -72,9 +72,14 @@ async def _ensure_blink() -> Blink:
         raise RuntimeError(
             "no credentials file (%s). Run login.py once to sign in to Blink." % CREDS
         )
-    blink = Blink()
-    auth = Auth(await json_load(CREDS), no_prompt=True)
-    blink.auth = auth
+    # blinkpy 0.25.x: restore from the saved session token. A shared ClientSession
+    # is passed to both Blink and Auth (constructing Auth without one needs a
+    # running loop, which we have here, but sharing keeps a single connection pool
+    # and one thing to close). start() reuses the saved OAuth tokens, so it does
+    # not trigger 2FA — that only happens on a fresh password login in login.py.
+    session = ClientSession()
+    blink = Blink(session=session)
+    blink.auth = Auth(await json_load(CREDS), no_prompt=True, session=session)
     await blink.start()
     await blink.refresh()
     _blink = blink
