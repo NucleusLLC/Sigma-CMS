@@ -19072,7 +19072,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.441';
+var APP_VERSION = 'v2.442';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19110,6 +19110,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.442',type:'feature',date:'09-09-2026',_static:true,title:'You can now see the record of every appointment email that was sent',desc:'Scheduled Inspections gains a Notification record button. It lists every appointment email SIGMA has sent \u2014 when, to whom, whether it was the client\u2019s copy or the inspector\u2019s, which job it was for, who pressed the button, and whether the mail server confirmed it. It reads the same record the sending writes to, so it cannot drift from what actually happened. WhatsApp messages are deliberately never listed: SIGMA opens WhatsApp and cannot know whether you pressed Send, so there is nothing honest to record, and the panel says so rather than leaving a gap. The client\u2019s email now also carries the job reference in its subject line, so a reply can be matched to the job.'},
   {v:'v2.441',type:'feature',date:'09-08-2026',_static:true,title:'The client is told about the inspection too, not only the inspector',desc:'Booking an inspection can now notify the client as well as the inspector. One button emails both in a single click, showing you every recipient before anything leaves, and a separate WhatsApp button opens a message ready for the client the same way the inspector one already does. The client gets their own wording \u2014 the date, the time, the property, who is coming and how to rearrange it \u2014 not the internal note the inspector receives. Each party and each channel is tracked separately, so the row tells you exactly who was emailed, who was messaged and when, and change the date or the time and it says the appointment moved rather than quietly showing it as done. Nothing sends by itself, and only what the mail server actually confirmed is recorded as sent. WhatsApp still opens the message for you to send yourself.'},
   {v:'v2.440',type:'feature',date:'09-07-2026',_static:true,title:'Automatic page-overflow handling is back on',desc:'Text that does not fit a page continues on the following page again, instead of running under the footer and being cut off. The fault that switched it off has been traced and fixed: the rule deciding which pages could receive continued text was rejecting any page holding a picture taller than 40mm, which caught ordinary property photographs, so those pages refused the text and it went onto a sheet of its own that was then left mostly empty. That rule now asks whether a page is BUILT AROUND its pictures — measured against the page itself rather than a fixed size — so a floor plan or a contact sheet is still left alone while an ordinary page with a photo accepts continued text normally.'},
   {v:'v2.439',type:'fix',date:'09-07-2026',_static:true,title:'Automatic page-overflow handling switched off for now',desc:'The feature that carried overflowing text onto a following page was leaving a nearly empty sheet in the middle of some reports. It is switched off while that is traced, so reports paginate exactly as they did before it was introduced. Long text can once again run to the foot of a page; that is the older behaviour and it will return properly once the remaining fault is fixed.'},
@@ -36371,10 +36372,24 @@ function uisRender(){
           ? '<button type="button" class="apq-more" data-uis-act="all">'
             + (_uisAll ? 'Show fewer' : 'Show all ' + n + ' &rarr;') + '</button>'
           : '')
+    +   // §APPT-LOG (v2.442) — the record. Always offered, even with nothing scheduled:
+        //   what was sent last month is still worth being able to look at.
+        '<button type="button" class="apq-more" data-uis-act="log">'
+        + (_apptLogOn ? 'Hide the record' : 'Notification record') + '</button>'
     + '</div>'
-    + '<div class="syn-cap">The inspector is emailed only when you press <b>Notify inspector</b>, '
-    + 'and only after you have confirmed the address — never automatically. '
-    + 'SIGMA cannot send SMS.</div>';
+    // §APPT-NOTIFY (v2.441) made this caption wrong: the control is no longer
+    //   inspector-only. Corrected here rather than left to describe a button that
+    //   does something else.
+    + '<div class="syn-cap">The client and the inspector are emailed only when you press '
+    + '<b>Notify all</b>, and only after you have confirmed every recipient — never '
+    + 'automatically. WhatsApp opens the message for you to send yourself; SIGMA cannot '
+    + 'send it, and cannot send SMS.</div>'
+    + (_apptLogOn
+        ? '<div style="margin:10px 0 4px;padding:10px 12px;border:1px solid rgba(0,0,0,.12);border-radius:8px;">'
+          + '<div style="font-size:12px;font-weight:700;margin-bottom:6px;">Appointment notification record</div>'
+          + (_apptLogHtml || _finLogNote('Reading the record…'))
+          + '</div>'
+        : '');
 
   if(!n){
     h += '<div class="apq-empty"><span class="apq-tick">' + _uisCalIcon() + '</span>'
@@ -36397,6 +36412,7 @@ function uisRender(){
         var a = act.getAttribute('data-uis-act');
         if(a === 'all'){ _uisAll = !_uisAll; uisRender(); return; }
         if(a === 'why'){ alert(act.getAttribute('title') || ''); return; }
+        if(a === 'log'){ apptLogToggle(); return; }
         // §WA-INSP-NOTIFY (v2.422) — the WhatsApp control's click. Nothing opens
         //   without this click AND the confirmation wainSend() puts up.
         if(a === 'wa'){
@@ -36548,7 +36564,12 @@ function _apptClientMail(o){
          + '<td style="padding:4px 0;"><b>' + v + '</b></td></tr>';
   };
   return {
-    subject: 'Your property inspection — ' + when + (o.address ? ' — ' + o.address : ''),
+    // The reference is in the subject, not only in the body: it is what lets a client
+    // quote the job in a reply, and it is the only thing that ties a row in the
+    // notification log back to an order — the send carries invoice_id NULL and no
+    // order id of its own, so the subject is the attribution.
+    subject: 'Your property inspection — ' + (o.id ? o.id + ' — ' : '') + when
+             + (o.address ? ' — ' + o.address : ''),
     html:
       '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#26211c;line-height:1.6;">'
     + '<p style="margin:0 0 14px;">Your property inspection has been scheduled.</p>'
@@ -36665,6 +36686,121 @@ async function apptNotifyAll(id){
     try{ uisRender(); }catch(_){}
   }
 }
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §APPT-LOG (v2.442) — the record of what was actually sent, made visible      ║
+// ║                                                                              ║
+// ║  The ask was "a log of sent appointments is on record". The record existed    ║
+// ║  from v2.441 — every send writes a row through sigma-email — but it was       ║
+// ║  visible only to somebody with database access, because those rows carry      ║
+// ║  invoice_id NULL and the Finance UI filters on invoice_id in both places      ║
+// ║  (@25550, @28725). A record nobody can look at is a record in name only.      ║
+// ║                                                                              ║
+// ║  READ-ONLY, and it reads the SAME table the sends write to. It does not keep  ║
+// ║  a second list of its own: a log maintained beside the thing it describes is  ║
+// ║  a log that eventually disagrees with it. If a send is not in invoice_emails  ║
+// ║  it did not happen, and this shows exactly that.                              ║
+// ║                                                                              ║
+// ║  ── IT NAMES NO COLUMN ────────────────────────────────────────────────────   ║
+// ║  select('*'), and every field is read through a list of accepted names, for   ║
+// ║  the reason §INVOICE-SENDLOG gives: naming a column that a later migration    ║
+// ║  has not added yet is a PostgREST 42703, which fails the WHOLE query and      ║
+// ║  blanks the panel against the live database. A field that is absent reads     ║
+// ║  "—". Same helpers as the invoice log — _finLogPick, _finLogStatus,           ║
+// ║  _finStampAW, FIN_LOG_TONE — so the two logs can never disagree about what    ║
+// ║  "sent" means or how a timestamp is written.                                  ║
+// ║                                                                              ║
+// ║  ── WHY IT IS INLINE AND NOT A MODAL ──────────────────────────────────────   ║
+// ║  This panel already expands in place (Show all). A second, different way of   ║
+// ║  opening something in the same card is a thing to learn for no benefit.       ║
+// ║                                                                              ║
+// ║  ── WHAT IT CANNOT TELL YOU, SAID PLAINLY ─────────────────────────────────   ║
+// ║  WhatsApp is absent from this list and always will be: wa.me hands a message  ║
+// ║  to WhatsApp and SIGMA never learns whether Send was pressed, so there is     ║
+// ║  nothing truthful to record. The row in the panel above says "opened" for     ║
+// ║  that reason. The panel says so rather than leaving a reader to wonder why    ║
+// ║  their WhatsApp is missing.                                                    ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var _apptLogOn   = false;
+var _apptLogHtml = '';
+var _apptLogSeq  = 0;
+
+function apptLogToggle(){
+  _apptLogOn = !_apptLogOn;
+  if(_apptLogOn && !_apptLogHtml){ _apptLogHtml = ''; apptLogLoad(); }
+  uisRender();
+}
+
+async function apptLogLoad(){
+  var seq = ++_apptLogSeq;
+  var host = null, why = '', r = null;
+  try{
+    if(typeof _sb === 'undefined' || !_sb){
+      _apptLogHtml = _finLogNote('There is no connection to the database, so the record cannot be read.');
+      uisRender(); return;
+    }
+    try{
+      r = await _finRace(
+        _sb.schema('public').from('invoice_emails').select('*')
+           .eq('kind','inspection').order('created_at', { ascending:false }).limit(100),
+        (typeof FIN_LOG_MS !== 'undefined' ? FIN_LOG_MS : 6000),
+        'reading the appointment notification log');
+    }catch(e){ why = (e && e.message) || String(e); }
+    if(seq !== _apptLogSeq) return;                 // a newer open has already won
+    if(!why && r && r.error) why = r.error.message || String(r.error);
+    _apptLogHtml = why
+      ? _finLogNote('The record could not be read — ' + _erEsc(why), '#f0a0a0')
+      : _apptLogRows((r && r.data) || []);
+    uisRender();
+  }catch(e){
+    _apptLogHtml = _finLogNote('The record could not be read — ' + _erEsc((e && e.message) || String(e)), '#f0a0a0');
+    try{ uisRender(); }catch(_){}
+  }
+}
+
+function _apptLogRows(rows){
+  rows = rows || [];
+  if(!rows.length){
+    return _finLogNote('No appointment emails have been sent yet. '
+      + 'WhatsApp messages never appear here — SIGMA opens them and cannot know whether you pressed Send.');
+  }
+  var nOk = 0, nBad = 0;
+  var body = rows.map(function(e){
+    var st   = _finLogStatus(e);
+    var T    = (typeof FIN_LOG_TONE !== 'undefined' && FIN_LOG_TONE[st]) || { fg:'#8a7a6a', bg:'transparent', bd:'#d4c9b0', label:st };
+    if(st === 'sent') nOk++; else nBad++;
+    var when = _finLogPick(e, ['sent_at','created_at','inserted_at']);
+    var to   = _finLogPick(e, ['recipient','to_email','to_address','recipient_email','to']);
+    var subj = _finLogPick(e, ['subject','subject_line','title']);
+    var by   = _finLogPick(e, ['sent_by','created_by','user_email']);
+    var err  = _finLogPick(e, ['error','error_text','error_message']);
+    // Whose copy this was. The two composers word their subjects differently on
+    // purpose (§APPT-NOTIFY), which is the only signal the row carries — so it is
+    // read, never guessed, and an unrecognised subject says so rather than picking.
+    var party = /^Your property inspection/i.test(String(subj||'')) ? 'Client'
+              : (/^Inspection /i.test(String(subj||'')) ? 'Inspector' : '');
+    var ref   = (String(subj||'').match(/\b(\d{4}-\d{3}[A-Za-z]?)\b/) || [])[1] || '';
+    return '<div style="border-left:3px solid ' + T.fg + ';padding:6px 10px;margin-bottom:6px;'
+      + 'background:rgba(0,0,0,.02);border-radius:0 6px 6px 0;">'
+      + '<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:11.5px;">'
+      +   '<b>' + _erEsc(_finStampAW(when)) + '</b>'
+      +   (party ? '<span style="font-weight:700;color:' + T.fg + ';">' + party + '</span>' : '')
+      +   (ref ? '<span style="font-family:IBM Plex Mono,monospace;">' + _erEsc(ref) + '</span>' : '')
+      +   '<span style="color:#8a7a6a;">' + _erEsc(T.label || st) + '</span>'
+      +   (by ? '<span style="color:#8a7a6a;">by ' + _erEsc(by) + '</span>' : '')
+      + '</div>'
+      + '<div style="font-size:11.5px;line-height:1.6;">'
+      +   _erEsc(to || '— no address recorded —')
+      +   (subj ? '<br><span style="color:#8a7a6a;">' + _erEsc(subj) + '</span>' : '')
+      +   (st !== 'sent' && err ? '<br><span style="color:#a33a2a;">' + _erEsc(err) + '</span>' : '')
+      + '</div></div>';
+  }).join('');
+  return _finLogNote(rows.length + ' appointment email(s) · ' + nOk + ' confirmed sent'
+      + (nBad ? ' · ' + nBad + ' not confirmed' : '')
+      + ' · WhatsApp is never listed here, see the note above.')
+    + '<div style="margin-top:8px;max-height:340px;overflow:auto;">' + body + '</div>';
+}
+try{ window.apptLogToggle = apptLogToggle; }catch(e){}
 
 /** WhatsApp the CLIENT. Opens WhatsApp; it never sends, and never says it did. */
 function apptWaClient(id){
