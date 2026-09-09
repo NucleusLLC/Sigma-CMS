@@ -12636,6 +12636,14 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
       <div class="isec-title">Building Inspection</div>
       <div class="isec-desc">A visual, non-invasive check of the accessible parts of the property. Mark every item you inspected. <b>Not accessible</b> is a finding in its own right &mdash; it is what says the report did not cover something, and every one of them is collected onto the limitations page.</div>
       <div id="t4Host"></div>
+      <!-- §T4-REPORT (v2.448) — the inspector's overall narrative. It lives here rather
+           than in section 12, which a Type 4 never walks, and rides in the same s14
+           payload as the findings so one save carries both. -->
+      <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
+        <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;">General condition statement</div>
+        <div style="font-size:11.5px;color:var(--slate-lt);margin-bottom:7px;line-height:1.5;">Your overall view of the property, in your own words. It prints near the end of the report, after the findings and the limitations.</div>
+        <textarea id="t4General" rows="5" placeholder="Overall, the property&hellip;" style="width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--paper);color:var(--ink);resize:vertical;"></textarea>
+      </div>
     </div>
 
     <div class="isec" id="isec-13">
@@ -19745,7 +19753,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.447';
+var APP_VERSION = 'v2.448';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19783,6 +19791,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.448',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection prints as its own report',desc:'A Type 4 order now produces a Building Inspection report rather than an appraisal with the valuation switched off. Scope and Method, then a Summary of Findings that puts every safety hazard at the front and the repairs after it in order of urgency, then every item as it was walked, then Limitations. The summary and the limitations pages are assembled from the checklist itself, so they cannot disagree with it, and the limitations page always prints \u2014 a visual inspection that does not say what it could not see is the one thing that would expose the bureau. There is a General Condition page for your overall view, written on the inspection tab and printed only if you write one. No valuation, no R.O.P.V. and no value conclusion appear anywhere: they are not switched off, they are simply not part of this document.'},
   {v:'v2.447',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist is now yours to edit',desc:'Settings \u203a Building Inspection List lets the bureau re-word any of the 94 items, rename a group, add items of its own and retire the ones it does not inspect \u2014 no build and no developer. Changes are saved for the whole bureau and appear in the next inspection opened. Items are RETIRED rather than deleted, on purpose: a finding is recorded against its item code, so retiring hides an item from new inspections while every inspection that already recorded it still reads and prints exactly as it was. A new item is always given a code that has never been used in its group, so a code can never come to mean two different things. The five states are not editable, because the completion rules, the summary page and the limitations page are all built on them.'},
   {v:'v2.446',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist is now a tab you can walk on a tablet',desc:'A Type 4 order gains a Building Inspection tab carrying all 94 items in their 15 groups. Each item is one row of five buttons \u2014 Satisfactory, Monitor, Repair, Hazard, Not accessible \u2014 and the note and priority boxes appear only when the state you chose actually needs them, so a satisfactory item stays a single tap. Groups collapse, and a collapsed group still shows how many of its items you have recorded. A line at the top counts what is done, how many hazards you have found, how many things you could not reach, and what is still missing a note or a priority. Tapping the state you already chose clears it. Everything saves as you go, against the item code, so re-wording an item later never orphans an inspection you have already done. Only Type 4 orders see the tab. Photographs against individual findings are the next stage.'},
   {v:'v2.445',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist \u2014 94 items, ready for the form to use',desc:'The checklist behind the Type 4 Building Inspection is now in the application: 94 items in 15 groups, written for Aruban construction, each with what to look at. Every item is recorded as Satisfactory, Monitor, Repair, Hazard or Not accessible, with a note and where needed a priority \u2014 a scale the existing condition buttons cannot express, because they have no way to say \u2018safety hazard\u2019 or \u2018could not be seen\u2019. The rules the plan asked for are built in from the start: an inspection cannot be completed with a Hazard that has no note, and every Not accessible item is collected for the limitations page. This release adds the list and those rules; the on-screen form that walks them is next.'},
@@ -23222,7 +23231,10 @@ function _inspCapture(secIdx) {
 
   // §T4-FORM (v2.446) — the checklist is not made of ordinary inputs, so it is captured
   //   explicitly. Keyed by item code; photographs are stage 5 and never live here.
-  if (secIdx === 14) { try { d._t4 = _t4Capture(); } catch(e){} }
+  if (secIdx === 14) {
+    try { d._t4 = _t4Capture(); } catch(e){}
+    try { var _tg = document.getElementById('t4General'); if (_tg) d._t4General = _tg.value; } catch(e){}
+  }
 
   // Photos section (isec-10) — capture all uploaded photo data
   if (secIdx === 10) {
@@ -23406,7 +23418,10 @@ function _inspApplySection(secIdx, d) {
   }
 
   // §T4-FORM (v2.446) — restore the checklist and re-render it.
-  if (secIdx === 14) { try { _t4Apply(d._t4 || {}); } catch(e){} }
+  if (secIdx === 14) {
+    try { _t4Apply(d._t4 || {}); } catch(e){}
+    try { var _tg2 = document.getElementById('t4General'); if (_tg2) _tg2.value = d._t4General || ''; } catch(e){}
+  }
 
   // Photos section (isec-10) — restore uploaded photos
   if (secIdx === 10) {
@@ -48610,6 +48625,43 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //  cadaster-inzage) ship in v1.854+; until then T2 falls back to the T1 sequence
   //  so the dropdown is selectable but the page-by-page differentiation is staged.
   var _tplVariant = (RC && RC.rcTemplateVariant) ? String(RC.rcTemplateVariant) : 'T1';
+  // ╔════════════════════════════════════════════════════════════════════════════╗
+  // ║  §T4-REPORT (v2.448) — the Building Inspection as its own document          ║
+  // ║                                                                            ║
+  // ║  Stage 4 of the Type 4 plan. Until now a Type 4 printed the ordinary        ║
+  // ║  appraisal with the valuation switched off by a flag; it is now its own     ║
+  // ║  sequence, so the valuation-shaped pages are absent by STRUCTURE and not    ║
+  // ║  by suppression.                                                           ║
+  // ║                                                                            ║
+  // ║  ONE BOOLEAN, COMPUTED ONCE, drives both the _pgList entry and the render   ║
+  // ║  block for every page below. That is the §R4 rule from the plan and the     ║
+  // ║  reason page numbering cannot desync: there is no second condition to keep  ║
+  // ║  in step with this one.                                                    ║
+  // ║                                                                            ║
+  // ║  ── THE ORDER OF THE PARTS IS THE POINT ────────────────────────────────    ║
+  // ║  A buyer reads the first two pages and skims the rest, so the hazards go    ║
+  // ║  at the FRONT, not in the group where they happened to be recorded. Scope   ║
+  // ║  first, because it says what the document is not.                          ║
+  // ║                                                                            ║
+  // ║  ── THE LIMITATIONS PAGE IS NOT OPTIONAL ───────────────────────────────    ║
+  // ║  It is assembled from every Not accessible finding, and the plan is         ║
+  // ║  explicit that the report cannot print without it. It is therefore pushed   ║
+  // ║  unconditionally — there is no RC flag that can switch it off, because a    ║
+  // ║  visual inspection that does not say what it could not see is the one       ║
+  // ║  thing that would expose the bureau.                                       ║
+  // ╚════════════════════════════════════════════════════════════════════════════╝
+  var _isT4 = Number(order && order.apprType) === 4;
+  var _t4F = {}, _t4Gen = '';
+  try {
+    var _s14 = (order.inspData && order.inspData.s14) || {};
+    try { var _ls14 = localStorage.getItem('insp_' + order.id + '_14'); if (_ls14) _s14 = Object.assign({}, _s14, JSON.parse(_ls14)); } catch(e){}
+    _t4F = (_s14 && _s14._t4) ? _s14._t4 : {};
+    _t4Gen = String(_s14._t4General || '');
+  } catch(e){}
+  var _t4L = (typeof t4ListActive === 'function') ? t4ListActive()
+           : ((typeof T4_CHECKLIST_DEFAULT !== 'undefined') ? T4_CHECKLIST_DEFAULT : []);
+  var _t4Sum = (typeof t4Summary === 'function') ? t4Summary(_t4F, _t4L) : [];
+  var _t4Lim = (typeof t4Limitations === 'function') ? t4Limitations(_t4F, _t4L) : [];
   // §SEC-ADDPAGE (v2.252) — resolve the custom section layout ONCE so the page list, TOC and
   //   the renderer all agree on (a) whether the optional Sign-Off / Declaration sections were
   //   moved out of the default §7 page, and (b) which extra (overflow) pages carry ≥1 enabled
@@ -48682,7 +48734,21 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   function _secPhysId(k){ if(_isExtraPageKey(k)) return _secExtraPhysId(k); if(_tplVariant==='T2'){ return ({p3:'pT2_3',p4:'pT2_4',p5:'p5',p6:'p6'})[k]||k; } return k; }
   function _pgSignoff(){ if(!_secMovedSignoff) return _pg('signoff'); var _kk=''; for(var _k in _soLay){ if(_soLay[_k] && _soLay[_k].indexOf('signoff')>=0){ _kk=_k; break; } } return _kk ? _pg(_secPhysId(_kk)) : _pg('signoff'); }
   var _pgList=[];
-  if (_tplVariant === 'T2') {
+  if (_isT4) {
+    // Cover · Contents · Scope · Summary · Findings · Limitations · General · Sign-off
+    // · Documents · Photographs. No valuation, no R.O.P.V., no value conclusion — not
+    // suppressed, simply never pushed.
+    if(RC.rcPageCover!==false)   _pgList.push('cover');
+    if(RC.rcPageTOC!==false)     _pgList.push('toc');
+    _pgList.push('t4scope');
+    _pgList.push('t4sum');
+    _pgList.push('t4find');
+    _pgList.push('t4lim');                                   // never optional — see the header
+    if(_t4Gen.trim())            _pgList.push('t4gen');
+    if(RC.rcPageSignoff!==false && !_secMovedSignoff) _pgList.push('signoff');
+    if(RC.rcPageDocs!==false)    _pgList.push('p7');
+    if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false) _pgList.push('p8');
+  } else if (_tplVariant === 'T2') {
     // §T2-LAYOUT (v1.875) — 14-page extended layout matching the user spec:
     //   1 Cover · 2 TOC · 3 Project Info+Intro+Floorplan Info (pT2_3)
     //   4 Opinion of Floor Plan + Inspection Details (pT2_4)
@@ -49637,7 +49703,18 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     function _spDescT2(){ return _spPgCnt > 0 ? (_rt('descSitePlanT2') + _spPgCnt + _rfPages(_spPgCnt)) : _rt('noSitePlanUploaded'); }
     function _cadDescT2(){ return _cadPgCnt > 0 ? (_rt('descOfficialCadastral') + _cadPgCnt + _rfPages(_cadPgCnt)) : _rt('noCadasterUploaded'); }
     var _tocEntries;
-    if (_tplVariant === 'T2') {
+    if (_isT4) {
+      _tocEntries = [
+        {n:'1', id:'t4scope', title:'Scope and Method',                    pg:_pg('t4scope'), desc:'What this inspection covered \u00b7 what it did not \u00b7 no value is stated'},
+        {n:'2', id:'t4sum',   title:'Summary of Findings',                 pg:_pg('t4sum'),   desc:'Safety hazards and items requiring repair, most urgent first'},
+        {n:'3', id:'t4find',  title:'Findings by Section',                 pg:_pg('t4find'),  desc:'Every item inspected, in the order it was walked'},
+        {n:'4', id:'t4lim',   title:'Limitations and Areas Not Inspected', pg:_pg('t4lim'),   desc:'What could not be seen on the date of inspection, and why'}
+      ];
+      if (_t4Gen.trim()) _tocEntries.push({n:String(_tocEntries.length+1), id:'t4gen', title:'General Condition', pg:_pg('t4gen'), desc:'The inspector\u2019s overall view of the property'});
+      if (RC.rcPageSignoff!==false && !_secMovedSignoff) _tocEntries.push({n:String(_tocEntries.length+1), id:'signoff', title:_rt('appraiserSignOff'), pg:_pg('signoff'), desc:_rt('subSignoff')});
+      if (RC.rcPageDocs!==false) _tocEntries.push({n:String(_tocEntries.length+1), id:'p7', title:_rt('attachedDocuments'), pg:_pg('p7'), desc:_attachedDocsDesc});
+      if (RC.rcPageDocs!==false && RC.rcPagePhotos1!==false) _tocEntries.push({n:String(_tocEntries.length+1), id:'p8', title:'__CS_TITLE__', pg:_pg('p8'), desc:'__CS_DESC__'});
+    } else if (_tplVariant === 'T2') {
       _tocEntries = [
         {n:'1',  id:'pT2_3',         title:_rt('tocProjInfoIntro'),        pg:_pg('pT2_3'),         desc:('Property details · client · appraiser · '+_secDescForOrder(order,'p3',((RC._grndFpUnderInfo||RC._mbLayout||RC._suppressFpOpinionP4)?'floor-plan summary, thumbnails · Opinion of Floor Plan':'floor-plan summary, thumbnails, observations')))},
         {n:'2',  id:'pT2_4',         title:(RC._mbLayout?_rt('tocCondInspDetails'):((RC._suppressFpOpinionP4||RC._grndFpUnderInfo)?_rt('tocCondBuilding'):_rt('tocFpCondBuilding'))),     pg:_pg('pT2_4'),         desc:_secDescForOrder(order,'p4',(RC._mbLayout?'Condition Assessment Matrix · Materials · Equipment · Systems · Finishes':((RC._suppressFpOpinionP4||RC._grndFpUnderInfo)?'Condition Assessment Matrix · Building, Equipment &amp; Finishes · inspection details':'Floor plan opinion · Condition Assessment Matrix · Building, Equipment &amp; Finishes · inspection details')))},
@@ -52554,6 +52631,112 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     }
   }
 
+
+  // ── §T4-REPORT (v2.448) — the Building Inspection pages ─────────────────────
+  //   Emitted in _pgList order. Each gate is the SAME _isT4 boolean the list used.
+  if (_isT4) {
+    var _t4esc = (typeof esc === 'function') ? esc : function(s){ return String(s==null?'':s); };
+    var _t4StLabel = function(id){ var s = (typeof t4State==='function') ? t4State(id) : null; return s ? s.label : id; };
+    var _t4StTone  = function(id){ var s = (typeof t4State==='function') ? t4State(id) : null; return s ? s.tone : '#6d6a63'; };
+    var _t4PrLabel = function(id){
+      var P = (typeof T4_PRIORITIES !== 'undefined') ? T4_PRIORITIES : [];
+      for (var i=0;i<P.length;i++) if (P[i].id===id) return P[i].label;
+      return '';
+    };
+    var _t4Pill = function(st){
+      return '<span style="display:inline-block;padding:1px 7px;border-radius:2px;font-size:8.5px;font-weight:700;'
+        + 'letter-spacing:.06em;text-transform:uppercase;border:1px solid ' + _t4StTone(st) + ';color:' + _t4StTone(st) + ';'
+        + 'white-space:nowrap;">' + _t4esc(_t4StLabel(st)) + '</span>';
+    };
+
+    // ── Scope and method ──────────────────────────────────────────────────────
+    html += '<div class="page"><div class="inner">' + pgHdr('Scope and Method')
+      + '<div class="page-body">'
+      + '<div class="sec-h">Scope and Method</div>'
+      + '<div class="sec-sub">What this inspection covered, and what it did not</div>'
+      + '<div class="disc"><div class="disc-text">' + (disc[4] || disc[2]) + '</div></div>'
+      + '<div class="rep-op" style="margin-top:10px;">The inspection was carried out on '
+      +   _t4esc((order.inspDate || 'the date stated on the cover'))
+      +   (order.inspTime ? (' at ' + _t4esc(order.inspTime)) : '')
+      +   '. Every part of the property recorded below as <b>Not accessible</b> is listed again, with its reason, '
+      +   'on the Limitations page. No part of the structure was opened and no installation was dismantled.</div>'
+      + '</div>' + pgFtr('t4scope') + '</div></div>';
+
+    // ── Summary of findings ───────────────────────────────────────────────────
+    var _t4hz = _t4Sum.filter(function(x){ return x.state==='haz'; });
+    var _t4rp = _t4Sum.filter(function(x){ return x.state!=='haz'; });
+    var _t4Row = function(x){
+      return '<tr><td style="white-space:nowrap;font-family:var(--font-mono),monospace;">' + _t4esc(x.id) + '</td>'
+        + '<td>' + _t4Pill(x.state) + '</td>'
+        + '<td><b>' + _t4esc(x.what) + '</b>' + (x.note ? ('<br><span style="font-size:.92em;">' + _t4esc(x.note) + '</span>') : '') + '</td>'
+        + '<td style="white-space:nowrap;">' + _t4esc(_t4PrLabel(x.priority)) + '</td></tr>';
+    };
+    html += '<div class="page"><div class="inner">' + pgHdr('Summary of Findings')
+      + '<div class="page-body">'
+      + '<div class="sec-h">Summary of Findings</div>'
+      + '<div class="sec-sub">Safety hazards first, then items needing repair, most urgent first</div>'
+      + (_t4Sum.length
+          ? ('<table><thead><tr><th style="width:14mm;">Item</th><th style="width:26mm;">Finding</th><th>What was seen</th><th style="width:24mm;">Priority</th></tr></thead><tbody>'
+             + _t4hz.map(_t4Row).join('') + _t4rp.map(_t4Row).join('')
+             + '</tbody></table>'
+             + '<div class="rep-note" style="margin-top:8px;">'
+             + _t4hz.length + ' safety hazard' + (_t4hz.length===1?'':'s') + ' and '
+             + _t4rp.length + ' item' + (_t4rp.length===1?'':'s') + ' requiring repair. '
+             + 'Every item is set out in full, with its group, in Findings by Section.</div>')
+          : '<div class="rep-op">No safety hazards and no items requiring repair were identified on the accessible parts of the property at the time of inspection. This is not a statement that the property is free of defects: it records what was visible on the date of inspection, within the limitations set out in this report.</div>')
+      + '</div>' + pgFtr('t4sum') + '</div></div>';
+
+    // ── Findings by section ───────────────────────────────────────────────────
+    //   One long page. §PG-SPILL carries whatever does not fit onto the sheets that
+    //   follow, so this does not have to guess where the paper ends.
+    var _t4Body = '';
+    _t4L.forEach(function(g){
+      var rows = (g.items||[]).map(function(it){
+        var f = _t4F[it.id];
+        if (!f || !f.state) return '';
+        return '<tr><td style="white-space:nowrap;font-family:var(--font-mono),monospace;">' + _t4esc(it.id) + '</td>'
+          + '<td><b>' + _t4esc(it.what) + '</b></td>'
+          + '<td>' + _t4Pill(f.state) + '</td>'
+          + '<td>' + _t4esc(f.note || '') + (f.priority ? (' <i>(' + _t4esc(_t4PrLabel(f.priority)) + ')</i>') : '') + '</td></tr>';
+      }).filter(Boolean).join('');
+      if (!rows) return;
+      _t4Body += '<div class="sec-h" style="margin-top:8px;">' + _t4esc(g.letter + ' \u00b7 ' + g.name) + '</div>'
+        + '<table><thead><tr><th style="width:14mm;">Item</th><th style="width:48mm;">Inspected</th>'
+        + '<th style="width:26mm;">Finding</th><th>Notes</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    });
+    html += '<div class="page"><div class="inner">' + pgHdr('Findings by Section')
+      + '<div class="page-body">'
+      + '<div class="sec-h">Findings by Section</div>'
+      + '<div class="sec-sub">Every item inspected, in the order it was walked</div>'
+      + (_t4Body || '<div class="rep-op">No items have been recorded on this inspection.</div>')
+      + '</div>' + pgFtr('t4find') + '</div></div>';
+
+    // ── Limitations ───────────────────────────────────────────────────────────
+    html += '<div class="page"><div class="inner">' + pgHdr('Limitations')
+      + '<div class="page-body">'
+      + '<div class="sec-h">Limitations and Areas Not Inspected</div>'
+      + '<div class="sec-sub">What could not be seen on the date of inspection, and why</div>'
+      + (_t4Lim.length
+          ? ('<table><thead><tr><th style="width:14mm;">Item</th><th style="width:56mm;">Not inspected</th><th>Reason</th></tr></thead><tbody>'
+             + _t4Lim.map(function(x){
+                 return '<tr><td style="white-space:nowrap;font-family:var(--font-mono),monospace;">' + _t4esc(x.id) + '</td>'
+                   + '<td><b>' + _t4esc(x.what) + '</b></td><td>' + _t4esc(x.reason || '\u2014') + '</td></tr>';
+               }).join('') + '</tbody></table>')
+          : '<div class="rep-op">Every item on the checklist was accessible and was inspected. Nothing was excluded on the grounds of access.</div>')
+      + '<div class="rep-note" style="margin-top:10px;">This inspection is visual and non-invasive. Concealed defects, and any condition '
+      + 'not reasonably visible on the date of inspection, are outside its scope, as are matters requiring specialist investigation.</div>'
+      + '</div>' + pgFtr('t4lim') + '</div></div>';
+
+    // ── General condition statement ───────────────────────────────────────────
+    if (_t4Gen.trim()) {
+      html += '<div class="page"><div class="inner">' + pgHdr('General Condition')
+        + '<div class="page-body">'
+        + '<div class="sec-h">General Condition</div>'
+        + '<div class="sec-sub">The inspector\u2019s overall view of the property</div>'
+        + '<div class="rep-op">' + _opFmt(_t4Gen) + '</div>'
+        + '</div>' + pgFtr('t4gen') + '</div></div>';
+    }
+  }
 
 // §TPAGES-FINAL (v1.882) — now that every page (including the dedicated post-
 //   attached-docs pages) has rendered and ticked _runningPage, _totalPages is
