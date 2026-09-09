@@ -15810,6 +15810,8 @@ function settingsBuild(){
   try{ if(typeof _soundPanelInit==='function') _soundPanelInit(); }catch(e){}
 }
 function settingsTab(pid){
+  // §T4-LIST (v2.447) — drawn on open; 94 editable rows are not worth keeping in the DOM.
+  if (pid === 'pref-t4list') setTimeout(function(){ try{ _t4ListRender(); }catch(e){} }, 0);
   _settingsActive=pid;
   if(!_settingsBuilt){ settingsBuild(); }
   // Triple-lock: remove active from all, then add to target only
@@ -16535,7 +16537,9 @@ function _t4Get(code){ var f = window._t4Live || {}; return f[code] || {}; }
 function t4Render(){
   var host = document.getElementById('t4Host');
   if (!host || typeof T4_CHECKLIST_DEFAULT === 'undefined') return;
-  var list = T4_CHECKLIST_DEFAULT;
+  // §T4-LIST (v2.447) — the bureau's list when it has one, and only its LIVE items:
+  //   a retired item disappears from new inspections but keeps resolving in old ones.
+  var list = (typeof t4ListActive === 'function') ? t4ListActive() : T4_CHECKLIST_DEFAULT;
   var esc = (typeof _apqEsc === 'function') ? _apqEsc : function(s){ return String(s==null?'':s); };
 
   var html = '<div id="t4Prog" style="position:sticky;top:0;z-index:5;background:var(--cream);'
@@ -16645,7 +16649,7 @@ function _t4Extra(code){
 function _t4Progress(){
   var bar = document.getElementById('t4Prog');
   if (!bar || typeof t4Items !== 'function') return;
-  var all = t4Items(), f = window._t4Live || {};
+  var all = t4Items(typeof t4ListActive === 'function' ? t4ListActive() : null), f = window._t4Live || {};
   var done = all.filter(function(it){ return f[it.id] && f[it.id].state; }).length;
   var blockers = (typeof t4Blockers === 'function') ? t4Blockers(f) : [];
   var haz = all.filter(function(it){ return f[it.id] && f[it.id].state === 'haz'; }).length;
@@ -16657,13 +16661,247 @@ function _t4Progress(){
         ? ' &middot; <span style="color:#a32b25;font-weight:700;">' + blockers.length + ' still needs a note or a priority</span>'
         : (done ? ' &middot; <span style="color:#2f6f52;">nothing outstanding</span>' : ''));
   // per-group counts, so a collapsed group still says whether it was walked
-  (T4_CHECKLIST_DEFAULT || []).forEach(function(g){
+  ((typeof t4ListActive === 'function' ? t4ListActive() : T4_CHECKLIST_DEFAULT) || []).forEach(function(g){
     var el = document.querySelector('.t4-gc[data-g="' + g.letter + '"]');
     if (!el) return;
     var n = g.items.filter(function(it){ return f[it.id] && f[it.id].state; }).length;
     el.textContent = n + '/' + g.items.length;
   });
 }
+
+// ══ §T4-LIST (v2.447) — the bureau's own checklist, editable from Settings ══════
+//
+//   The plan is explicit that this report is a work in progress and that 94 items
+//   will change, so the list has to be changeable without a build. Same store, same
+//   shape and the same failure tolerance as §INSP-OPTS: ONE firm-wide row in the
+//   existing report_templates key-value table, id '__t4_checklist__' (double-
+//   underscore ids are filtered out of the template list everywhere), mirrored to
+//   localStorage so the list is on screen instantly and offline, before the server
+//   answers.
+//
+//   ── THE CODE IS THE CONTRACT, AND THE EDITOR ENFORCES IT ────────────────────
+//   A finding is stored against 'D.03'. So the editor lets the bureau re-word an
+//   item, re-order it, add one or retire one — and refuses the two operations that
+//   would make a past inspection resolve to the wrong thing:
+//     · a code can never be REUSED for a different item;
+//     · a code in use is never silently renumbered.
+//   Retiring an item HIDES it from new inspections; it does not delete the code, and
+//   an inspection that already recorded it still resolves and still prints. That is
+//   the §INSP-OPTS-HEAL rule applied to items instead of dropdown values.
+//
+//   ── WHAT IS NOT EDITABLE HERE, DELIBERATELY ────────────────────────────────
+//   The five states. They are wired into the two completion rules, the summary page
+//   and the limitations page; a bureau-defined sixth state would have no defined
+//   behaviour in any of them. Changing that set is a build, not a setting.
+var _T4_LIST_LS = 'sigma_t4_checklist_v1';
+var _T4_LIST_ID = '__t4_checklist__';
+var _t4List = null;               // null = never customised; use T4_CHECKLIST_DEFAULT
+
+/** The list in force: the bureau's if it has one, otherwise the shipped default. */
+function t4List(){
+  if (_t4List && Array.isArray(_t4List) && _t4List.length) return _t4List;
+  return (typeof T4_CHECKLIST_DEFAULT !== 'undefined') ? T4_CHECKLIST_DEFAULT : [];
+}
+/** Live items only — retired ones stay in the store so old findings still resolve. */
+function t4ListActive(){
+  return t4List().map(function(g){
+    return { letter:g.letter, name:g.name,
+             items:(g.items||[]).filter(function(it){ return !it.retired; }) };
+  }).filter(function(g){ return g.items.length; });
+}
+function _t4ListLoadLocal(){
+  try{ var raw = localStorage.getItem(_T4_LIST_LS);
+       if (raw){ var o = JSON.parse(raw); if (Array.isArray(o) && o.length) _t4List = o; } }catch(e){}
+}
+function _t4ListSaveLocal(){ try{ localStorage.setItem(_T4_LIST_LS, JSON.stringify(_t4List || [])); }catch(e){} }
+
+function _t4ListPull(_tries){
+  if (typeof _sb === 'undefined' || !_sb){ if ((_tries||0) < 6) setTimeout(function(){ _t4ListPull((_tries||0)+1); }, 800); return; }
+  if (typeof window.isSbPaused === 'function' && window.isSbPaused()) return;
+  try{
+    _sb.schema('public').from('report_templates').select('config').eq('id', _T4_LIST_ID).limit(1)
+      .then(function(res){
+        if (res.error || !res.data || !res.data.length) return;
+        var cfg = {}; try{ cfg = (typeof res.data[0].config === 'string') ? JSON.parse(res.data[0].config) : (res.data[0].config || {}); }catch(e){ return; }
+        var g = (cfg && Array.isArray(cfg.groups)) ? cfg.groups : null;
+        if (!g || !g.length) return;
+        _t4List = g; _t4ListSaveLocal();
+        try{ var p = document.getElementById('pref-t4list'); if (p && p.classList.contains('active')) _t4ListRender(); }catch(e2){}
+        try{ if (document.getElementById('t4Host')) t4Render(); }catch(e3){}
+      })
+      .catch(function(err){ try{ console.warn('[t4List] pull exception:', err); }catch(e){} });
+  }catch(e){}
+}
+function _t4ListPush(){
+  _t4ListSaveLocal();
+  if (typeof _sb === 'undefined' || !_sb) return Promise.resolve({error:{message:'not connected'}});
+  if (typeof window.isSbPaused === 'function' && window.isSbPaused()) return Promise.resolve({error:{message:'sync paused'}});
+  try{
+    return _sb.schema('public').from('report_templates')
+      .upsert({ id:_T4_LIST_ID, name:'__T4_CHECKLIST__',
+                config: JSON.stringify({ groups: _t4List || [] }),
+                created_at:new Date().toISOString(), updated_at:new Date().toISOString() },
+              { onConflict:'id', ignoreDuplicates:false });
+  }catch(e){ return Promise.resolve({error:{message:String(e&&e.message||e)}}); }
+}
+
+/** Start editing from whatever is in force, so a first edit never loses the default. */
+function _t4ListEnsure(){
+  if (!_t4List || !_t4List.length){
+    _t4List = JSON.parse(JSON.stringify((typeof T4_CHECKLIST_DEFAULT !== 'undefined') ? T4_CHECKLIST_DEFAULT : []));
+  }
+  return _t4List;
+}
+function _t4CodesInUse(){
+  var seen = {};
+  t4List().forEach(function(g){ (g.items||[]).forEach(function(it){ seen[it.id] = true; }); });
+  return seen;
+}
+/** The next free code in a group — never one that has ever existed in it. */
+function _t4NextCode(letter){
+  var used = _t4CodesInUse(), n = 1;
+  while (used[letter + '.' + String(n).padStart(2,'0')]) n++;
+  return letter + '.' + String(n).padStart(2,'0');
+}
+
+function _t4ListStatus(msg, bad){
+  var el = document.getElementById('t4ListStatus'); if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = bad ? '#a33a2a' : 'var(--slate-lt,#777)';
+}
+function _t4ListSaved(){
+  _t4ListStatus('Saving\u2026');
+  _t4ListPush().then(function(r){
+    if (r && r.error) _t4ListStatus('Saved on this device only \u2014 ' + (r.error.message || 'not synced'), true);
+    else _t4ListStatus('Saved for the whole bureau.');
+    try{ if (document.getElementById('t4Host')) t4Render(); }catch(e){}
+  });
+}
+
+function _t4ListRender(){
+  var host = document.getElementById('t4ListBody'); if (!host) return;
+  var list = _t4ListEnsure();
+  var esc = (typeof _inspOptsEsc === 'function') ? _inspOptsEsc
+          : function(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+              return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+  var live = 0, retired = 0;
+  list.forEach(function(g){ (g.items||[]).forEach(function(it){ it.retired ? retired++ : live++; }); });
+
+  var h = '<div style="margin-bottom:10px;font-size:12px;color:var(--slate-lt);">'
+    + '<b>' + live + '</b> items in use' + (retired ? (' \u00b7 ' + retired + ' retired') : '')
+    + ' \u00b7 <span id="t4ListStatus"></span></div>';
+
+  list.forEach(function(g, gi){
+    h += '<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;">'
+      + '<div style="display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--cream);">'
+      +   '<span style="font-family:var(--font-mono),monospace;font-weight:700;color:#c8922a;">' + esc(g.letter) + '</span>'
+      +   '<input type="text" value="' + esc(g.name) + '" data-t4l="gname" data-gi="' + gi + '"'
+      +     ' style="flex:1;font-weight:600;font-size:13px;padding:5px 8px;">'
+      +   '<button type="button" data-t4l="add" data-gi="' + gi + '" style="font-size:11px;padding:4px 9px;cursor:pointer;">+ item</button>'
+      + '</div>';
+    (g.items||[]).forEach(function(it, ii){
+      h += '<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 10px;border-top:1px solid var(--border);'
+        +   (it.retired ? 'opacity:.5;' : '') + '">'
+        + '<span style="font-family:var(--font-mono),monospace;font-size:11px;color:var(--slate-lt);min-width:44px;padding-top:7px;">'
+        +   esc(it.id) + '</span>'
+        + '<div style="flex:1;display:flex;flex-direction:column;gap:4px;">'
+        +   '<input type="text" value="' + esc(it.what) + '" data-t4l="what" data-gi="' + gi + '" data-ii="' + ii + '"'
+        +     ' placeholder="What is inspected" style="font-size:12.5px;padding:5px 8px;">'
+        +   '<input type="text" value="' + esc(it.look || '') + '" data-t4l="look" data-gi="' + gi + '" data-ii="' + ii + '"'
+        +     ' placeholder="What to look at" style="font-size:11.5px;padding:5px 8px;color:var(--slate-lt);">'
+        + '</div>'
+        + '<button type="button" data-t4l="retire" data-gi="' + gi + '" data-ii="' + ii + '"'
+        +   ' title="' + (it.retired ? 'Bring this item back' : 'Retire this item. Inspections that already recorded it keep it.') + '"'
+        +   ' style="font-size:11px;padding:4px 9px;cursor:pointer;white-space:nowrap;">'
+        +   (it.retired ? 'Restore' : 'Retire') + '</button>'
+        + '</div>';
+    });
+    h += '</div>';
+  });
+  host.innerHTML = h;
+
+  if (!host._t4lBound){
+    host._t4lBound = true;
+    host.addEventListener('input', function(ev){
+      var el = ev.target, k = el.getAttribute && el.getAttribute('data-t4l');
+      if (!k) return;
+      var g = _t4ListEnsure()[+el.getAttribute('data-gi')]; if (!g) return;
+      if (k === 'gname'){ g.name = el.value; }
+      else {
+        var it = (g.items||[])[+el.getAttribute('data-ii')]; if (!it) return;
+        if (k === 'what') it.what = el.value; else if (k === 'look') it.look = el.value;
+      }
+      clearTimeout(host._t4lT);
+      host._t4lT = setTimeout(_t4ListSaved, 600);      // debounced: this is a text field
+    });
+    host.addEventListener('click', function(ev){
+      var b = ev.target.closest && ev.target.closest('[data-t4l]');
+      if (!b) return;
+      var k = b.getAttribute('data-t4l');
+      if (k !== 'add' && k !== 'retire') return;
+      var list = _t4ListEnsure(), g = list[+b.getAttribute('data-gi')]; if (!g) return;
+      if (k === 'add'){
+        g.items = g.items || [];
+        g.items.push({ id:_t4NextCode(g.letter), what:'', look:'' });
+      } else {
+        var it = (g.items||[])[+b.getAttribute('data-ii')]; if (!it) return;
+        it.retired = !it.retired;
+      }
+      _t4ListRender();
+      _t4ListSaved();
+    });
+  }
+}
+
+function t4ListReset(){
+  if (!confirm('Restore the checklist to the 94 items SIGMA ships with?\n\n'
+    + 'Your wording and any items you added will be replaced. Inspections already recorded are not affected \u2014 '
+    + 'they are stored against the item code, not the wording.')) return;
+  _t4List = JSON.parse(JSON.stringify(T4_CHECKLIST_DEFAULT));
+  _t4ListRender();
+  _t4ListSaved();
+}
+try{
+  window.t4List = t4List; window.t4ListActive = t4ListActive; window.t4ListReset = t4ListReset;
+  window._t4ListRender = _t4ListRender; window._t4ListPull = _t4ListPull;
+}catch(e){}
+try{ _t4ListLoadLocal(); setTimeout(function(){ try{ _t4ListPull(0); }catch(e){} }, 1200); }catch(e){}
+
+// Register the panel + its sidebar entry without touching the giant _settingsPanels
+// literal — the same approach §INSP-OPTS uses.
+(function(){
+  try{
+    if (typeof _settingsOrder === 'undefined' || typeof _settingsPanels === 'undefined' || typeof _settingsNav === 'undefined') return;
+    if (_settingsOrder.indexOf('pref-t4list') >= 0) return;
+    var ai = _settingsOrder.indexOf('pref-inspopts');
+    if (ai >= 0) _settingsOrder.splice(ai+1, 0, 'pref-t4list'); else _settingsOrder.push('pref-t4list');
+    var navItem = '<div class="pref-nav-item" onclick="settingsTab(\'pref-t4list\')"><span class="pref-nav-icon">\ud83c\udfda\ufe0f</span><span>Building Inspection List</span></div>';
+    var ni = -1;
+    for (var i = 0; i < _settingsNav.length; i++){ if (_settingsNav[i].indexOf("'pref-inspopts'") >= 0){ ni = i; break; } }
+    if (ni >= 0) _settingsNav.splice(ni+1, 0, navItem); else _settingsNav.push(navItem);
+    _settingsPanels['pref-t4list'] = ''
+      + '<style>#pref-t4list input[type=text]{border:1px solid var(--border,#d9d2c4);border-radius:6px;'
+      +   'background:var(--surface,#fff);color:var(--ink,#111);width:100%;}'
+      + '#pref-t4list button{border:1px solid var(--border,#d9d2c4);border-radius:6px;background:var(--surface,#fff);color:var(--ink,#111);}'
+      + '</style>'
+      + '<div class="pref-section">'
+      +   '<div class="pref-sec-hdr"><span>\ud83c\udfda\ufe0f</span><h4>Building Inspection List</h4></div>'
+      +   '<div class="pref-body">'
+      +     '<p style="font-size:12.5px;color:var(--slate-lt);line-height:1.6;margin:0 0 12px;">'
+      +       'The checklist an inspector walks on a Type 4 Building Inspection. Re-word anything, add items, '
+      +       'retire what the bureau does not inspect. Changes apply to the whole bureau and take effect on the next inspection opened.'
+      +       '<br><br><b>Retire, do not delete.</b> A finding is recorded against its item code, so retiring an item hides it from '
+      +       'new inspections while every inspection that already recorded it still reads and prints correctly. '
+      +       'The five states \u2014 Satisfactory, Monitor, Repair, Hazard, Not accessible \u2014 are not editable: '
+      +       'the completion rules, the summary page and the limitations page are all built on them.'
+      +     '</p>'
+      +     '<div style="margin-bottom:12px;"><button type="button" onclick="t4ListReset()" style="font-size:12px;padding:6px 12px;cursor:pointer;">'
+      +       'Restore the 94 default items</button></div>'
+      +     '<div id="t4ListBody"></div>'
+      +   '</div>'
+      + '</div>';
+  }catch(e){}
+})();
 
 function _t4Capture(){ return JSON.parse(JSON.stringify(window._t4Live || {})); }
 function _t4Apply(saved){
@@ -19507,7 +19745,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.446';
+var APP_VERSION = 'v2.447';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19545,6 +19783,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.447',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist is now yours to edit',desc:'Settings \u203a Building Inspection List lets the bureau re-word any of the 94 items, rename a group, add items of its own and retire the ones it does not inspect \u2014 no build and no developer. Changes are saved for the whole bureau and appear in the next inspection opened. Items are RETIRED rather than deleted, on purpose: a finding is recorded against its item code, so retiring hides an item from new inspections while every inspection that already recorded it still reads and prints exactly as it was. A new item is always given a code that has never been used in its group, so a code can never come to mean two different things. The five states are not editable, because the completion rules, the summary page and the limitations page are all built on them.'},
   {v:'v2.446',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist is now a tab you can walk on a tablet',desc:'A Type 4 order gains a Building Inspection tab carrying all 94 items in their 15 groups. Each item is one row of five buttons \u2014 Satisfactory, Monitor, Repair, Hazard, Not accessible \u2014 and the note and priority boxes appear only when the state you chose actually needs them, so a satisfactory item stays a single tap. Groups collapse, and a collapsed group still shows how many of its items you have recorded. A line at the top counts what is done, how many hazards you have found, how many things you could not reach, and what is still missing a note or a priority. Tapping the state you already chose clears it. Everything saves as you go, against the item code, so re-wording an item later never orphans an inspection you have already done. Only Type 4 orders see the tab. Photographs against individual findings are the next stage.'},
   {v:'v2.445',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist \u2014 94 items, ready for the form to use',desc:'The checklist behind the Type 4 Building Inspection is now in the application: 94 items in 15 groups, written for Aruban construction, each with what to look at. Every item is recorded as Satisfactory, Monitor, Repair, Hazard or Not accessible, with a note and where needed a priority \u2014 a scale the existing condition buttons cannot express, because they have no way to say \u2018safety hazard\u2019 or \u2018could not be seen\u2019. The rules the plan asked for are built in from the start: an inspection cannot be completed with a Hazard that has no note, and every Not accessible item is collected for the limitations page. This release adds the list and those rules; the on-screen form that walks them is next.'},
   {v:'v2.444',type:'feature',date:'09-09-2026',_static:true,title:'Building Inspection added to the report costs at AWG 500',desc:'Building Inspection is now one of the cost lines you can tick on an order, at AWG 500, on all three lists \u2014 so a Type 4 Building Inspection picks it up too, since Type 4 reads the Type 2 list. It appears for everyone, including anyone who has already customised their cost list: new items are offered once, and if you delete one it stays deleted rather than coming back on the next load. The amount is a starting figure like every other line \u2014 edit it in Settings \u203a Report Costs and your figure is what is used.'},
