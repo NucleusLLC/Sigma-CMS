@@ -17374,6 +17374,8 @@ var REPORT_STRINGS = {
     typeScope1:'No building · Land value only',
     typeScope2:'Full site & building inspection · Three-value report',
     typeScope3:'"As-Proposed" valuation · Plans & specifications reviewed',
+    typeStrip4:'Building Inspection — Condition & Safety',
+    typeScope4:'Visual inspection of accessible areas · No value is stated',
     secTitleRoi:'R.O.I.',
     secTitleFpOpinion:'Opinion of Floor Plan',
     secTitleFloorplan:'Floorplan Info',
@@ -17811,6 +17813,8 @@ var REPORT_STRINGS = {
     typeScope1:'Geen opstal · uitsluitend grondwaarde',
     typeScope2:'Volledige opname perceel & opstal · rapport met drie waarden',
     typeScope3:'Waardering "volgens plan" · tekeningen & bestek beoordeeld',
+    typeStrip4:'Bouwkundige keuring — staat & veiligheid',
+    typeScope4:'Visuele opname van bereikbare delen · geen waarde vermeld',
     secTitleRoi:'R.O.I.',
     secTitleFpOpinion:'Beoordeling van de plattegrond',
     secTitleFloorplan:'Plattegrondgegevens',
@@ -19776,7 +19780,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.450';
+var APP_VERSION = 'v2.451';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19814,6 +19818,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.451',type:'fix',date:'09-09-2026',_static:true,title:'The Building Inspection cover no longer describes itself as an appraisal',desc:'The strip along the foot of the cover was reading “Parcel + Existing Building Appraisal” and promising a “Three-value report” on a Type 4, which states no value at all. It now reads Building Inspection — Condition & Safety, and says the inspection is visual, covers the accessible areas, and states no value. The Type 4 name added earlier was never reaching the cover either: the table it is looked up in stopped at Type 3. Dutch wording included.'},
   {v:'v2.450',type:'fix',date:'09-09-2026',_static:true,title:'The report check now looks at the Building Inspection checklist',desc:'Generating a Type 4 report now checks the checklist before it prints: how many items were walked, how many safety hazards were found, whether every finding that needs a note and a priority has them, and whether every item you could not inspect has a reason recorded \u2014 that last one matters because the limitations page is built from those reasons, and one left blank prints blank. It uses the SAME rule the inspection tab uses for its progress line, so the form and the report can never disagree about whether an inspection is finished. The Valuation checks no longer appear on a Type 4, which has no valuation. The check was also looking at sections 1 to 14 only, so it could not see the checklist at all \u2014 it now reads it.'},
   {v:'v2.449',type:'feature',date:'09-09-2026',_static:true,title:'A Building Inspection cover reads INSPECTION REPORT',desc:'The Type 4 cover is the appraisal cover exactly as designed \u2014 same layout, same photograph, same firm block \u2014 except that it reads INSPECTION REPORT, and so does the top-right of every page behind it, so the two can never say different things about what the document is. The job number simply continues in the same series: a Building Inspection is 2026-112 after an appraisal 2026-111, as it always was. A cover title you typed yourself is left exactly alone \u2014 only the words SIGMA supplied are changed, and the capitals you chose are kept. A report template named SIGMA_Type4_InspectionReport is created for you on first use; rename it, edit it or delete it and that decision stands.'},
   {v:'v2.448',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection prints as its own report',desc:'A Type 4 order now produces a Building Inspection report rather than an appraisal with the valuation switched off. Scope and Method, then a Summary of Findings that puts every safety hazard at the front and the repairs after it in order of urgency, then every item as it was walked, then Limitations. The summary and the limitations pages are assembled from the checklist itself, so they cannot disagree with it, and the limitations page always prints \u2014 a visual inspection that does not say what it could not see is the one thing that would expose the bureau. There is a General Condition page for your overall view, written on the inspection tab and printed only if you write one. No valuation, no R.O.P.V. and no value conclusion appear anywhere: they are not switched off, they are simply not part of this document.'},
@@ -48164,9 +48169,14 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   var apprExpiry  = apprRec ? apprRec.expiry  : '—';
 
   // type labels
-  var typeNames = {1:_rt('typeName1'), 2:_rt('typeName2'), 3:_rt('typeName3')};
-  var typeStrip = {1:_rt('typeStrip1'), 2:_rt('typeStrip2'), 3:_rt('typeStrip3')};
-  var typeScope = {1:_rt('typeScope1'), 2:_rt('typeScope2'), 3:_rt('typeScope3')};
+  // §T4-COVERSTRIP (v2.451) — key 4, in all THREE maps. Each falls back to [2], so a
+  //   Type 4 cover was printing "Parcel + Existing Building Appraisal" and promising a
+  //   "Three-value report" on a document that states no value. typeName4 has existed
+  //   since v2.443 but was never reachable, because this map stopped at 3 — the string
+  //   was added and nothing ever read it. Same shape as the DISC_DEFAULTS[4] trap.
+  var typeNames = {1:_rt('typeName1'), 2:_rt('typeName2'), 3:_rt('typeName3'), 4:_rt('typeName4')};
+  var typeStrip = {1:_rt('typeStrip1'), 2:_rt('typeStrip2'), 3:_rt('typeStrip3'), 4:_rt('typeStrip4')};
+  var typeScope = {1:_rt('typeScope1'), 2:_rt('typeScope2'), 3:_rt('typeScope3'), 4:_rt('typeScope4')};
   var typeName  = typeNames[type]  || typeNames[2];
   var typeStripTxt = typeStrip[type] || typeStrip[2];
   var typeScopeTxt = typeScope[type] || typeScope[2];
