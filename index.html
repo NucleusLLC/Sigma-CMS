@@ -19776,7 +19776,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.449';
+var APP_VERSION = 'v2.450';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19814,6 +19814,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.450',type:'fix',date:'09-09-2026',_static:true,title:'The report check now looks at the Building Inspection checklist',desc:'Generating a Type 4 report now checks the checklist before it prints: how many items were walked, how many safety hazards were found, whether every finding that needs a note and a priority has them, and whether every item you could not inspect has a reason recorded \u2014 that last one matters because the limitations page is built from those reasons, and one left blank prints blank. It uses the SAME rule the inspection tab uses for its progress line, so the form and the report can never disagree about whether an inspection is finished. The Valuation checks no longer appear on a Type 4, which has no valuation. The check was also looking at sections 1 to 14 only, so it could not see the checklist at all \u2014 it now reads it.'},
   {v:'v2.449',type:'feature',date:'09-09-2026',_static:true,title:'A Building Inspection cover reads INSPECTION REPORT',desc:'The Type 4 cover is the appraisal cover exactly as designed \u2014 same layout, same photograph, same firm block \u2014 except that it reads INSPECTION REPORT, and so does the top-right of every page behind it, so the two can never say different things about what the document is. The job number simply continues in the same series: a Building Inspection is 2026-112 after an appraisal 2026-111, as it always was. A cover title you typed yourself is left exactly alone \u2014 only the words SIGMA supplied are changed, and the capitals you chose are kept. A report template named SIGMA_Type4_InspectionReport is created for you on first use; rename it, edit it or delete it and that decision stands.'},
   {v:'v2.448',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection prints as its own report',desc:'A Type 4 order now produces a Building Inspection report rather than an appraisal with the valuation switched off. Scope and Method, then a Summary of Findings that puts every safety hazard at the front and the repairs after it in order of urgency, then every item as it was walked, then Limitations. The summary and the limitations pages are assembled from the checklist itself, so they cannot disagree with it, and the limitations page always prints \u2014 a visual inspection that does not say what it could not see is the one thing that would expose the bureau. There is a General Condition page for your overall view, written on the inspection tab and printed only if you write one. No valuation, no R.O.P.V. and no value conclusion appear anywhere: they are not switched off, they are simply not part of this document.'},
   {v:'v2.447',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist is now yours to edit',desc:'Settings \u203a Building Inspection List lets the bureau re-word any of the 94 items, rename a group, add items of its own and retire the ones it does not inspect \u2014 no build and no developer. Changes are saved for the whole bureau and appear in the next inspection opened. Items are RETIRED rather than deleted, on purpose: a finding is recorded against its item code, so retiring hides an item from new inspections while every inspection that already recorded it still reads and prints exactly as it was. A new item is always given a code that has never been used in its group, so a code can never come to mean two different things. The five states are not editable, because the completion rules, the summary page and the limitations page are all built on them.'},
@@ -46843,7 +46844,8 @@ function _rcEsc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&l
 function _rcBuildChecks(order, type) {
   var id = order.id, inspData = {};
   if (order.inspData) try { inspData = JSON.parse(JSON.stringify(order.inspData)); } catch(e) {}
-  for (var si = 0; si < 14; si++) {
+  // §T4-PREFLIGHT (v2.450) — 15, not 14: one short of the checklist.
+  for (var si = 0; si < 15; si++) {
     try { var lr = localStorage.getItem("insp_" + id + "_" + si);
       if (lr) { var lp = JSON.parse(lr); if (!inspData["s"+si]) inspData["s"+si] = {}; Object.assign(inspData["s"+si], lp); }
     } catch(e) {}
@@ -46984,6 +46986,71 @@ function _rcBuildChecks(order, type) {
   })();
   val.push({ label:"Sign-Off Name",   detail:hasNm ? (s13.inspName||s12.inspName||order.appraiser||"") : "", ok:hasNm, errText:"Not entered" });
   val.push({ label:"Sign-Off Date",   detail:hasDt ? (s13.inspDate||s12.inspDate||"") : "", ok:hasDt, errText:"Not set", optional:true });
+  // ── §T4-PREFLIGHT (v2.450) — the Building Inspection's own checks ───────────
+  //
+  //   The plan gives the checklist two completion rules and says they must hold for
+  //   the REPORT, not only for the form. t4Blockers is the function the form's
+  //   progress line already calls, so calling it here is what makes the two agree by
+  //   construction rather than by two lists of conditions kept in step by hand.
+  //
+  //   The Valuation group is dropped for a Type 4: it has none, and a row reading
+  //   "Market Value — Missing" on a document that states no value is worse than
+  //   noise, it is wrong.
+  if (Number(order.apprType) === 4) {
+    var s14 = inspData.s14 || {};
+    var t4f = s14._t4 || {};
+    var t4list = (typeof t4ListActive === 'function') ? t4ListActive()
+               : ((typeof T4_CHECKLIST_DEFAULT !== 'undefined') ? T4_CHECKLIST_DEFAULT : []);
+    var t4all = (typeof t4Items === 'function') ? t4Items(t4list) : [];
+    var recorded = t4all.filter(function(it){ return t4f[it.id] && t4f[it.id].state; }).length;
+    var blockers = (typeof t4Blockers === 'function') ? t4Blockers(t4f, t4list) : [];
+    var hazards  = t4all.filter(function(it){ return t4f[it.id] && t4f[it.id].state === 'haz'; }).length;
+    var notAcc   = t4all.filter(function(it){ return t4f[it.id] && t4f[it.id].state === 'na'; }).length;
+    var naNoWhy  = t4all.filter(function(it){
+      var f = t4f[it.id];
+      return f && f.state === 'na' && !String(f.note || '').trim();
+    }).length;
+    var mv = String.fromCharCode(8212);
+
+    var t4 = [
+      { label:"Checklist walked",
+        detail: recorded + " of " + t4all.length + " items recorded",
+        ok: recorded > 0,
+        errText:"Nothing recorded" },
+      // Not a blocker: an inspection that reaches no item is a finished inspection.
+      { label:"Safety hazards",
+        detail: hazards ? (hazards + " found") : "none found",
+        ok:true, optional:true, okText: hazards ? String(hazards) : "None" },
+      { label:"Every finding has what it needs",
+        // One item can raise TWO blockers (a Hazard missing both its note and its
+        // priority), so the codes are deduped: "K.01, K.01" reads like two problems.
+        detail: blockers.length
+                ? (function(){
+                    var seen = {}, ids = [];
+                    blockers.forEach(function(b){ if (!seen[b.id]) { seen[b.id] = 1; ids.push(b.id); } });
+                    return ids.slice(0,3).join(", ") + (ids.length > 3 ? (" +" + (ids.length - 3) + " more") : "");
+                  })()
+                : "notes and priorities complete",
+        ok: blockers.length === 0,
+        errText: (function(){ var s={},n=0; blockers.forEach(function(b){ if(!s[b.id]){s[b.id]=1;n++;} }); return n; })() + " incomplete" },
+      // The limitations page is assembled from these; one without a reason prints blank.
+      { label:"Reasons given for what was not inspected",
+        detail: notAcc ? (notAcc + " not accessible" + (naNoWhy ? (", " + naNoWhy + " without a reason") : "")) : "nothing excluded",
+        ok: naNoWhy === 0,
+        errText: naNoWhy + " missing a reason" },
+      { label:"General condition statement",
+        detail: String(s14._t4General || '').trim() ? "written" : mv,
+        ok: !!String(s14._t4General || '').trim(),
+        optional:true, errText:"Not written", okText:"Written" }
+    ];
+
+    return [
+      { label:"📋  Project Data",        items:proj },
+      { label:"🔍  Inspect Data",        items:insp },
+      { label:"🏚️  Building Inspection", items:t4   },
+    ];
+  }
+
   return [
     { label:"📋  Project Data", items:proj },
     { label:"🔍  Inspect Data", items:insp },
@@ -59145,7 +59212,8 @@ async function genAiInspSummary() {
     var saved = order.inspData || {};
     for (var key in saved) { if (saved.hasOwnProperty(key)) d[key] = Object.assign({}, saved[key]); }
     // Overlay with live localStorage values (most current field values)
-    for (var si = 0; si < 14; si++) {
+    // §T4-PREFLIGHT (v2.450) — 15, not 14: the checklist lives in section 14.
+    for (var si = 0; si < 15; si++) {
       try {
         var raw = localStorage.getItem('insp_' + order.id + '_' + si);
         if (raw) {
