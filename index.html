@@ -19072,7 +19072,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.440';
+var APP_VERSION = 'v2.441';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19110,6 +19110,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.441',type:'feature',date:'09-08-2026',_static:true,title:'The client is told about the inspection too, not only the inspector',desc:'Booking an inspection can now notify the client as well as the inspector. One button emails both in a single click, showing you every recipient before anything leaves, and a separate WhatsApp button opens a message ready for the client the same way the inspector one already does. The client gets their own wording \u2014 the date, the time, the property, who is coming and how to rearrange it \u2014 not the internal note the inspector receives. Each party and each channel is tracked separately, so the row tells you exactly who was emailed, who was messaged and when, and change the date or the time and it says the appointment moved rather than quietly showing it as done. Nothing sends by itself, and only what the mail server actually confirmed is recorded as sent. WhatsApp still opens the message for you to send yourself.'},
   {v:'v2.440',type:'feature',date:'09-07-2026',_static:true,title:'Automatic page-overflow handling is back on',desc:'Text that does not fit a page continues on the following page again, instead of running under the footer and being cut off. The fault that switched it off has been traced and fixed: the rule deciding which pages could receive continued text was rejecting any page holding a picture taller than 40mm, which caught ordinary property photographs, so those pages refused the text and it went onto a sheet of its own that was then left mostly empty. That rule now asks whether a page is BUILT AROUND its pictures — measured against the page itself rather than a fixed size — so a floor plan or a contact sheet is still left alone while an ordinary page with a photo accepts continued text normally.'},
   {v:'v2.439',type:'fix',date:'09-07-2026',_static:true,title:'Automatic page-overflow handling switched off for now',desc:'The feature that carried overflowing text onto a following page was leaving a nearly empty sheet in the middle of some reports. It is switched off while that is traced, so reports paginate exactly as they did before it was introduced. Long text can once again run to the foot of a page; that is the older behaviour and it will return properly once the remaining fault is fixed.'},
   {v:'v2.438',type:'fix',date:'09-07-2026',ts:'09-07-2026 19:30',_static:true,title:'Overflowing text continues on the next page again, instead of taking a near-empty sheet of its own',desc:'A report page that overran its footer could still take a whole extra sheet for a few spilled lines — on 2026-111 page 4 came out as a continuation sheet carrying one short paragraph and about 171mm of white paper, with the next section starting normally on the sheet after it. v2.434 was written to stop exactly that by continuing the overflow at the top of the page that already follows, and it was working; what stopped it was the test deciding which pages may be continued onto. That test refused any page holding a picture more than 40mm tall, on the reasoning that 40mm sits above a letterhead mark and below a plan. Measured on a real report it sits in neither place: the running-header letterhead is 22 pixels, about 6mm, so the threshold never did the job it was written for, while an ordinary photograph on a prose page is 50 to 80mm — so every prose page carrying a single photo refused, and every overrun in front of one fell back to a wasted sheet. The question is now asked the way it was always meant: is this sheet BUILT AROUND its pictures? A floor plan, a cadaster scan, a rasterised attached document and a photo contact sheet all still refuse, because their pictures fill most of the page; a prose page with one photograph now accepts the overflow and the text simply continues underneath. The measurement is taken as a share of that page’s own content box rather than a fixed millimetre count, so it holds on any paper size and any margin set, and the running header, the footer, the page number, the appraiser stamp and the DRAFT watermark are excluded from it — none of them is content and nothing an overflow does can move them. The report console now also reports how many pages declined, so a wasted sheet says why instead of having to be found on paper.'},
@@ -36246,22 +36247,47 @@ function _uisRow(it){
         + ' · ' + _apqEsc(_apqStamp(o.inspWaNotifiedAt)) + '</span>';
   }
 
-  // The one control. It never sends on its own — see the header.
+  // §APPT-NOTIFY (v2.441) — the client's two channels, reported SEPARATELY from the
+  //   inspector's above and from each other. Four facts, never merged into one badge:
+  //   a client emailed is not a client messaged, and either can be true alone.
+  var _cliRes = _apptClientTo(o);
+  if(o.clientNotifiedAt){
+    var cmoved = (String(o.clientNotifiedFor||'') !== _uisStamp(o));
+    l2 += '<span class="apq-by">· Client ' + (cmoved ? 'emailed the OLD date' : 'emailed')
+        + (o.clientNotifiedTo ? ' → <b>' + _apqEsc(o.clientNotifiedTo) + '</b>' : '')
+        + ' · ' + _apqEsc(_apqStamp(o.clientNotifiedAt)) + '</span>';
+  }
+  if(o.clientWaNotifiedAt){
+    var cwmoved = (String(o.clientWaNotifiedFor||'') !== _uisStamp(o));
+    l2 += '<span class="apq-by">· Client WhatsApp ' + (cwmoved ? 'opened for the OLD date' : 'opened')
+        + (o.clientWaNotifiedTo ? ' → <b>' + _apqEsc(o.clientWaNotifiedTo) + '</b>' : '')
+        + ' · ' + _apqEsc(_apqStamp(o.clientWaNotifiedAt)) + '</span>';
+  }
+
+  // The one control. It never sends on its own — see the header. §APPT-NOTIFY made it
+  //   cover BOTH parties in one click, as asked; it is blocked only when NEITHER can be
+  //   reached, and the hover says which of the two is missing.
   var btn;
+  var _bothWhy = 'Inspector — ' + (res.email ? res.email : res.why)
+               + ' · Client — ' + (_cliRes.email ? _cliRes.email : _cliRes.why);
   if(_uisBusy[o.id]){
     btn = '<button type="button" class="uis-btn" disabled>Sending…</button>';
-  } else if(!res.email){
+  } else if(!res.email && !_cliRes.email){
     btn = '<button type="button" class="uis-btn is-blocked" data-uis-act="why"'
-        + ' title="' + _apqEsc('Cannot email the inspector — ' + res.why
-            + '. Add it under Settings › Appraisers.') + '">No email on file</button>';
+        + ' title="' + _apqEsc('Nothing can be emailed for this inspection. ' + _bothWhy
+            + '. Add the inspector under Settings › Appraisers and the client on the job order.') + '">No addresses</button>';
   } else {
-    var done = o.inspNotifiedAt && String(o.inspNotifiedFor||'') === _uisStamp(o);
+    // "Sent" only when EVERY party that has an address has had this exact appointment.
+    var _iDone = !res.email      || (o.inspNotifiedAt   && String(o.inspNotifiedFor||'')   === _uisStamp(o));
+    var _cDone = !_cliRes.email  || (o.clientNotifiedAt && String(o.clientNotifiedFor||'') === _uisStamp(o));
+    var done = _iDone && _cDone;
+    var _n = (res.email ? 1 : 0) + (_cliRes.email ? 1 : 0);
     btn = '<button type="button" class="uis-btn' + (done ? ' is-sent' : '') + '"'
-        + ' data-uis-act="notify" title="' + _apqEsc((done
-              ? 'Already notified about this exact date and time. Click to send again — you will be asked to confirm. Goes to '
-              : 'Email this inspector the appointment. You will be shown the exact recipient before anything is sent. Goes to ')
-            + res.email) + '">'
-        + (done ? '✓ Notified' : 'Notify inspector') + '</button>';
+        + ' data-uis-act="notifyall" title="' + _apqEsc((done
+              ? 'This exact date and time has already gone to everyone with an address. Click to send again — you will be asked to confirm. '
+              : 'Email the appointment to the client and the inspector. You will be shown every recipient before anything is sent. ')
+            + _bothWhy) + '">'
+        + (done ? '✓ Notified' : '✉ Notify all (' + _n + ')') + '</button>';
   }
 
   // §WA-INSP-NOTIFY (v2.422) — the second control. Same doctrine as the email one:
@@ -36285,6 +36311,25 @@ function _uisRow(it){
          + (wdone ? '💬 Opened' : '💬 WhatsApp') + '</button>';
   }
 
+  // §APPT-NOTIFY (v2.441) — the client's WhatsApp. Same doctrine as every other
+  //   control here: it opens WhatsApp, it never sends, and a number that cannot be
+  //   READ is not a block — that is answerable at send time by typing one.
+  var cp = _apptClientPhone(o);
+  var cwbtn;
+  if(!cp.e164 && !cp.pretty){
+    cwbtn = '<button type="button" class="uis-btn uis-wa is-blocked" data-uis-act="why"'
+          + ' title="' + _apqEsc('Cannot WhatsApp the client — ' + cp.why
+              + '. Add a mobile or work number on the job order.') + '">💬 Client: no number</button>';
+  } else {
+    var cwdone = o.clientWaNotifiedAt && String(o.clientWaNotifiedFor||'') === _uisStamp(o);
+    cwbtn = '<button type="button" class="uis-btn uis-wa' + (cwdone ? ' is-wa-sent' : '') + '"'
+          + ' data-uis-act="waclient" title="' + _apqEsc((cwdone
+                ? 'This exact date and time has already been opened in WhatsApp for the client. Click to open it again. Goes to '
+                : 'Open WhatsApp with the appointment ready for the client. SIGMA cannot send it — you press Send in WhatsApp. Goes to ')
+              + (cp.pretty || 'a number you will be asked to type')) + '">'
+          + (cwdone ? '💬 Client opened' : '💬 Client') + '</button>';
+  }
+
   return '<div class="apq-row' + rowCls + '" data-oid="' + _apqEsc(o.id) + '"'
     + ' title="' + _apqEsc(String(o.id) + ' - ' + (o.address||'no address') + ': inspection '
         + _uisDay(it.d) + (t ? ' at ' + t : ' (no time set)')
@@ -36301,7 +36346,7 @@ function _uisRow(it){
     +   '</div>'
     +   '<div class="apq-l2">' + l2 + '</div>'
     + '</div>'
-    + '<div class="uis-acts">' + btn + wbtn + '</div>'
+    + '<div class="uis-acts">' + btn + wbtn + cwbtn + '</div>'
     + '</div>';
 }
 
@@ -36359,6 +36404,18 @@ function uisRender(){
           if(wrow) wainSend(wrow.getAttribute('data-oid'));
           return;
         }
+        // §APPT-NOTIFY (v2.441) — one click, both parties. The old inspector-only
+        //   action is kept and still reachable: nothing that used it has changed.
+        if(a === 'notifyall'){
+          var rowA = act.closest('[data-oid]');
+          if(rowA) apptNotifyAll(rowA.getAttribute('data-oid'));
+          return;
+        }
+        if(a === 'waclient'){
+          var rowC = act.closest('[data-oid]');
+          if(rowC) apptWaClient(rowC.getAttribute('data-oid'));
+          return;
+        }
         if(a === 'notify'){
           var row = act.closest('[data-oid]');
           if(row) uisNotify(row.getAttribute('data-oid'));
@@ -36400,6 +36457,255 @@ function _uisMail(o){
     + '</div>'
   };
 }
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §APPT-NOTIFY (v2.441) — tell the CLIENT as well as the inspector            ║
+// ║                                                                              ║
+// ║  The ask: "when an inspection is set, both the owner/requester/client and    ║
+// ║  the inspector receive the date and time, by email and/or WhatsApp, it is    ║
+// ║  on the Inspection Calendar, and a log of what was sent is on record."       ║
+// ║                                                                              ║
+// ║  Three of those four already existed for the INSPECTOR alone. This adds the  ║
+// ║  client to the same machinery rather than building a second one beside it:   ║
+// ║  the appointment is worded once (_uisDay/_uisTime), the recipient is         ║
+// ║  resolved once per party, and the repeat guard is the same stamp. Two        ║
+// ║  descriptions of one appointment is how a reader ends up unsure which is     ║
+// ║  real — the §WA-INSP-NOTIFY rule, applied again.                             ║
+// ║                                                                              ║
+// ║  ── WHAT IS DELIBERATELY NOT AUTOMATIC ─────────────────────────────────────  ║
+// ║  Still a button. The three reasons §INSPECTION-QUEUE gives have not changed  ║
+// ║  and they now matter MORE, because a premature send would reach a client     ║
+// ║  and not merely a colleague: the app saves on a DEBOUNCE; date and time are  ║
+// ║  TWO separate writes; and a correction is indistinguishable from a booking   ║
+// ║  at the data layer. A client emailed a time that is then corrected is a      ║
+// ║  worse outcome than a client emailed a minute later, on purpose.             ║
+// ║                                                                              ║
+// ║  ── ONE BUTTON, TWO RECIPIENTS, TWO SEPARATE TRUTHS ───────────────────────  ║
+// ║  The owner asked for a single "notify all". It sends to the client and to    ║
+// ║  the inspector in one click — but it keeps a SEPARATE stamp for each, and    ║
+// ║  reports each outcome separately. A partial failure is the normal case here  ║
+// ║  (a client with no email on file is ordinary), and a control that said       ║
+// ║  "sent" when one of two messages failed would be lying about the one that    ║
+// ║  matters. Whatever actually succeeded is recorded; nothing else is.          ║
+// ║                                                                              ║
+// ║  ── THE CLIENT'S ADDRESS AND NUMBER ───────────────────────────────────────  ║
+// ║  order.clientEmail, and order.clientCell || order.clientWork for WhatsApp —  ║
+// ║  the SAME two expressions the invoice path already uses (@26530-26531), so   ║
+// ║  an appointment and an invoice can never reach different addresses for the   ║
+// ║  same client. Nothing is guessed and nothing falls back: a missing address   ║
+// ║  is reported, in the place it is fixed.                                      ║
+// ║                                                                              ║
+// ║  ── THE CLIENT'S EMAIL IS NOT THE INSPECTOR'S ─────────────────────────────  ║
+// ║  A separate composer. The inspector's message opens "An inspection has been  ║
+// ║  scheduled for you" and names the client; a client must not be told they     ║
+// ║  are the inspector, must not be shown internal assignment wording, and does  ║
+// ║  need the one thing the inspector's copy has no reason to carry — who is     ║
+// ║  coming, and how to reach the office to change it.                           ║
+// ║                                                                              ║
+// ║  ── THE RECORD ────────────────────────────────────────────────────────────  ║
+// ║  Every send writes a row through sigma-email with kind:'inspection' and      ║
+// ║  invoice_id NULL, which is where the inspector's mail already lands. The     ║
+// ║  owner chose to reuse that table rather than add one. Both consequences      ║
+// ║  §INSPECTION-QUEUE lists still hold and are unchanged: the rows are          ║
+// ║  invisible to the Finance UI (it filters on invoice_id in both places), and  ║
+// ║  they count against sigma-email's shared hourly ceiling.                     ║
+// ║                                                                              ║
+// ║  WhatsApp is NOT a send and is never recorded as one. wa.me hands the        ║
+// ║  message to WhatsApp; a human presses Send. Every label says "opened".       ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+
+/** The client's email, or the reason there isn't one. Never guesses, never falls back. */
+function _apptClientTo(o){
+  var nm = String((o && (o.client || [o.clientFirst, o.clientLast].filter(Boolean).join(' '))) || '').trim();
+  var em = String((o && o.clientEmail) || '').trim();
+  if(!em) return { name:nm, email:'', why:(nm ? nm + ' has' : 'this order has') + ' no client email address on file' };
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))
+    return { name:nm, email:'', why:'the client email on file (' + em + ') is not a usable address' };
+  return { name:nm || 'the client', email:em, why:'' };
+}
+
+/** The client's WhatsApp number, through the SAME normaliser the invoice path uses. */
+function _apptClientPhone(o){
+  var raw = String((o && (o.clientCell || o.clientWork)) || '').trim();
+  if(!raw) return { e164:'', pretty:'', why:'no client mobile or work number is on file' };
+  var n = (typeof _waNormalizePhone === 'function') ? _waNormalizePhone(raw) : null;
+  if(!n || !n.e164) return { e164:'', pretty:raw, why:'the client number on file (' + raw + ') cannot be read as a phone number' };
+  return { e164:n.e164, pretty:(n.pretty || n.e164), why:'' };
+}
+
+/** The client's copy of the appointment. Deliberately NOT the inspector's wording. */
+function _apptClientMail(o){
+  var d = _uisDate(o);
+  var when = (d ? _uisDay(d) : String(o.inspDate||''))
+           + (o.inspTime ? ' at ' + _uisTime(o.inspTime) : '');
+  var addr = [o.address||'', String(o.city||'').replace(/,\s*na\s*$/i,'').trim()]
+             .filter(function(x){ return x; }).join(', ');
+  var esc = _apqEsc;
+  var firm = '';
+  try{ firm = (typeof _finCompany === 'function' ? (_finCompany().name || '') : '') || ''; }catch(e){}
+  var row = function(k, v){
+    return '<tr><td style="padding:4px 18px 4px 0;color:#6b635a;">' + k + '</td>'
+         + '<td style="padding:4px 0;"><b>' + v + '</b></td></tr>';
+  };
+  return {
+    subject: 'Your property inspection — ' + when + (o.address ? ' — ' + o.address : ''),
+    html:
+      '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#26211c;line-height:1.6;">'
+    + '<p style="margin:0 0 14px;">Your property inspection has been scheduled.</p>'
+    + '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">'
+    + row('Date', esc(when))
+    + (o.inspTime ? '' : '<tr><td style="padding:4px 18px 4px 0;color:#6b635a;">Time</td><td style="padding:4px 0;">to be confirmed</td></tr>')
+    + row('Property', esc(addr || 'no address on file'))
+    + row('Inspector', esc(_uisWho(o) || 'to be confirmed'))
+    + row('Reference', esc(o.id||''))
+    + '</table>'
+    + '<p style="margin:16px 0 0;">Please make sure the property is accessible at that time. '
+    + 'If the appointment does not suit you, reply to this message and we will rearrange it.</p>'
+    + (firm ? '<p style="margin:16px 0 0;color:#6b635a;font-size:12px;">' + esc(firm) + '</p>' : '')
+    + '</div>'
+  };
+}
+
+/**
+ * §APPT-NOTIFY — the one control. Emails the CLIENT and the INSPECTOR.
+ *
+ * Sends are sequential and independent: each is confirmed on its own terms, each
+ * is stamped on its own key, and one failing never marks the other as done. What
+ * is reported at the end is what actually happened, per recipient.
+ */
+async function apptNotifyAll(id){
+  try{
+    var o = (typeof _byId === 'function') ? _byId(id) : null;
+    if(!o) return;
+    if(_uisBusy[id]) return;
+
+    var insp = _uisEmailFor(o);
+    var cli  = _apptClientTo(o);
+    var stamp = _uisStamp(o);
+
+    if(!insp.email && !cli.email){
+      alert('Nothing can be emailed for this inspection.\n\n'
+          + '  Inspector — ' + insp.why + '\n'
+          + '  Client — ' + cli.why + '\n\n'
+          + 'Nothing has been sent.');
+      return;
+    }
+    if(typeof _sb === 'undefined' || !_sb){
+      alert('No connection to the mail service, so nothing has been sent.');
+      return;
+    }
+
+    // Exactly who will be written to, and who will not, BEFORE anything happens.
+    var lines = [], targets = [];
+    if(cli.email){
+      var cdone = o.clientNotifiedAt && String(o.clientNotifiedFor||'') === stamp;
+      lines.push('  Client — ' + (cli.name || 'client') + '  <' + cli.email + '>'
+               + (cdone ? '   (already sent for this date and time)' : ''));
+      targets.push({ who:'client', to:cli.email, mail:_apptClientMail(o) });
+    } else lines.push('  Client — NOT emailed: ' + cli.why);
+    if(insp.email){
+      var idone = o.inspNotifiedAt && String(o.inspNotifiedFor||'') === stamp;
+      lines.push('  Inspector — ' + insp.name + '  <' + insp.email + '>'
+               + (idone ? '   (already sent for this date and time)' : ''));
+      targets.push({ who:'inspector', to:insp.email, mail:_uisMail(o) });
+    } else lines.push('  Inspector — NOT emailed: ' + insp.why);
+
+    if(!confirm('Email this appointment to:\n\n' + lines.join('\n')
+        + '\n\nAppointment:  ' + (_uisDate(o) ? _uisDay(_uisDate(o)) : String(o.inspDate||''))
+        + (o.inspTime ? ' at ' + _uisTime(o.inspTime) : ' (no time set)')
+        + '\n\nSend?')) return;
+
+    _uisBusy[id] = true; uisRender();
+
+    var okCount = 0, failed = [];
+    for(var i=0; i<targets.length; i++){
+      var t = targets[i], r = null, err = '';
+      try{
+        r = await _sb.functions.invoke('sigma-email', { body: {
+          invoice_id: null, kind: 'inspection',
+          to: t.to, subject: t.mail.subject, html: t.mail.html,
+          sent_by: (typeof _authUser !== 'undefined' && _authUser && _authUser.email) || ''
+        }});
+      }catch(e){ err = (e && e.message) || String(e); }
+      if(!err && r && r.error){
+        err = r.error.message || String(r.error);
+        try{ if(r.error.context && r.error.context.text) err = await r.error.context.text(); }catch(_){}
+      }
+      // §INVOICE-SENT, verbatim: anything that is not a confirmed success is a failure,
+      // and nothing is recorded as notified on an assumption.
+      if(err || !(r && r.data && r.data.ok === true)){
+        failed.push(t.who + ' (' + t.to + ') — ' + (err || 'the mail server did not confirm the send'));
+        try{ appLog('WARN','INSPECTION','Appointment email FAILED for ' + id + ' to the ' + t.who + ' ' + t.to + ' — ' + (err||'no confirmation')); }catch(e){}
+        continue;
+      }
+      okCount++;
+      if(t.who === 'client'){
+        o.clientNotifiedAt = new Date().toISOString();
+        o.clientNotifiedTo = t.to;
+        o.clientNotifiedFor = stamp;
+      } else {
+        o.inspNotifiedAt = new Date().toISOString();
+        o.inspNotifiedTo = t.to;
+        o.inspNotifiedFor = stamp;
+      }
+      try{ appLog('ACTION','INSPECTION','Emailed the appointment for ' + id + ' to the ' + t.who + ' ' + t.to); }catch(e){}
+    }
+
+    _uisBusy[id] = false;
+    try{ persistOrders(id); }catch(e){}
+    uisRender();
+
+    if(failed.length){
+      alert((okCount ? okCount + ' of ' + targets.length + ' message(s) sent.\n\n' : 'Nothing was sent.\n\n')
+          + 'NOT sent:\n  ' + failed.join('\n  ')
+          + '\n\nOnly what actually sent has been recorded.');
+    }
+  }catch(e){
+    _uisBusy[id] = false;
+    try{ uisRender(); }catch(_){}
+  }
+}
+
+/** WhatsApp the CLIENT. Opens WhatsApp; it never sends, and never says it did. */
+function apptWaClient(id){
+  try{
+    var o = (typeof _byId === 'function') ? _byId(id) : null;
+    if(!o) return;
+    var p = _apptClientPhone(o);
+    var num = p.e164;
+    if(!num){
+      var typed = prompt('WhatsApp the client this appointment.\n\n' + p.why
+                       + '.\n\nType the number to use (with country code), or Cancel:', '+297 ');
+      if(!typed) return;
+      var re = (typeof _waNormalizePhone === 'function') ? _waNormalizePhone(typed) : null;
+      if(!re || !re.e164){ alert('That is not a number WhatsApp can use. Nothing has been opened.'); return; }
+      num = re.e164;
+    }
+    var d = _uisDate(o);
+    var when = (d ? _uisDay(d) : String(o.inspDate||''))
+             + (o.inspTime ? ' at ' + _uisTime(o.inspTime) : '');
+    var addr = [o.address||'', String(o.city||'').replace(/,\s*na\s*$/i,'').trim()]
+               .filter(function(x){ return x; }).join(', ');
+    var txt = 'Your property inspection has been scheduled.\n\n'
+            + 'Date: ' + when + '\n'
+            + 'Property: ' + (addr || 'no address on file') + '\n'
+            + 'Inspector: ' + (_uisWho(o) || 'to be confirmed') + '\n'
+            + 'Reference: ' + (o.id || '') + '\n\n'
+            + 'Please make sure the property is accessible at that time. '
+            + 'Reply here if the appointment does not suit you.';
+    if(!confirm('Open WhatsApp with this appointment ready for the client on ' + (p.pretty || num) + '?\n\n'
+              + 'SIGMA cannot send it — you press Send in WhatsApp.')) return;
+
+    window.open('https://wa.me/' + num.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(txt), '_blank');
+    o.clientWaNotifiedAt  = new Date().toISOString();
+    o.clientWaNotifiedTo  = (p.pretty || num);
+    o.clientWaNotifiedFor = _uisStamp(o);
+    try{ persistOrders(id); }catch(e){}
+    try{ appLog('ACTION','INSPECTION','Opened WhatsApp with the appointment for ' + id + ' for the client ' + (p.pretty||num)); }catch(e){}
+    uisRender();
+  }catch(e){}
+}
+try{ window.apptNotifyAll = apptNotifyAll; window.apptWaClient = apptWaClient; }catch(e){}
 
 // EXPLICIT. Nothing here runs without a click and a confirmation.
 async function uisNotify(id){
@@ -56337,6 +56643,15 @@ function _toRow(o) {
       //   between them would make either control lie about what the inspector actually
       //   got. Written only when actually set, the same rule as the three keys above,
       //   so an order that has never used it produces byte-identical extra_data.
+      // §APPT-NOTIFY (v2.441) — the client's two channels, each with its own stamp,
+      //   written only when actually set so an order that has never used them
+      //   produces byte-identical extra_data.
+      clientNotifiedAt   :(o.clientNotifiedAt   || undefined),
+      clientNotifiedTo   :(o.clientNotifiedAt   ? (o.clientNotifiedTo   || '') : undefined),
+      clientNotifiedFor  :(o.clientNotifiedAt   ? (o.clientNotifiedFor  || '') : undefined),
+      clientWaNotifiedAt :(o.clientWaNotifiedAt || undefined),
+      clientWaNotifiedTo :(o.clientWaNotifiedAt ? (o.clientWaNotifiedTo || '') : undefined),
+      clientWaNotifiedFor:(o.clientWaNotifiedAt ? (o.clientWaNotifiedFor|| '') : undefined),
       inspWaNotifiedAt :(o.inspWaNotifiedAt  || undefined),
       inspWaNotifiedTo :(o.inspWaNotifiedAt  ? (o.inspWaNotifiedTo  || '') : undefined),
       inspWaNotifiedFor:(o.inspWaNotifiedAt  ? (o.inspWaNotifiedFor || '') : undefined),
@@ -56624,6 +56939,14 @@ function _fromRow(row, order) {
       // §WA-INSP-NOTIFY (v2.422) — read back UNCONDITIONALLY, the same reason as above:
       //   a stale in-memory stamp must not resurrect a "WhatsApp opened" that the row
       //   no longer carries.
+      // §APPT-NOTIFY (v2.441) — read back UNCONDITIONALLY, the same reason as above: a
+      //   stale in-memory stamp must not resurrect a notification the row no longer has.
+      order.clientNotifiedAt   = (typeof x.clientNotifiedAt === 'string') ? x.clientNotifiedAt : '';
+      order.clientNotifiedTo   = order.clientNotifiedAt ? (x.clientNotifiedTo  || '') : '';
+      order.clientNotifiedFor  = order.clientNotifiedAt ? (x.clientNotifiedFor || '') : '';
+      order.clientWaNotifiedAt = (typeof x.clientWaNotifiedAt === 'string') ? x.clientWaNotifiedAt : '';
+      order.clientWaNotifiedTo = order.clientWaNotifiedAt ? (x.clientWaNotifiedTo  || '') : '';
+      order.clientWaNotifiedFor= order.clientWaNotifiedAt ? (x.clientWaNotifiedFor || '') : '';
       order.inspWaNotifiedAt  = (typeof x.inspWaNotifiedAt === 'string') ? x.inspWaNotifiedAt : '';
       order.inspWaNotifiedTo  = order.inspWaNotifiedAt ? (x.inspWaNotifiedTo  || '') : '';
       order.inspWaNotifiedFor = order.inspWaNotifiedAt ? (x.inspWaNotifiedFor || '') : '';
