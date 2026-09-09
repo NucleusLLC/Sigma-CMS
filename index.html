@@ -16314,6 +16314,251 @@ var SECS_T1=[0,1,8,10,11,12,13];var SECS_ALL_IDX=[0,1,2,3,4,5,6,7,8,9,10,11,12,1
 //   no value, so the appraiser is never asked for one. The checklist sections
 //   land here in the next stage.
 var SECS_T4=[0,1,2,3,4,5,6,7,8,9,10,11,13];
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §T4-CHECKLIST (v2.445) — the Building Inspection checklist, stage 3          ║
+// ║                                                                              ║
+// ║  Ninety-four items in fifteen groups (A–Q), from the Type 4 plan of 2 Sep     ║
+// ║  2026. Written for Aruban construction: concrete and CMU, low-slope roofs,    ║
+// ║  salt-air corrosion, cistern-fed water, split-unit cooling, storm shutters.   ║
+// ║                                                                              ║
+// ║  ── THE ITEM CODE IS THE KEY, AND THAT IS THE WHOLE POINT ─────────────────   ║
+// ║  A finding is stored against 'D.03', never against a position in this array   ║
+// ║  and never against the wording. So the bureau can re-word an item, re-order   ║
+// ║  a group, or strike one out, and every inspection already recorded still      ║
+// ║  resolves. Codes are permanent; everything else beside them is editable.      ║
+// ║  A code is never REUSED for a different item — retire it and add a new one.   ║
+// ║                                                                              ║
+// ║  ── FIVE STATES, NOT THE CONDITION BUTTONS ───────────────────────────────    ║
+// ║  The existing NEW/GOOD/FAIR/POOR scale is a valuation-condition scale. It     ║
+// ║  cannot express "safety hazard" or "could not be seen", which are the two     ║
+// ║  things this report exists to say. 'Not accessible' is not a gap in the       ║
+// ║  report — on a visual inspection it is a finding, and it is what protects     ║
+// ║  the bureau.                                                                  ║
+// ║                                                                              ║
+// ║  ── THIS IS THE DEFAULT, NOT THE LIST ────────────────────────────────────    ║
+// ║  The bureau's own list lives in report_templates id __t4_checklist__, the     ║
+// ║  same key-value row pattern as the templates, the logo and the inspection     ║
+// ║  dropdowns. This array is what a bureau starts from and what Restore          ║
+// ║  defaults returns to. The plan is explicit that this report is a work in      ║
+// ║  progress and 94 items will change, so the list must be changeable without    ║
+// ║  a build.                                                                     ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var T4_STATES = [
+  { id:'ok',     label:'Satisfactory',   short:'OK',   tone:'#2f6f52', note:false, prio:false, photo:false },
+  { id:'mon',    label:'Monitor',        short:'MON',  tone:'#2c5d86', note:true,  prio:false, photo:false },
+  { id:'rep',    label:'Repair',         short:'REP',  tone:'#b25c17', note:true,  prio:true,  photo:'prompt' },
+  { id:'haz',    label:'Hazard',         short:'HAZ',  tone:'#a32b25', note:true,  prio:true,  photo:true, summary:true },
+  { id:'na',     label:'Not accessible', short:'N/A',  tone:'#6d6a63', note:true,  prio:false, photo:false, limitation:true }
+];
+var T4_PRIORITIES = [
+  { id:'now',   label:'Immediate' },
+  { id:'short', label:'Short term' },
+  { id:'watch', label:'Monitor' }
+];
+
+var T4_CHECKLIST_DEFAULT = [
+  { letter:'A', name:'Site, access and surroundings', items:[
+    { id:'A.01', what:'Site drainage and grading', look:'falls away from the structure; ponding after rain; splash-back staining at the base of walls' },
+    { id:'A.02', what:'Driveway, paths and paving', look:'settlement, lifted slabs, trip hazards, cracking at the threshold' },
+    { id:'A.03', what:'Boundary walls, gates and fences', look:'lean, cracking, corroded posts and hinges, gate operation' },
+    { id:'A.04', what:'Retaining walls', look:'bulging, tilt, cracking, weep holes present and clear' },
+    { id:'A.05', what:'Vegetation against the structure', look:'roots at foundations, branches on the roof, planting holding damp against walls' },
+    { id:'A.06', what:'Cistern / water tank and pump housing', look:'lid and seal, access, contamination risk, condition of the enclosure' },
+    { id:'A.07', what:'Septic tank / sewer connection', look:'access covers, odour, surcharge or wet ground over the field' }
+  ]},
+  { letter:'B', name:'Foundation and visible structure', items:[
+    { id:'B.01', what:'Foundation type, where visible', look:'slab on grade, strip footing, piles; extent actually seen' },
+    { id:'B.02', what:'Cracking', look:'location, direction, width; shrinkage against structural movement' },
+    { id:'B.03', what:'Signs of differential settlement', look:'out-of-square openings, binding doors, stepped cracking at corners' },
+    { id:'B.04', what:'Columns and beams', look:'spalling concrete, exposed and corroding reinforcement, previous patch repairs' },
+    { id:'B.05', what:'Subfloor / crawl space, where present', look:'hatch access, ventilation, standing moisture, condition of supports' },
+    { id:'B.06', what:'Rising damp at slab level', look:'tide-marking, salt bloom, blistered paint in the lowest 600 mm' }
+  ]},
+  { letter:'C', name:'Exterior walls and finishes', items:[
+    { id:'C.01', what:'Wall construction', look:'CMU, poured concrete, ICF, M2; as built against as described' },
+    { id:'C.02', what:'Stucco and render', look:'cracking, hollow or drummy areas, delamination at edges' },
+    { id:'C.03', what:'Concrete spalling and rebar corrosion', look:'the salt-air failure: rust staining, blown cover, exposed steel on exposed elevations' },
+    { id:'C.04', what:'Paint and protective coatings', look:'chalking, blistering, failure on the windward side' },
+    { id:'C.05', what:'Sealants and movement joints', look:'perished, missing, painted over' },
+    { id:'C.06', what:'Wall penetrations', look:'AC line-sets, cables, extract vents \\u2014 sealed and dressed, or an open water path' }
+  ]},
+  { letter:'D', name:'Roof', items:[
+    { id:'D.01', what:'Roof type, pitch and how it was inspected', look:'walked, viewed from a ladder, viewed from ground, or by drone' },
+    { id:'D.02', what:'Covering or membrane', look:'blistering, seam separation, UV degradation, patch repairs' },
+    { id:'D.03', what:'Falls and ponding', look:'standing water, silt tide-lines showing where it stands' },
+    { id:'D.04', what:'Parapets and copings', look:'cracking, loose or missing capping, open joints' },
+    { id:'D.05', what:'Flashings and upstands', look:'height, termination, lifted or unbonded edges' },
+    { id:'D.06', what:'Drains, scuppers and downpipes', look:'blocked, undersized, discharging against the wall' },
+    { id:'D.07', what:'Roof structure, where visible', look:'deflection, cracking, corrosion of embedded steel' },
+    { id:'D.08', what:'Roof penetrations and mounted plant', look:'vents, solar frames, AC stands \\u2014 fixings, sealing, ponding behind them' },
+    { id:'D.09', what:'Roof access and edge safety', look:'safe access, edge protection, fragile areas' }
+  ]},
+  { letter:'E', name:'Windows, doors and openings', items:[
+    { id:'E.01', what:'Frames', look:'aluminium pitting and corrosion, timber rot, distortion' },
+    { id:'E.02', what:'Glazing', look:'cracked panes, failed double-glazing seals, safety glass where required' },
+    { id:'E.03', what:'Operation and ironmongery', look:'opens and closes, locks engage, restrictors and stays' },
+    { id:'E.04', what:'Weather seals, sills and thresholds', look:'perished gaskets, back-falls on sills, water entry evidence inside' },
+    { id:'E.05', what:'Storm shutters and protection', look:'present, complete, operable, fixings sound and not corroded' },
+    { id:'E.06', what:'Insect screens', look:'present, torn, missing to opening lights' },
+    { id:'E.07', what:'External doors and security', look:'alignment, locking, frame fixing, condition of the ironmongery' }
+  ]},
+  { letter:'F', name:'Interior finishes', items:[
+    { id:'F.01', what:'Floors', look:'hollow or lifting tiles, cracking that follows the structure, level, trip hazards' },
+    { id:'F.02', what:'Internal walls and ceilings', look:'cracking, previous repairs, movement at junctions' },
+    { id:'F.03', what:'Moisture staining, damp and mould', look:'active or historic; below bathrooms, at AC lines, under roof penetrations' },
+    { id:'F.04', what:'Internal doors and frames', look:'binding \\u2014 the cheapest early indicator of movement' },
+    { id:'F.05', what:'Joinery, skirtings and trims', look:'condition, fixing, water damage at the base' },
+    { id:'F.06', what:'Stairs, balustrades and handrails', look:'fixing, height, gaps a child could pass, handrail continuity' }
+  ]},
+  { letter:'G', name:'Kitchen', items:[
+    { id:'G.01', what:'Cabinetry and worktops', look:'door alignment, water swelling at the sink run, worktop joints' },
+    { id:'G.02', what:'Sink, taps and waste', look:'drips, corroded traps, leaks inside the base unit' },
+    { id:'G.03', what:'Extraction and ventilation', look:'present, ducted to outside or recirculating, operating' },
+    { id:'G.04', what:'Fixed appliances', look:'visual condition, powered on where safe to do so; not performance tested' },
+    { id:'G.05', what:'Splashbacks and sealing', look:'open joints at the worktop-to-wall junction' },
+    { id:'G.06', what:'Socket outlets near water', look:'position relative to the sink, protection present' }
+  ]},
+  { letter:'H', name:'Bathrooms and wet areas', items:[
+    { id:'H.01', what:'Sanitary ware', look:'cracks, movement, fixing to floor and wall' },
+    { id:'H.02', what:'Taps, mixers and showers', look:'drips, flow, thermostatic operation where fitted' },
+    { id:'H.03', what:'Tiling, grout and silicone', look:'failed joints at the tray and bath \\u2014 the commonest hidden water path' },
+    { id:'H.04', what:'Floor falls and waterproofing evidence', look:'water standing away from the gully, staining at the threshold' },
+    { id:'H.05', what:'Ventilation', look:'mechanical extract or openable window; ducted where mechanical' },
+    { id:'H.06', what:'Leak evidence below', look:'the ceiling of the room beneath, and the underside of the floor slab' }
+  ]},
+  { letter:'J', name:'Plumbing and water supply', items:[
+    { id:'J.01', what:'Incoming supply, meter and main stop valve', look:'located, accessible, operable' },
+    { id:'J.02', what:'Visible pipework', look:'material, corrosion, unsupported runs, leaks, lagging on hot lines' },
+    { id:'J.03', what:'Pressure and flow at outlets', look:'run several outlets together; note obvious deficiency only' },
+    { id:'J.04', what:'Water heater or solar hot water', look:'mounting, corrosion, relief valve and its discharge, age where readable' },
+    { id:'J.05', what:'Pumps and pressure vessels', look:'cistern-fed systems: cycling, leaks, electrical safety at the pump' },
+    { id:'J.06', what:'Waste and drainage', look:'falls, gurgling, slow discharge, evidence of past blockage' },
+    { id:'J.07', what:'Cistern condition', look:'visual only: silt, ingress, lid seal, no water quality testing' }
+  ]},
+  { letter:'K', name:'Electrical', items:[
+    { id:'K.01', what:'Meter and main panel', look:'condition, rating, labelling, corrosion, unauthorised alterations' },
+    { id:'K.02', what:'Breakers and residual-current protection', look:'present, correct type, test button operated where safe' },
+    { id:'K.03', what:'Earthing and bonding, where visible', look:'main earth, bonding to water and metalwork' },
+    { id:'K.04', what:'Visible wiring and junctions', look:'surface conduit damage, taped joints, unenclosed connections' },
+    { id:'K.05', what:'Socket outlets and switches', look:'damage, scorching, sufficiency, trailing extensions in permanent use' },
+    { id:'K.06', what:'Wet-area and external protection', look:'bathroom, kitchen, terrace and pool circuits' },
+    { id:'K.07', what:'Lighting and fixed equipment', look:'operation, fixing, heat damage to fittings' },
+    { id:'K.08', what:'Solar PV, where present', look:'inverter siting, isolation, cable management, roof mounting and sealing' },
+    { id:'K.09', what:'Generator and transfer switch, where present', look:'siting, ventilation, fuel storage, changeover arrangement' }
+  ]},
+  { letter:'L', name:'Cooling and ventilation', items:[
+    { id:'L.01', what:'Split units, indoor', look:'mounting, staining below, filter condition, operation on a short run' },
+    { id:'L.02', what:'Condensate drains', look:'discharge point, blockage, staining \\u2014 a leading cause of ceiling damp' },
+    { id:'L.03', what:'Refrigerant lines and insulation', look:'perished lagging, unsupported runs, wall penetration sealing' },
+    { id:'L.04', what:'Outdoor units', look:'clearance, mounting, salt corrosion of casing and coil' },
+    { id:'L.05', what:'Natural ventilation', look:'openable area to habitable rooms, cross-ventilation, trickle paths' }
+  ]},
+  { letter:'M', name:'Safety and hazards', items:[
+    { id:'M.01', what:'Smoke and carbon-monoxide alarms', look:'present, sited, tested where accessible' },
+    { id:'M.02', what:'Means of escape', look:'escape routes, key-operated locks on escape doors, barred windows' },
+    { id:'M.03', what:'Balustrade height and climbability', look:'terraces, roof decks, stairs, mezzanines' },
+    { id:'M.04', what:'Glass in critical locations', look:'doors, side panels, low-level glazing' },
+    { id:'M.05', what:'Swimming pool enclosure', look:'fencing, self-closing gate, latch height, gaps' },
+    { id:'M.06', what:'Pool plant', look:'electrical bonding and isolation, pump condition, chemical storage' },
+    { id:'M.07', what:'Gas installation', look:'cylinder siting and restraint, hose age, regulator, ventilation' },
+    { id:'M.08', what:'Materials of concern, visual note only', look:'suspected asbestos-containing materials; identified by appearance, never sampled' }
+  ]},
+  { letter:'N', name:'Ancillary structures', items:[
+    { id:'N.01', what:'Garage or carport', look:'structure, roof, door and its mechanism, separation from the dwelling' },
+    { id:'N.02', what:'Patio, pergola and decking', look:'fixings, corrosion, rot, post bases at ground level' },
+    { id:'N.03', what:'Outbuildings and annexes', look:'condition, services, whether inspected or excluded' },
+    { id:'N.04', what:'Tank stands and solar frames', look:'corrosion at the base, fixing down, wind restraint' },
+    { id:'N.05', what:'Site services and external plant', look:'pump houses, external panels, meter cupboards' }
+  ]},
+  { letter:'P', name:'Apartment and condominium, where applicable', items:[
+    { id:'P.01', what:'What was inspected', look:'the unit alone, or unit plus common parts; stated explicitly' },
+    { id:'P.02', what:'Common corridors, stairs and lift', look:'visual only, from the common areas' },
+    { id:'P.03', what:'Building envelope seen from common parts', look:'parapet spalling, fa\\u00e7ade repairs, roof condition where visible' },
+    { id:'P.04', what:'Evidence of building-wide issues', look:'repeated repairs, scaffolding, notices, works in progress' }
+  ]},
+  { letter:'Q', name:'Limitations \\u2014 always completed', items:[
+    { id:'Q.01', what:'Areas not inspected and why', look:'locked rooms, stored belongings, no roof access, no subfloor hatch, live systems' },
+    { id:'Q.02', what:'Conditions at the time of inspection', look:'weather, recent rain, occupancy \\u2014 all bear directly on what leaks show' },
+    { id:'Q.03', what:'Services not tested and specialists recommended', look:'no drain camera, no electrical dead testing, no gas pressure test' }
+  ]}
+];
+
+/** Every item, flattened, in document order. */
+function t4Items(list){
+  var out = [];
+  (list || T4_CHECKLIST_DEFAULT).forEach(function(g){
+    (g.items || []).forEach(function(it){
+      out.push({ group:g.letter, groupName:g.name, id:it.id, what:it.what, look:it.look });
+    });
+  });
+  return out;
+}
+/** One item by its code, or null. Never by index — see the header. */
+function t4Item(code, list){
+  var all = t4Items(list);
+  for (var i = 0; i < all.length; i++) if (all[i].id === code) return all[i];
+  return null;
+}
+function t4State(id){
+  for (var i = 0; i < T4_STATES.length; i++) if (T4_STATES[i].id === id) return T4_STATES[i];
+  return null;
+}
+/**
+ * The two completion rules from the plan, asked as one question so both callers
+ * (the form's Complete action and the report's pre-flight) get the same answer.
+ *   · no completion with a Hazard that has no note
+ *   · no report without a reason on every Not accessible item
+ */
+function t4Blockers(findings, list){
+  var out = [];
+  var all = t4Items(list);
+  for (var i = 0; i < all.length; i++){
+    var it = all[i];
+    var f  = (findings || {})[it.id];
+    if (!f || !f.state) continue;
+    var st = t4State(f.state);
+    if (!st) continue;
+    var note = String(f.note || '').trim();
+    if (st.note && !note){
+      out.push({ id:it.id, what:it.what, why:st.label + ' needs a note' });
+    }
+    if (st.prio && !String(f.priority || '').trim()){
+      out.push({ id:it.id, what:it.what, why:st.label + ' needs a priority' });
+    }
+  }
+  return out;
+}
+/** Everything that must appear on the summary page, hazards first. */
+function t4Summary(findings, list){
+  var out = [];
+  t4Items(list).forEach(function(it){
+    var f = (findings || {})[it.id]; if (!f || !f.state) return;
+    var st = t4State(f.state); if (!st || !(st.summary || st.id === 'rep')) return;
+    out.push({ id:it.id, what:it.what, group:it.group, state:st.id, label:st.label,
+               note:String(f.note||''), priority:String(f.priority||'') });
+  });
+  return out.sort(function(a,b){
+    if (a.state !== b.state) return a.state === 'haz' ? -1 : 1;
+    var o = { now:0, short:1, watch:2 };
+    return (o[a.priority] == null ? 3 : o[a.priority]) - (o[b.priority] == null ? 3 : o[b.priority]);
+  });
+}
+/** Every Not accessible item and its reason — the limitations page, assembled. */
+function t4Limitations(findings, list){
+  var out = [];
+  t4Items(list).forEach(function(it){
+    var f = (findings || {})[it.id]; if (!f || f.state !== 'na') return;
+    out.push({ id:it.id, what:it.what, group:it.group, reason:String(f.note||'') });
+  });
+  return out;
+}
+try{
+  window.T4_CHECKLIST_DEFAULT = T4_CHECKLIST_DEFAULT; window.T4_STATES = T4_STATES;
+  window.T4_PRIORITIES = T4_PRIORITIES; window.t4Items = t4Items; window.t4Item = t4Item;
+  window.t4Blockers = t4Blockers; window.t4Summary = t4Summary; window.t4Limitations = t4Limitations;
+}catch(e){}
+
 // One place decides the section set, so a new type is added once, not twice.
 function _secIdxsFor(t){
   return (t===1) ? SECS_T1.slice() : (t===4) ? SECS_T4.slice() : SECS_ALL_IDX.slice();
@@ -19074,7 +19319,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.444';
+var APP_VERSION = 'v2.445';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19112,6 +19357,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.445',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist \u2014 94 items, ready for the form to use',desc:'The checklist behind the Type 4 Building Inspection is now in the application: 94 items in 15 groups, written for Aruban construction, each with what to look at. Every item is recorded as Satisfactory, Monitor, Repair, Hazard or Not accessible, with a note and where needed a priority \u2014 a scale the existing condition buttons cannot express, because they have no way to say \u2018safety hazard\u2019 or \u2018could not be seen\u2019. The rules the plan asked for are built in from the start: an inspection cannot be completed with a Hazard that has no note, and every Not accessible item is collected for the limitations page. This release adds the list and those rules; the on-screen form that walks them is next.'},
   {v:'v2.444',type:'feature',date:'09-09-2026',_static:true,title:'Building Inspection added to the report costs at AWG 500',desc:'Building Inspection is now one of the cost lines you can tick on an order, at AWG 500, on all three lists \u2014 so a Type 4 Building Inspection picks it up too, since Type 4 reads the Type 2 list. It appears for everyone, including anyone who has already customised their cost list: new items are offered once, and if you delete one it stays deleted rather than coming back on the next load. The amount is a starting figure like every other line \u2014 edit it in Settings \u203a Report Costs and your figure is what is used.'},
   {v:'v2.443',type:'fix',date:'09-09-2026',_static:true,title:'A Building Inspection no longer certifies itself as an appraisal',desc:'A Type 4 Building Inspection was printing the Type 2 certification \u2014 the one that certifies conformity with appraisal practice and calls the document a Parcel + Existing Building appraisal \u2014 because no Type 4 text existed and the report fell back to Type 2. A Type 4 states no value, so it now carries its own wording: visual and non-invasive, condition on the date of inspection, no value stated, not to be relied on as an appraisal. It is editable in Settings \u203a Disclaimers alongside the other three, and the cover now carries a Type 4 label instead of none.'},
   {v:'v2.442',type:'feature',date:'09-09-2026',_static:true,title:'You can now see the record of every appointment email that was sent',desc:'Scheduled Inspections gains a Notification record button. It lists every appointment email SIGMA has sent \u2014 when, to whom, whether it was the client\u2019s copy or the inspector\u2019s, which job it was for, who pressed the button, and whether the mail server confirmed it. It reads the same record the sending writes to, so it cannot drift from what actually happened. WhatsApp messages are deliberately never listed: SIGMA opens WhatsApp and cannot know whether you pressed Send, so there is nothing honest to record, and the panel says so rather than leaving a gap. The client\u2019s email now also carries the job reference in its subject line, so a reply can be matched to the job.'},
