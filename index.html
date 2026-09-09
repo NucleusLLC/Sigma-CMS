@@ -18098,6 +18098,29 @@ function _rcLangSaved(){
 //   spacing the owner typed — "APPRAISAL REPORT" on every live template here. Only a string
 //   that is these two words and nothing else is treated as translatable; anything the owner
 //   actually wrote ("Valuation Report for ABC Bank") is his, in both languages.
+// ══ §T4-COVER (v2.449) — a Building Inspection says INSPECTION REPORT ══════════
+//
+//   Asked for: the Type 4 cover is the appraisal cover, word for word, except that
+//   it reads INSPECTION REPORT — and the job number simply continues in the same
+//   series rather than starting one of its own.
+//
+//   THE NUMBER ALREADY CONTINUES and nothing here changes it. Order numbers are one
+//   series across every type; nothing in the numbering has ever branched on apprType,
+//   so a Building Inspection is 2026-112 after an appraisal 2026-111. This is stated
+//   because it is the sort of thing a later change might helpfully "fix".
+//
+//   ONLY THE STOCK TITLE IS SWAPPED. A cover title the owner actually typed is left
+//   exactly alone, in every language — the same doctrine §REPORT-NL uses for Dutch,
+//   and for the same reason: the cover design is the owner's, and only the words
+//   SIGMA itself supplied are SIGMA's to change. The case shape is preserved, so an
+//   ALL-CAPS cover stays ALL-CAPS.
+function _t4CoverTitle(s, isT4){
+  if (!isT4) return s;
+  if (!_isStockReportTitle(s)) return s;          // the owner typed something: leave it
+  return (typeof _matchCase === 'function') ? _matchCase(s, 'Inspection Report') : 'INSPECTION REPORT';
+}
+try { window._t4CoverTitle = _t4CoverTitle; } catch(e){}
+
 function _isStockReportTitle(s){
   return /^\s*appraisal\s+report\s*$/i.test(String(s == null ? '' : s));
 }
@@ -19753,7 +19776,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.448';
+var APP_VERSION = 'v2.449';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19791,6 +19814,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.449',type:'feature',date:'09-09-2026',_static:true,title:'A Building Inspection cover reads INSPECTION REPORT',desc:'The Type 4 cover is the appraisal cover exactly as designed \u2014 same layout, same photograph, same firm block \u2014 except that it reads INSPECTION REPORT, and so does the top-right of every page behind it, so the two can never say different things about what the document is. The job number simply continues in the same series: a Building Inspection is 2026-112 after an appraisal 2026-111, as it always was. A cover title you typed yourself is left exactly alone \u2014 only the words SIGMA supplied are changed, and the capitals you chose are kept. A report template named SIGMA_Type4_InspectionReport is created for you on first use; rename it, edit it or delete it and that decision stands.'},
   {v:'v2.448',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection prints as its own report',desc:'A Type 4 order now produces a Building Inspection report rather than an appraisal with the valuation switched off. Scope and Method, then a Summary of Findings that puts every safety hazard at the front and the repairs after it in order of urgency, then every item as it was walked, then Limitations. The summary and the limitations pages are assembled from the checklist itself, so they cannot disagree with it, and the limitations page always prints \u2014 a visual inspection that does not say what it could not see is the one thing that would expose the bureau. There is a General Condition page for your overall view, written on the inspection tab and printed only if you write one. No valuation, no R.O.P.V. and no value conclusion appear anywhere: they are not switched off, they are simply not part of this document.'},
   {v:'v2.447',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist is now yours to edit',desc:'Settings \u203a Building Inspection List lets the bureau re-word any of the 94 items, rename a group, add items of its own and retire the ones it does not inspect \u2014 no build and no developer. Changes are saved for the whole bureau and appear in the next inspection opened. Items are RETIRED rather than deleted, on purpose: a finding is recorded against its item code, so retiring hides an item from new inspections while every inspection that already recorded it still reads and prints exactly as it was. A new item is always given a code that has never been used in its group, so a code can never come to mean two different things. The five states are not editable, because the completion rules, the summary page and the limitations page are all built on them.'},
   {v:'v2.446',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection checklist is now a tab you can walk on a tablet',desc:'A Type 4 order gains a Building Inspection tab carrying all 94 items in their 15 groups. Each item is one row of five buttons \u2014 Satisfactory, Monitor, Repair, Hazard, Not accessible \u2014 and the note and priority boxes appear only when the state you chose actually needs them, so a satisfactory item stays a single tap. Groups collapse, and a collapsed group still shows how many of its items you have recorded. A line at the top counts what is done, how many hazards you have found, how many things you could not reach, and what is still missing a note or a priority. Tapping the state you already chose clears it. Everything saves as you go, against the item code, so re-wording an item later never orphans an inspection you have already done. Only Type 4 orders see the tab. Photographs against individual findings are the next stage.'},
@@ -48980,6 +49004,11 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   A cover title that is anything other than these two words is still left completely
     //   alone in both languages.
     if (_RLANG === 'nl' && _isStockReportTitle(tTxt)) tTxt = _matchCase(tTxt, _rt('coverHeading'));
+    // §T4-COVER (v2.449) — after the language swap, never before it: on a Dutch Type 4
+    //   the title has already become the Dutch stock heading, which _isStockReportTitle
+    //   does not recognise, so this correctly leaves it alone rather than forcing the
+    //   English words onto a Dutch cover.
+    tTxt = _t4CoverTitle(tTxt, _isT4);
     // §COVER-TITLE-FONT (v2.118) — parse "Family Weight" (e.g. "Raleway Regular") into a REAL
     //   web font-family + numeric weight. Using the literal "Raleway Regular" as a font-family
     //   name only renders on machines that happen to have that exact font installed locally;
@@ -49098,6 +49127,10 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   When rcHeaderText is empty this whole block is inert and the header falls through to
     //   (sub||typeName), which was already localised. English is untouched either way.
     var _hdrRaw = (RC && RC.rcHeaderText) ? String(RC.rcHeaderText) : '';
+    // §T4-COVER (v2.449) — the same two words appear top-right on every page, from a
+    //   separate free-typed field. Swapped by the same rule, so the cover and the pages
+    //   behind it can never say different things about what the document is.
+    try { if (typeof _isT4 !== 'undefined' && _isT4) _hdrRaw = _t4CoverTitle(_hdrRaw, true); } catch(e){}
     if (_RLANG === 'nl' && _isStockReportTitle(_hdrRaw)) _hdrRaw = _matchCase(_hdrRaw, _rt('coverHeading'));
     var _hdrTxt = _hdrRaw ? esc(_hdrRaw) : '';
     // Appraisal number block (top-of-page) — location, font size, color all configurable
@@ -60966,6 +60999,41 @@ function rctSaveStore(arr){
   try{ localStorage.setItem(RCT_KEY, JSON.stringify(arr)); }catch(e){ console.warn('[rcTpl] localStorage save failed:', e); }
 }
 function rctGenId(){ return 'rct_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
+
+// §T4-TEMPLATE (v2.449) — the Building Inspection's own report template.
+//   Created ONCE, on the first load that does not already have it, and never
+//   recreated after that: if the owner renames it, edits it or deletes it, that is a
+//   decision and this must not undo it. The marker is the id, not the name, precisely
+//   so a rename survives.
+//
+//   It carries the cover title the owner would otherwise have to type, and nothing
+//   else — every other setting comes from RC_DEFAULTS, so this template is the stock
+//   report with two words changed, which is what was asked for.
+var _T4_TPL_ID = 'rct_t4_inspection';
+function _t4EnsureTemplate(){
+  try{
+    if (typeof rctLoadStore !== 'function' || typeof rctSaveStore !== 'function') return;
+    var arr = rctLoadStore() || [];
+    for (var i = 0; i < arr.length; i++) if (arr[i] && arr[i].id === _T4_TPL_ID) return;
+    var seeded = false;
+    try { seeded = localStorage.getItem('sigma_t4_tpl_seeded') === '1'; } catch(e){}
+    if (seeded) return;                       // it existed once and was deleted: respect that
+    arr.push({
+      id: _T4_TPL_ID,
+      name: 'SIGMA_Type4_InspectionReport',
+      config: {
+        rcCoverTitle: 'INSPECTION REPORT',
+        rcHeaderText: 'INSPECTION REPORT',
+        rcPageValuation: false               // belt as well as braces; the page list omits it anyway
+      },
+      created_at: new Date().toISOString()
+    });
+    rctSaveStore(arr);
+    try { localStorage.setItem('sigma_t4_tpl_seeded', '1'); } catch(e){}
+    try { console.log('[t4] created the SIGMA_Type4_InspectionReport template'); } catch(e){}
+  }catch(e){}
+}
+try { setTimeout(_t4EnsureTemplate, 1500); window._t4EnsureTemplate = _t4EnsureTemplate; } catch(e){}
 function rctEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
 // §XSS-GLOBAL-ESC (v1.899) — global HTML/attribute-safe escaper. Use this in
