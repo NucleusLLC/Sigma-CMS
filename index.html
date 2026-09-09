@@ -19074,7 +19074,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.443';
+var APP_VERSION = 'v2.444';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19112,6 +19112,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.444',type:'feature',date:'09-09-2026',_static:true,title:'Building Inspection added to the report costs at AWG 500',desc:'Building Inspection is now one of the cost lines you can tick on an order, at AWG 500, on all three lists \u2014 so a Type 4 Building Inspection picks it up too, since Type 4 reads the Type 2 list. It appears for everyone, including anyone who has already customised their cost list: new items are offered once, and if you delete one it stays deleted rather than coming back on the next load. The amount is a starting figure like every other line \u2014 edit it in Settings \u203a Report Costs and your figure is what is used.'},
   {v:'v2.443',type:'fix',date:'09-09-2026',_static:true,title:'A Building Inspection no longer certifies itself as an appraisal',desc:'A Type 4 Building Inspection was printing the Type 2 certification \u2014 the one that certifies conformity with appraisal practice and calls the document a Parcel + Existing Building appraisal \u2014 because no Type 4 text existed and the report fell back to Type 2. A Type 4 states no value, so it now carries its own wording: visual and non-invasive, condition on the date of inspection, no value stated, not to be relied on as an appraisal. It is editable in Settings \u203a Disclaimers alongside the other three, and the cover now carries a Type 4 label instead of none.'},
   {v:'v2.442',type:'feature',date:'09-09-2026',_static:true,title:'You can now see the record of every appointment email that was sent',desc:'Scheduled Inspections gains a Notification record button. It lists every appointment email SIGMA has sent \u2014 when, to whom, whether it was the client\u2019s copy or the inspector\u2019s, which job it was for, who pressed the button, and whether the mail server confirmed it. It reads the same record the sending writes to, so it cannot drift from what actually happened. WhatsApp messages are deliberately never listed: SIGMA opens WhatsApp and cannot know whether you pressed Send, so there is nothing honest to record, and the panel says so rather than leaving a gap. The client\u2019s email now also carries the job reference in its subject line, so a reply can be matched to the job.'},
   {v:'v2.441',type:'feature',date:'09-08-2026',_static:true,title:'The client is told about the inspection too, not only the inspector',desc:'Booking an inspection can now notify the client as well as the inspector. One button emails both in a single click, showing you every recipient before anything leaves, and a separate WhatsApp button opens a message ready for the client the same way the inspector one already does. The client gets their own wording \u2014 the date, the time, the property, who is coming and how to rearrange it \u2014 not the internal note the inspector receives. Each party and each channel is tracked separately, so the row tells you exactly who was emailed, who was messaged and when, and change the date or the time and it says the appointment moved rather than quietly showing it as done. Nothing sends by itself, and only what the mail server actually confirmed is recorded as sent. WhatsApp still opens the message for you to send yourself.'},
@@ -67803,7 +67804,8 @@ var COST_DEFAULTS={
     {id:'insp',   label:'Inspection & Photos',   amount:0,   checked:false},
     {id:'floor',  label:'Floorplan',             amount:0,   checked:false},
     {id:'drone',  label:'Drone Areal Shot',      amount:200, checked:false},
-    {id:'costEst',label:'Cost-Estimate',         amount:500, checked:false}
+    {id:'costEst',label:'Cost-Estimate',         amount:500, checked:false},
+    {id:'bldInsp',label:'Building Inspection',   amount:500, checked:false}
   ],
   t2:[
     {id:'report', label:'Report',               amount:400, checked:false},
@@ -67814,7 +67816,8 @@ var COST_DEFAULTS={
     {id:'floor',  label:'Floorplan',             amount:0,   checked:false},
     {id:'drone',  label:'Drone Areal Shot',      amount:200, checked:false},
     {id:'measure',label:'Measure Building',      amount:175, checked:false},
-    {id:'costEst',label:'Cost-Estimate',         amount:500, checked:false}
+    {id:'costEst',label:'Cost-Estimate',         amount:500, checked:false},
+    {id:'bldInsp',label:'Building Inspection',   amount:500, checked:false}
   ],
   t3:[
     {id:'report', label:'Report',               amount:400, checked:false},
@@ -67825,9 +67828,26 @@ var COST_DEFAULTS={
     {id:'floor',  label:'Floorplan',             amount:0,   checked:false},
     {id:'drone',  label:'Drone Areal Shot',      amount:200, checked:false},
     {id:'measure',label:'Measure Building',      amount:175, checked:false},
-    {id:'costEst',label:'Cost-Estimate',         amount:500, checked:false}
+    {id:'costEst',label:'Cost-Estimate',         amount:500, checked:false},
+    {id:'bldInsp',label:'Building Inspection',   amount:500, checked:false}
   ]
 };
+// §COST-NEWITEM (v2.444) — how a NEW default cost item reaches somebody who already
+//   has saved preferences.
+//
+//   getCostPrefs returns the SAVED lists whenever they exist, so adding a line to
+//   COST_DEFAULTS alone changes nothing for anybody who has ever touched the cost
+//   screen — which is everybody who uses it. That is the same trap discLoad had with
+//   the Type 4 disclaimer: the default was correct and nothing read it.
+//
+//   But a blunt "merge every default that is missing" would RESURRECT items the owner
+//   deliberately deleted, every single load, which is worse than not offering them.
+//   So the saved blob carries a revision, and each revision's new items are offered
+//   EXACTLY ONCE: if they are then deleted, the revision is already current and they
+//   stay deleted. Adding a future item means adding it to COST_DEFAULTS and bumping
+//   COST_PREFS_REV — nothing else.
+var COST_PREFS_REV = 2;   // rev 2 introduced: Building Inspection (AWG 500)
+
 function getCostPrefs(){
   try{
     var s=JSON.parse(localStorage.getItem(COST_PREFS_KEY));
@@ -67840,10 +67860,27 @@ function getCostPrefs(){
           seen[k]=true;return true;
         });
       });
+      if((s._rev|0) < COST_PREFS_REV){
+        ['t1','t2','t3'].forEach(function(type){
+          var have={};
+          (s[type]||[]).forEach(function(it){ have[(it.label||'').toLowerCase().trim()]=true; });
+          (COST_DEFAULTS[type]||[]).forEach(function(d){
+            var k=(d.label||'').toLowerCase().trim();
+            if(!have[k]) s[type].push({id:d.id,label:d.label,amount:d.amount,checked:false});
+          });
+        });
+        s._rev = COST_PREFS_REV;
+        // Written straight back, so the offer is made once and only once. If this write
+        // fails the item is simply offered again next time — never lost, never doubled,
+        // because the merge is keyed on the label that is already there.
+        try{ localStorage.setItem(COST_PREFS_KEY, JSON.stringify(s)); }catch(e){}
+      }
       return s;
     }
   }catch(e){}
-  return JSON.parse(JSON.stringify(COST_DEFAULTS));
+  var fresh = JSON.parse(JSON.stringify(COST_DEFAULTS));
+  fresh._rev = COST_PREFS_REV;
+  return fresh;
 }
 function getCostItems(t){var p=getCostPrefs();return(p['t'+t]||p.t2);}
 function renderCostPrefs(){
