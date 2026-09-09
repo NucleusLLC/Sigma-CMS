@@ -17524,6 +17524,7 @@ var REPORT_STRINGS = {
     typeLabel1:'Type 1 · Parcel Only',
     typeLabel2:'Type 2 · Parcel + Building',
     typeLabel3:'Type 3 · As-Proposed',
+    typeLabel4:'Type 4 · Building Inspection',
     pageNumFormat:'Page X of Y',
     pageWordCap:'Page',
     ofWord:'of',
@@ -17963,6 +17964,7 @@ var REPORT_STRINGS = {
     typeLabel1:'Type 1 · alleen perceel',
     typeLabel2:'Type 2 · perceel + opstal',
     typeLabel3:'Type 3 · volgens plan',
+    typeLabel4:'Type 4 · bouwkundige keuring',
     pageNumFormat:'Pagina X van Y',
     pageWordCap:'Pagina',
     ofWord:'van',
@@ -19824,7 +19826,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.455';
+var APP_VERSION = 'v2.456';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19862,6 +19864,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.456',type:'fix',date:'09-09-2026',_static:true,title:'A Building Inspection no longer certifies itself as an appraisal',desc:'Found by rendering a real Type 4 report in a browser rather than by reading the code. Over the signature, and again on the Scope page, a Building Inspection was printing the Type 2 APPRAISAL certification — word for word: “This is a Type 2 — Parcel + Existing Building appraisal” and “prepared in conformity with USPAP” — on a document that appraises nothing and states no value. The correct Type 4 wording has existed since v2.443; the report simply could not reach it, because the list it reads certifications from stopped at Type 3 and fell back to Type 2. The Contents page had the same fault in a second place: it called the document “Appraisal Report · Type 2 · Parcel + Building”, beside a cover that correctly said Inspection Report. Both now read Type 4 · Building Inspection. Types 1, 2 and 3 print exactly as before.'},
   {v:'v2.455',type:'fix',date:'09-10-2026',_static:true,title:'The Building Inspection report reads in the right order, and prints what was inspected',desc:'Three things were wrong with the Building Inspection report and this puts all three right. The inspection pages were being printed at the very back of the document, behind the sign-off, the documents and the photographs, while their page numbers still said they were at the front \u2014 so the report opened on the cover and the contents and then went straight to the signature, and clicking a line in the contents jumped to the wrong page. They now print where the contents says they are. The materials, equipment, systems and finishes you record on the inspection tabs, and the condition assessment matrix that goes with them, were not printing at all: they had only ever appeared on the appraisal pages, and those were switched off on a Building Inspection because they carried the valuation. They now have a page of their own, Construction and Condition, between the Summary of Findings and the findings themselves. And two more things that were quietly wrong on the page: a second page of photographs printed without a page number, and a report with nothing recorded on the checklist told the reader that no safety hazards were found and that every item was accessible and inspected — which is a different thing from the checklist not having been filled in. It now says which of the two it is.'},
   {v:'v2.454',type:'fix',date:'09-10-2026',_static:true,title:'A Building Inspection no longer prints unnumbered appraisal pages',desc:'The Building Inspection report was still producing the appraisal pages — project information, the condition matrix page, location and R.O.P.V. — in among its own. Because those pages are not part of a Building Inspection they had no place in its page list, so they printed with no page number at all and threw out the numbering of everything after them. They are no longer produced. The report is now only its own pages: cover, contents, scope, summary of findings, findings by section, limitations, general condition, sign-off, documents and photographs, numbered straight through.'},
   {v:'v2.453',type:'fix',date:'09-10-2026',_static:true,title:'The Building Inspection checklist moves to the front of Inspect Data',desc:'On a Type 4 the checklist was the last tab, behind Photos, Documents and Sign-Off. It is now the second, straight after Classification, because on a Building Inspection the checklist is not an appendix to the other sections — it is the inspection. Nothing you have already recorded is affected: findings are stored against the item code and the section number has not changed, only where the tab sits.'},
@@ -48528,12 +48531,18 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   stay ENGLISH until the owner has read the Dutch drafts in REPORT_LEGAL_NL and ticked
   //   rcLangLegalApproved. Flipping them on is that ONE setting, not a code change.
   var _legalNL = (_RLANG === 'nl' && RC && RC.rcLangLegalApproved === true);
+  // §T4-CERT (v2.456) — key 4, and it is not cosmetic. See the note above _typeLabel:
+  //   the Type 4 certification text has existed since v2.443 and the report could not
+  //   reach it, because this map stopped at 3 and every consumer falls back to disc[2].
+  //   A Building Inspection was printing the Type 2 APPRAISAL certification — on the
+  //   Scope page and again over the signature.
   var disc = _legalNL
-    ? { 1:(REPORT_LEGAL_NL[1]||discGet(1)), 2:(REPORT_LEGAL_NL[2]||discGet(2)), 3:(REPORT_LEGAL_NL[3]||discGet(3)) }
+    ? { 1:(REPORT_LEGAL_NL[1]||discGet(1)), 2:(REPORT_LEGAL_NL[2]||discGet(2)), 3:(REPORT_LEGAL_NL[3]||discGet(3)), 4:(REPORT_LEGAL_NL[4]||discGet(4)) }
     : {
     1: discGet(1),
     2: discGet(2),
-    3: discGet(3)
+    3: discGet(3),
+    4: discGet(4)
   };
 
 
@@ -50071,7 +50080,14 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     }).join('') + (_docRowsInserted ? '' : '__DOC_TOC_ROWS__');
 
     // Type label
-    var _typeLabel = ({1:_rt('typeLabel1'),2:_rt('typeLabel2'),3:_rt('typeLabel3')}[type]||_rt('typeLabel2'));
+    // §T4-CERT (v2.456) — the fourth map in this file to stop at 3. The cover was fixed
+    //   in v2.449 and the CONTENTS page beside it still read "Appraisal Report 2026-112 ·
+    //   Type 2 · Parcel + Building", and printed "Type 2 · Parcel + Building" again in its
+    //   Report Type cell, on a document whose own cover says Building Inspection.
+    var _typeLabel = ({1:_rt('typeLabel1'),2:_rt('typeLabel2'),3:_rt('typeLabel3'),4:_rt('typeLabel4')}[Number(type)]||_rt('typeLabel2'));
+    //   The stock title too, through the SAME helper the cover uses — so a cover title the
+    //   owner typed themselves is left alone here exactly as it is left alone there.
+    var _tocDocTitle = (typeof _t4CoverTitle === 'function') ? _t4CoverTitle(_rt('coverTitle'), _isT4) : _rt('coverTitle');
 
     html+='<div class="page"><div class="inner">'
       +pgHdr(_rt('tableOfContents'))
@@ -50079,7 +50095,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
 
       // ── Title (standardized to .sec-h to match all other page titles) ─────
       +'<div class="sec-h" style="margin-bottom:2px;">'+_rt('tableOfContents')+'</div>'
-      +'<div class="sec-sub">'+_rt('coverTitle')+' '+esc(order.id)+' · '+_typeLabel+'</div>'
+      +'<div class="sec-sub">'+_tocDocTitle+' '+esc(order.id)+' · '+_typeLabel+'</div>'
 
       // ── Subject Property Banner ───────────────────────────────────────────
       +'<div style="border:1px solid #d4c9b0;margin-bottom:10px;">'
