@@ -3098,6 +3098,32 @@ body.compact .main{padding:1rem;}body.compact td,body.compact .ni{padding-top:6p
   outline: 2px solid var(--gold-lt, #e0a93c);
   outline-offset: 2px;
 }
+/* §DRAFT-GATE (v2.462) — DRAFT now defaults ON and can only be turned OFF once the job
+   order is PAID, so the button has to say which of those it is BEFORE it is clicked.
+   Same conventions as the block above: state is carried by shape + ring + word, never by
+   colour alone, and the extra words REPLACE the ON/OFF word rather than adding a padlock
+   glyph, so nothing depends on emoji/icon font coverage.
+     .locked   — the CACHED §SYN-PAY answer says this order is not settled, so turning
+                 DRAFT off will be refused. A hint only: the authoritative read runs on
+                 click, and an unread cache paints no lock at all.
+     .checking — that authoritative read is in flight. The button is disabled meanwhile,
+                 so a double-click cannot fire two reads or flip the state twice.
+   The lock ring is amber, not a second red: the red already means DRAFT, and two reds
+   would read as one state. Purely additive — no existing rule is modified, so an order
+   that is paid (or whose invoices have not been read) looks exactly as it did. */
+.qv-draft-btn.on.locked {
+  border-color: #ffcc80;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.42), 0 0 0 2px rgba(198,40,40,.30),
+              0 0 0 4px rgba(255,204,128,.30);
+}
+.qv-draft-btn.on.locked::before { box-shadow: 0 0 6px rgba(255,204,128,.85); }
+.qv-draft-btn.on.locked::after  { content: 'ON \00B7 LOCKED'; }
+.qv-draft-btn.checking { cursor: progress; opacity: .82; }
+/* Placed AFTER .on.locked, at equal specificity, so the in-flight word wins while the
+   read is running and then hands the button back to .locked or to plain ON. */
+.qv-draft-btn.on.checking::after,
+.qv-draft-btn.checking::after { content: 'CHECKING'; }
+.qv-draft-btn[disabled] { transform: none; }
 /* §DRAFT-BADGE (v2.330) — the status badge while DRAFT is on. A fixed red rather
    than var(--red): that token is a soft #f87171 in several themes, which would not
    carry a warning under white text. Deliberately the same red as the DRAFT
@@ -19826,7 +19852,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.460';
+var APP_VERSION = 'v2.461';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19864,6 +19890,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.461',type:'fix',date:'09-10-2026',_static:true,title:'Inspections sent to Google, Outlook or .ics went in at the wrong time \u2014 and sometimes on the wrong day',desc:'Three separate places built calendar entries, and all three read the time with a pattern that REQUIRES am/pm. The booking form produces 24-hour times, so \u201c14:00\u201d matched none of them and each silently fell back to its own default of 9am: every 2pm inspection ever added to Google, Outlook or an .ics file went in as a 9am appointment, with nothing to say so. The Google link was worse. It wrote the local wall clock and then labelled it UTC, so a 2pm Aruba inspection was sent as 2pm UTC \u2014 four hours out for everyone, and for anyone far enough east it rolled past midnight and landed on the FOLLOWING DAY. Booked Friday, shown Saturday. All three now use the one time reader the calendar itself uses, which understands both \u201c14:00\u201d and \u201c2:00 PM\u201d, and the Google link says which timezone the time is in instead of pretending it is UTC. A booking late in the day used to produce an impossible end time such as 25:00; the end now rolls into the next day properly. And Add to Calendar from the order card did nothing at all for any inspection booked from Project Data, because it could not read that screen\u2019s date format \u2014 it now uses the same date reader as everything else. SIGMA\u2019s own calendar was never affected: it was checked across seven timezones and places every booking on the day it was booked.'},
   {v:'v2.460',type:'fix',date:'09-10-2026',_static:true,title:'Instrument photographs now have a proper upload box, like Photos',desc:'Adding a photograph of an instrument was a small plus tile tucked inside the gallery grid, and it read as decoration rather than as a button. It is now the same dashed drop box the Photos section uses: click anywhere in it to browse, or drag pictures straight onto it, with a green Saved flash when they land and a running count of how many are stored. It also says something when a picture does NOT go in, which is the part that was missing. A photograph the browser cannot open is now named and refused with a reason, instead of being stored as an unreadable file that printed a blank box on the report \u2014 iPhone pictures are usually HEIC, which no browser can open, so set the camera to \u201cMost Compatible\u201d or export as JPG first. Running out of browser storage, or going past twelve photographs, now says so too, and nothing is half-saved: if the batch cannot be stored, none of it is kept.'},
   {v:'v2.459',type:'feature',date:'09-10-2026',_static:true,title:'Settings › Report Disclaimers › Scope & Method — say what the inspection actually was',desc:'The rectangle on the Scope and Method page says what a Building Inspection legally IS. There is now a section beneath it for what was actually DONE: what the inspection includes, what equipment was used, and what it does not include — three separate blocks, each with its own Print tick, all editable in your own words. You can also add photographs of the instruments you carry (drone, socket tester, inspection mirror, gas detector and so on); they print in a row under the equipment text, up to twelve, each shrunk before it is stored. Two deliberate choices: the gallery starts EMPTY and the default equipment wording names only ordinary hand equipment, because everything here prints on EVERY Building Inspection — a picture of a gas detector on a report where none was carried is a false statement with a photograph on it. Restoring defaults restores the wording and keeps your photographs. And the disclaimer panel now TELLS you when a change could not be saved: it used to fail silently, which with photographs in the mix would have meant typing a careful scope statement, seeing no complaint, and printing the old text. Note that this text and these photographs are stored in this browser, exactly like the four disclaimers above them.'},
   {v:'v2.458',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection gains a Location page, and its tab moves next to Sign-Off',desc:'The Inspection Report now runs Cover, Contents, Scope and Method, Location, then the inspection pages, Sign-Off, Attached Documents and Photographs. Location is the same map, address and co-ordinate block the appraisal report prints — it is the shipped one, not a copy, and it has quietly been built on every Building Inspection all along without ever being shown. With no GPS set it shows the address card instead of a map, so the page is never blank. Contents lists it and the page numbering counts it. Separately, the Building Inspection tab in Inspect Data has moved from second position to between Documents and Sign-Off, so the checklist is the last thing you complete before signing. That is tab order only — findings, the report and every other type are untouched.'},
@@ -26380,6 +26407,22 @@ async function _submitOrderImpl() {
       if(_bluVd) newOrder.valData = _bluVd;
     }
   } catch(e){ console.warn('[developments] valuation carry-over failed', e); }
+
+  // §DRAFT-GATE (v2.462) — a NEW job order starts in DRAFT. The default is inverted from
+  //   §DRAFT (v2.327), where DRAFT was opt-in and OFF: an appraisal report must not be
+  //   delivered digitally before the client has paid, and DRAFT is the mechanism that
+  //   withholds it — red watermark on every page, no appraiser signature, no stamp.
+  //   Turning it back OFF is now gated on the invoice being settled (see §DRAFT-GATE in
+  //   qvToggleDraft). Set HERE, before the first persist, so it reaches extra_data on the
+  //   very first write — the same placement, and for the same reason, as §CLIENT-LANG and
+  //   §BLU-VALUATION above.
+  //   EXISTING ORDERS ARE DELIBERATELY NOT TOUCHED. No backfill, no migration, no
+  //   retro-flip: an order already in the database keeps exactly the behaviour it has
+  //   today (key absent = not draft). Silently draft-stamping historical, already
+  //   delivered reports — so that re-printing a signed appraisal came back watermarked
+  //   DRAFT with the signature and stamp removed — would be far worse than the gap it
+  //   closes.
+  newOrder.draftMode = true;
 
   // §ORDER-NO (v2.270) — verify the number is still free before the upsert, which
   //   would otherwise overwrite an existing order rather than report a clash.
@@ -45624,6 +45667,27 @@ function qvUpdateDraftBtn(order){
     ? 'DRAFT is ON — the report prints a red DRAFT watermark and omits the appraiser signature & stamp. Click to turn it off.'
     : "Mark this order's report as DRAFT — red DRAFT watermark on every page, appraiser signature & stamp removed.";
 
+  // §DRAFT-GATE (v2.462) — while DRAFT is ON, say whether turning it OFF is currently
+  //   possible, BEFORE the button is clicked. This reads the CACHED §SYN-PAY answer and
+  //   nothing else: it is a hint for the tooltip, and it may only DESCRIBE the gate, never
+  //   open it — the authoritative live read still runs on every click. A cache that has not
+  //   been read yet returns null and paints no lock at all: no lock is shown that we are
+  //   not sure about, and a cached 'paid' leaves the button exactly as it was in v2.327.
+  var _dgLock = false;
+  if(on){
+    try{
+      var _dgP = (typeof _synPay === 'function') ? _synPay(order) : null;
+      _dgLock = !!(_dgP && _dgP.st && _dgP.st !== 'paid');
+      if(_dgLock){
+        b.title = 'DRAFT is ON, and locked: this report stays in DRAFT until the job order is '
+                + 'paid. ' + ((typeof _synPayText === 'function' ? _synPayText(_dgP) : '')
+                             || 'The invoice is not settled.')
+                + ' Record the payment in Finance, then turn DRAFT off.';
+      }
+    }catch(e){ _dgLock = false; }
+  }
+  b.classList.toggle('locked', _dgLock);
+
   // §DRAFT-BADGE (v2.330) — while DRAFT is on the status badge reads DRAFT in red,
   //   in place of "In Review" or whatever the order actually is.
   //   The order's REAL status is not touched — only what the badge displays. The
@@ -45644,9 +45708,190 @@ function qvUpdateDraftBtn(order){
     }
   } catch(e) {}
 }
-function qvToggleDraft(){
+// §DRAFT-GATE (v2.462) ────────────────────────────────────────────────────────
+//   "Is this job order paid?" — asked of the server, for ONE order, at the moment the
+//   question actually matters: the click that would release the report.
+//
+//   WHY NOT _synPay(). §SYN-PAY holds its answer for five minutes so the dashboard does
+//   not re-read the ledger on every render. That is right for a chase list and wrong
+//   here: a stale "PAID" would open the gate and let an unpaid report out, which is the
+//   one thing this feature exists to stop. So this reads invoices_v LIVE, filtered to the
+//   single order id, and uses §SYN-PAY only to CLASSIFY the rows it gets back
+//   (_synPayShape) — so the gate and the dashboard can never disagree about what a row
+//   means, while only the live read is ever allowed to open it.
+//
+//   FAIL CLOSED, ALWAYS. No _sb, a query error, no invoice at all, or nothing but DRAFT
+//   invoices — every one of those answers NOT PAID. "Cannot tell" is never treated as
+//   paid. The returned object carries enough to explain a refusal to a human: the state
+//   word, the invoice number, the worst outstanding balance and its currency.
+//
+//   FULLY PAID means: at least one live (non-void) invoice exists, EVERY live non-draft
+//   invoice has bal <= 0.005, and at least one of them is actually settled — a credit
+//   note is not a payment, so an order whose only live invoices are credited is
+//   ambiguous, and ambiguous is refused with that said out loud.
+async function _draftPaymentState(orderId){
+  var out = { read:false, paid:false, st:'none', num:'', total:0, paidAmt:0, bal:0,
+              cur:'AWG', count:0, msg:'' };
+  var id = String(orderId || '').trim();
+  var money = function(v, c){
+    try{ if(typeof _synMoney === 'function') return _synMoney(v, c || out.cur); }catch(e){}
+    var n = Number(v || 0); if(!isFinite(n)) n = 0;
+    return (c || out.cur || 'AWG') + ' ' + n.toFixed(2);
+  };
+  if(!id){ out.msg = 'No job order is open, so its invoices could not be read.'; return out; }
+  if(typeof _synPayShape !== 'function'){
+    out.msg = 'The payment reader is unavailable, so payment for ' + id + ' cannot be confirmed.';
+    return out;
+  }
+  if(typeof _sb === 'undefined' || !_sb){
+    out.msg = 'Finance cannot be reached from this device right now, so payment for ' + id
+            + ' cannot be confirmed.';
+    return out;
+  }
+  var res = null;
+  try{
+    res = await _sb.schema('public').from('invoices_v')
+      .select('order_id,invoice_number,status,effective_status,total,amount_paid,balance,currency')
+      .eq('order_id', id).neq('status', 'void');
+  }catch(e){ res = { error:e }; }
+  if(!res || res.error || !res.data){
+    out.msg = 'The invoices for ' + id + ' could not be read'
+            + ((res && res.error && res.error.message) ? (' (' + res.error.message + ')') : '')
+            + ', so payment cannot be confirmed.';
+    return out;
+  }
+  out.read  = true;
+  var rows  = res.data;
+  out.count = rows.length;
+  if(!rows.length){
+    out.st  = 'none';
+    out.msg = 'No invoice has been raised for ' + id + ' yet, so it cannot have been paid.';
+    return out;
+  }
+  var shapes = rows.map(function(r){ return _synPayShape(r); });
+  // The row a refusal must name is the one with the most money still owed.
+  var worst = function(list){
+    return list.slice().sort(function(a,b){ return Number(b.bal||0) - Number(a.bal||0); })[0];
+  };
+  var take = function(s){
+    out.st = s.st; out.num = s.num || ''; out.total = Number(s.total||0);
+    out.paidAmt = Number(s.paid||0); out.bal = Number(s.bal||0); out.cur = s.cur || 'AWG';
+    return s;
+  };
+  // Invoices are numbered after the order here (§INVOICING), so "invoice 2026-115 for
+  //   2026-115" is noise. Name the order only when it is not already the invoice number.
+  var forId = function(num){ return (num && String(num) === id) ? '' : (' for ' + id); };
+
+  // A DRAFT invoice has never been issued to the client, so it cannot have been paid.
+  var live = shapes.filter(function(s){ return s.st !== 'draft'; });
+  if(!live.length){
+    var d = take(worst(shapes));
+    out.msg = 'Invoice ' + (d.num || '(no number)') + forId(d.num) + ' is still a DRAFT — it has '
+            + 'not been issued to the client, so nothing has been paid'
+            + (shapes.length > 1 ? ' (every invoice on this order is a draft)' : '') + '.';
+    return out;
+  }
+  var owing = live.filter(function(s){ return Number(s.bal||0) > 0.005; });
+  if(owing.length){
+    var w = take(worst(owing));
+    out.msg = (Number(w.paid||0) > 0.005)
+      ? (money(w.bal, w.cur) + ' of ' + money(w.total, w.cur) + ' is still outstanding on invoice '
+         + (w.num || '(no number)') + '.')
+      : ('Invoice ' + (w.num || '(no number)') + ' has been issued and is unpaid — '
+         + money(w.bal, w.cur) + ' outstanding.');
+    if(w.st === 'over' || w.late) out.msg += ' It is past its due date.';
+    if(owing.length > 1) out.msg += ' ' + owing.length + ' invoices on this order still owe money.';
+    return out;
+  }
+  // Nothing owes money. A credit note is not a payment: if NOTHING on this order is
+  //   actually settled, the order is not paid, and the message says so rather than
+  //   assuming a replacement invoice was raised and cleared somewhere.
+  var settled = live.filter(function(s){ return s.st === 'paid'; });
+  if(!settled.length){
+    var c = take(worst(live));
+    out.msg = 'Invoice ' + (c.num || '(no number)') + forId(c.num) + ' is '
+            + String(c.st || '').toUpperCase() + ', and no invoice on this order has been '
+            + 'settled — a credit note is not a payment, so payment cannot be confirmed.';
+    return out;
+  }
+  take(settled[0]);
+  out.paid = true;
+  out.msg  = (settled.length > 1)
+    ? (settled.length + ' invoices on ' + id + ' are paid in full.')
+    : ('Invoice ' + (settled[0].num || '(no number)') + ' is paid in full — '
+       + money(settled[0].total, settled[0].cur) + '.');
+  return out;
+}
+
+// The refusal, in the app's own overlay style (the §QV archive-confirm card), with ONE
+//   button. Deliberately NOT confirm() — and confirm() is used nowhere in this feature: a
+//   native modal dialog blocks the browser automation that drives this app. alert() is a
+//   last-resort fallback only, once, and only if building the card itself throws.
+function _draftGateNotice(order, st){
+  var id     = (order && order.id) || '';
+  var addr   = (order && order.address) || '';
+  var reason = (st && st.msg) || 'Payment for this job order could not be confirmed.';
+  try{
+    var ex = document.getElementById('qvDraftGateNotice'); if(ex) ex.remove();
+    var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(ch){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); };
+
+    var popup = document.createElement('div');
+    popup.id = 'qvDraftGateNotice';
+    popup.style.cssText = 'position:fixed;inset:0;z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,8,6,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:qvIn .18s cubic-bezier(.16,1,.3,1)';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#1c1c1e;border-radius:12px;width:min(420px,92vw);box-shadow:0 24px 60px rgba(0,0,0,.6),0 0 0 1px rgba(239,68,68,.2);overflow:hidden;border:1px solid rgba(255,255,255,.08);';
+
+    var hdr = document.createElement('div');
+    hdr.style.cssText = 'background:#991b1b;padding:16px 18px 14px;display:flex;align-items:center;gap:10px;';
+    hdr.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+      + '<span style="font-size:14px;font-weight:700;color:#fff;">This report stays in DRAFT</span>';
+
+    var body = document.createElement('div');
+    body.style.cssText = 'padding:18px 20px 20px;background:#1c1c1e;';
+    body.innerHTML = '<p style="font-family:monospace;font-size:12px;font-weight:700;color:#ef4444;margin-bottom:12px;">'
+        + esc(id) + (addr ? (' &nbsp;&middot;&nbsp; ' + esc(addr)) : '') + '</p>'
+      + '<p style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.6;margin-bottom:14px;">'
+        + esc(reason) + '</p>'
+      + '<p style="font-size:11.5px;color:rgba(255,255,255,.45);line-height:1.55;margin-bottom:20px;">'
+        + 'A finished report is only released once the job order is paid in full. Record the payment in '
+        + '<b style="color:rgba(255,255,255,.72);font-weight:700;">Finance</b>, then turn DRAFT off again. '
+        + 'There is no override here &mdash; Finance is the system of record.</p>';
+
+    var btns = document.createElement('div');
+    btns.style.cssText = 'display:flex;justify-content:flex-end;';
+    var ok = document.createElement('button');
+    ok.type = 'button'; ok.textContent = 'OK';
+    ok.style.cssText = 'padding:8px 22px;border:none;border-radius:6px;background:#991b1b;font-size:13px;font-weight:700;color:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(153,27,27,.35);';
+    ok.onmouseenter = function(){ this.style.background = '#7f1d1d'; };
+    ok.onmouseleave = function(){ this.style.background = '#991b1b'; };
+    btns.appendChild(ok); body.appendChild(btns);
+
+    card.appendChild(hdr); card.appendChild(body); popup.appendChild(card);
+    document.body.appendChild(popup);
+
+    var onKey = function(ev){ if(ev && ev.key === 'Escape') close(); };
+    var close = function(){
+      try{ popup.remove(); }catch(e){}
+      try{ document.removeEventListener('keydown', onKey); }catch(e){}
+    };
+    ok.onclick = close;
+    popup.onclick = function(ev){ if(ev.target === popup) close(); };
+    document.addEventListener('keydown', onKey);
+    try{ ok.focus(); }catch(e){}
+    return true;
+  }catch(e){
+    try{ alert('This report stays in DRAFT\n\n' + id + '\n\n' + reason
+             + '\n\nRecord the payment in Finance, then turn DRAFT off again.'); }catch(_e){}
+    return false;
+  }
+}
+
+// The state change itself — the v2.327 body, unchanged, split out so that turning DRAFT
+//   ON (always allowed) and turning it OFF (only once paid) share ONE writer.
+function _qvSetDraft(on){
   if(!_qvLastOrder) return;
-  var on = !qvIsDraft(_qvLastOrder);
   if(on) _qvLastOrder.draftMode=true; else { try{ delete _qvLastOrder.draftMode; }catch(e){} }
   // Mirror onto the real ORDERS/fil entries by id so persistOrders() saves it and the next
   //   render/reopen carries it — same approach as §QV-TPL-SYNC (v2.041).
@@ -45662,6 +45907,46 @@ function qvToggleDraft(){
   try{ if(typeof persistOrders==='function') persistOrders(_qvLastOrder.id); }catch(_pe){ try{ console.warn('[qvDraft] persist failed:', _pe); }catch(e){} }
   try{ if(typeof appLog==='function') appLog('ACTION','REPORT','DRAFT '+(on?'ON':'OFF')+': '+_qvLastOrder.id); }catch(e){}
   try{ console.log('[qvDraft] order', _qvLastOrder.id, '->', on?'DRAFT':'FINAL'); }catch(e){}
+}
+
+var _qvDraftBusy = false;   // §DRAFT-GATE — one check at a time, never two flips
+
+// Turning DRAFT ON: immediate, by anyone, no check and no await. Turning it OFF releases
+//   the signed report, so it waits on the live payment read above and refuses out loud.
+async function qvToggleDraft(){
+  if(!_qvLastOrder) return;
+  if(_qvDraftBusy) return;
+  var on = !qvIsDraft(_qvLastOrder);
+  if(on){ _qvSetDraft(true); return; }
+
+  var oid = _qvLastOrder.id;
+  var b   = document.getElementById('qvDraftBtn');
+  _qvDraftBusy = true;
+  try{ if(b){ b.classList.add('checking'); b.disabled = true;
+              b.setAttribute('aria-busy','true');
+              b.title = 'Checking with Finance whether this job order is paid\u2026'; } }catch(e){}
+  var st = null;
+  try{ st = await _draftPaymentState(oid); }
+  catch(e){ st = { read:false, paid:false, msg:'Payment for ' + oid + ' could not be checked ('
+                   + ((e && e.message) || e) + '), so the report stays in DRAFT.' }; }
+  _qvDraftBusy = false;
+  try{ if(b){ b.classList.remove('checking'); b.disabled = false; b.removeAttribute('aria-busy'); } }catch(e){}
+  try{ if(_qvLastOrder) qvUpdateDraftBtn(_qvLastOrder); }catch(e){}
+
+  // QuickView may have moved on while the read was in flight — never write the answer for
+  //   one order onto whichever order the user happens to be looking at now.
+  if(!_qvLastOrder || _qvLastOrder.id !== oid) return;
+
+  if(!st || !st.paid){
+    try{ if(typeof appLog==='function') appLog('ACTION','REPORT','DRAFT OFF REFUSED (not paid): '
+         + oid + ' — ' + ((st && st.msg) || 'payment could not be confirmed')); }catch(e){}
+    try{ console.warn('[qvDraft] release refused for', oid, st); }catch(e){}
+    _draftGateNotice(_qvLastOrder, st);
+    return;
+  }
+  try{ if(typeof appLog==='function') appLog('ACTION','REPORT','DRAFT OFF ALLOWED (paid): '
+       + oid + (st.num ? (' — invoice ' + st.num) : '')); }catch(e){}
+  _qvSetDraft(false);
 }
 window.qvIsDraft = qvIsDraft;
 window.qvUpdateDraftBtn = qvUpdateDraftBtn;
@@ -67216,19 +67501,27 @@ function qvScheduleSave(oid){
 function qvScheduleICS(oid){
   var o=(typeof ORDERS!=='undefined'&&ORDERS)?ORDERS.find(function(x){return x.id===oid;}):null;
   if(!o||!o.inspDate) return;
-  var d=new Date(o.inspDate+'T00:00:00'); if(isNaN(d.getTime())) return;
+  // §CAL-EXPORT (v2.461) — the shared parser. This built the Date inline, which reads
+  //   '2026-09-11' but NOT 'Sep 11, 2026' — the format the Project Data picker writes —
+  //   so for any order booked from that screen the function returned here and the button
+  //   did nothing at all, silently.
+  var d=(typeof _calParseLocalDate==='function')?_calParseLocalDate(o.inspDate):new Date(o.inspDate+'T00:00:00');
+  if(!d||isNaN(d.getTime())) return;
   var pad=function(n){return String(n).padStart(2,'0');};
-  var hh=9, mm=0;
-  if(o.inspTime){ var m=String(o.inspTime).match(/(\d{1,2}):(\d{2})/); if(m){ hh=parseInt(m[1],10); mm=parseInt(m[2],10); } var ap=String(o.inspTime).match(/(AM|PM)/i); if(ap){ if(/PM/i.test(ap[1])&&hh!==12)hh+=12; if(/AM/i.test(ap[1])&&hh===12)hh=0; } }
+  var _qp=_calTimeParts(o.inspTime)||{h:9,m:0};
   var ds=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
-  var dtStart=ds+'T'+pad(hh)+pad(mm)+'00';
-  var dtEnd=ds+'T'+pad((hh+2)%24)+pad(mm)+'00';
+  var dtStart=_calStamp(d,_qp.h,_qp.m,0).replace(/[-:]/g,'');
+  // %24 kept the hour legal but left the END BEFORE the START for a late booking;
+  // _calStamp rolls the date instead.
+  var dtEnd  =_calStamp(d,_qp.h,_qp.m,2).replace(/[-:]/g,'');
   var CRLF='\r\n';
   var esc=function(s){ return String(s==null?'':s).replace(/([,;\\])/g,'\\$1').replace(/\r?\n/g,'\\n'); };
   var ics='BEGIN:VCALENDAR'+CRLF+'VERSION:2.0'+CRLF+'PRODID:-//SIGMA//Inspection//EN'+CRLF+'CALSCALE:GREGORIAN'+CRLF+'METHOD:PUBLISH'+CRLF
     +'BEGIN:VEVENT'+CRLF
     +'UID:'+o.id+'-insp-'+ds+'@sigma'+CRLF
-    +'DTSTAMP:'+dtStart+CRLF
+    // DTSTAMP is when the FILE was made, and RFC 5545 requires it in UTC. It was set to
+    //   the event's own local start, which is neither.
+    +'DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')+CRLF
     +'DTSTART:'+dtStart+CRLF+'DTEND:'+dtEnd+CRLF
     +'SUMMARY:'+esc('Inspection — '+o.id+(o.address?(' — '+o.address):''))+CRLF
     +'DESCRIPTION:'+esc('Property inspection.\nAssigned to: '+(o.inspAssignee||o.appraiser||'—')+'\nClient: '+(o.client||'—'))+CRLF
@@ -67318,6 +67611,47 @@ function _calDateKey(v){
 
 /* Accepts '09:00', '9:00 am', '2:30 PM', '14:00'. Returns 0..23, or null when
    there is no usable hour — null means "not an appointment", never "midnight". */
+// ── §CAL-EXPORT (v2.461) — one time parser and one stamp builder for every export ──
+//
+//   Three exports (Google, Outlook, .ICS) each carried their OWN copy of
+//   /(\d+):(\d+)\s*(AM|PM)/i, which REQUIRES am/pm. The booking form is
+//   <input type="time">, which produces 24-hour "14:00" — no match, and each copy
+//   then silently fell back to its hard-coded default of 09:00. Every 2pm inspection
+//   ever exported went into Google, Outlook and .ics as a 9am appointment, with
+//   nothing to say so. _capHourOf below already reads both forms; it was written for
+//   §CAL-CAP and the exports never adopted it.
+function _calTimeParts(t){
+  if(t==null) return null;
+  var m=String(t).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+  if(!m) return null;
+  var h=parseInt(m[1],10); if(isNaN(h)) return null;
+  var mi=m[2]?parseInt(m[2],10):0; if(isNaN(mi)||mi<0||mi>59) mi=0;
+  var ap=(m[3]||'').toLowerCase();
+  if(ap==='pm'&&h!==12) h+=12;
+  if(ap==='am'&&h===12) h=0;
+  return (h<0||h>23)?null:{h:h,m:mi};
+}
+
+//   A stamp for a wall-clock time on a given day, with a REAL date roll when adding
+//   hours crosses midnight. The old code wrote pad(hh+2) with no wrap, so a 23:00
+//   booking emitted "T250000" — not a time at all. Some clients silently roll it into
+//   the next day, others drop the event; neither tells anybody.
+function _calStamp(date, h, m, addH, sep){
+  var d=new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0, 0);
+  if(addH) d=new Date(d.getTime()+addH*3600000);
+  var p=function(n){ return String(n).padStart(2,'0'); };
+  var D=d.getFullYear()+(sep?'-':'')+p(d.getMonth()+1)+(sep?'-':'')+p(d.getDate());
+  var T=p(d.getHours())+(sep?':':'')+p(d.getMinutes())+(sep?':':'')+'00';
+  return D+'T'+T;
+}
+
+//   The zone the wall-clock time is to be read in. Every stored time in this app is a
+//   bare wall clock with no zone; an export must therefore either say which zone that
+//   is or leave it floating, and must NEVER label it 'Z'. See §CAL-EXPORT-Z below.
+function _calTZName(){
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){ return ''; }
+}
+
 function _capHourOf(t){
   if(t==null) return null;
   var m=String(t).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
@@ -67950,18 +68284,23 @@ function calSync(provider){
       var d=ev.date,pad=function(n){return String(n).padStart(2,'0');};
       var color=provider==='google'?'#4285F4':'#0078D4',url='';
       if(provider==='google'){
-        var tM2=ev.time?(ev.time.match(/(\d+):(\d+)\s*(AM|PM)/i)||null):null;
-        var hh2=9,mm2=0;
-        if(tM2){hh2=parseInt(tM2[1]);mm2=parseInt(tM2[2]);if(tM2[3].toUpperCase()==='PM'&&hh2!==12)hh2+=12;if(tM2[3].toUpperCase()==='AM'&&hh2===12)hh2=0;}
-        var dt=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(hh2)+pad(mm2)+'00Z';
-        var dte=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(hh2+2)+pad(mm2)+'00Z';
-        url='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Inspection '+ev.orderId+' '+ev.address)+'&dates='+dt+'/'+dte+'&details='+encodeURIComponent('Appraiser: '+ev.appraiser)+'&location='+encodeURIComponent(ev.address);
+        // §CAL-EXPORT-Z (v2.461) — THE DAY BUG. This wrote the LOCAL wall clock and then
+        //   stuck a literal 'Z' on it, so Google was told 14:00 UTC for a 14:00 Aruba
+        //   booking. Wrong by four hours for everyone, and for anyone at UTC+10 or beyond
+        //   it rolls past midnight and the inspection appears on the FOLLOWING DAY —
+        //   booked Friday, shown Saturday. The digits are local, so say so with ctz and
+        //   never claim UTC.
+        var _t2=_calTimeParts(ev.time)||{h:9,m:0};
+        var dt =_calStamp(d,_t2.h,_t2.m,0).replace(/[-:]/g,'');
+        var dte=_calStamp(d,_t2.h,_t2.m,2).replace(/[-:]/g,'');
+        var _ctz=_calTZName();
+        url='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Inspection '+ev.orderId+' '+ev.address)+'&dates='+dt+'/'+dte+(_ctz?('&ctz='+encodeURIComponent(_ctz)):'')+'&details='+encodeURIComponent('Appraiser: '+ev.appraiser)+'&location='+encodeURIComponent(ev.address);
       } else {
-        var tM3=ev.time?(ev.time.match(/(\d+):(\d+)\s*(AM|PM)/i)||null):null;
-        var hh3=9,mm3=0;
-        if(tM3){hh3=parseInt(tM3[1]);mm3=parseInt(tM3[2]);if(tM3[3].toUpperCase()==='PM'&&hh3!==12)hh3+=12;if(tM3[3].toUpperCase()==='AM'&&hh3===12)hh3=0;}
-        var dt2=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(hh3)+':'+pad(mm3)+':00';
-        var dte2=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(hh3+2)+':'+pad(mm3)+':00';
+        // §CAL-EXPORT (v2.461) — Outlook takes a naive local time, which is correct here;
+        //   only the hour parse and the missing midnight roll were wrong.
+        var _t3=_calTimeParts(ev.time)||{h:9,m:0};
+        var dt2 =_calStamp(d,_t3.h,_t3.m,0,true);
+        var dte2=_calStamp(d,_t3.h,_t3.m,2,true);
         url='https://outlook.live.com/calendar/0/deeplink/compose?subject='+encodeURIComponent('Inspection '+ev.orderId)+'&startdt='+dt2+'&enddt='+dte2+'&body='+encodeURIComponent('Appraiser: '+ev.appraiser);
       }
       html+='<div class="cal-sync-row"><div style="width:75px;font-size:11px;color:var(--slate-lt);">'+d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</div><div style="flex:1;"><div style="font-size:13px;font-weight:700;">'+ev.orderId+' - '+ev.appraiser+'</div><div style="font-size:11px;color:var(--slate-lt);">'+ev.address+'</div></div><a href="'+url+'" target="_blank" style="padding:6px 12px;background:'+color+';color:white;border-radius:3px;font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap;">+ Add</a></div>';
@@ -67990,11 +68329,13 @@ function calExportICS(){
   evs.forEach(function(ev){
     var d=ev.date,pad=function(n){return String(n).padStart(2,'0');};
     // Parse time from ev.time (e.g. "09:00 AM" -> "090000")
-    var tMatch=ev.time?(ev.time.match(/(\d+):(\d+)\s*(AM|PM)/i)||null):null;
-    var hh=9,mm=0;
-    if(tMatch){hh=parseInt(tMatch[1]);mm=parseInt(tMatch[2]);if(tMatch[3].toUpperCase()==='PM'&&hh!==12)hh+=12;if(tMatch[3].toUpperCase()==='AM'&&hh===12)hh=0;}
-    var dt=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(hh)+pad(mm)+'00';
-    var dte=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(hh+2)+pad(mm)+'00';
+    // §CAL-EXPORT (v2.461) — same 9am default, same missing wrap. The stamps stay
+    //   FLOATING (no Z, no TZID), which RFC 5545 defines as "local wherever it is
+    //   opened" — right for a bureau whose staff and properties are all in one zone,
+    //   and the one form that can never move the day.
+    var _tp=_calTimeParts(ev.time)||{h:9,m:0};
+    var dt =_calStamp(d,_tp.h,_tp.m,0).replace(/[-:]/g,'');
+    var dte=_calStamp(d,_tp.h,_tp.m,2).replace(/[-:]/g,'');
     ics+='BEGIN:VEVENT'+CRLF;
     ics+='UID:'+ev.orderId+'-'+Date.now()+'@appraisalsuite'+CRLF;
     ics+='DTSTART:'+dt+CRLF+'DTEND:'+dte+CRLF;
