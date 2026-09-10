@@ -16347,7 +16347,7 @@ var SECS_T1=[0,1,8,10,11,12,13];var SECS_ALL_IDX=[0,1,2,3,4,5,6,7,8,9,10,11,12,1
 //   else. It was last only because 14 was appended when the section was added.
 //   Nothing here is index-sensitive: `done` is keyed by SECTION index and every
 //   navigation helper works in TAB positions, so the two never have to agree.
-var SECS_T4=[0,14,1,2,3,4,5,6,7,8,9,10,11,13];   // 0 Classification · 14 the checklist · then the rest
+var SECS_T4=[0,1,2,3,4,5,6,7,8,9,10,11,14,13]   /* §T4-TABORDER (v2.458) — the checklist sits between Documents (11) and Sign-Off (13), i.e. last thing before signing. Order here is TAB order only; it does not touch the report. */;   // 0 Classification · 14 the checklist · then the rest
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║  §T4-CHECKLIST (v2.445) — the Building Inspection checklist, stage 3          ║
@@ -18812,7 +18812,7 @@ function _t4SectionOrderNote(order){
     + 'border-left:3px solid #c8922a;border-radius:0 8px 8px 0;background:rgba(200,146,42,.06);font-size:12.5px;line-height:1.65;">'
     + '<b>This is a Building Inspection (Type 4).</b> Its report has a fixed order and is not arranged here:'
     + '<div style="margin:7px 0 0;font-family:var(--font-mono),monospace;font-size:11.5px;color:var(--slate-lt,#777);">'
-    +   'Cover \u00b7 Contents \u00b7 Scope and Method \u00b7 Summary of Findings \u00b7 '
+    +   'Cover \u00b7 Contents \u00b7 Scope and Method \u00b7 Location \u00b7 Summary of Findings \u00b7 '
     +   'Construction and Condition \u00b7 Findings by Section \u00b7 Limitations \u00b7 '
     +   'General Condition \u00b7 Sign-off \u00b7 Documents \u00b7 Photographs</div>'
     + '<div style="margin-top:8px;">The Summary and the Limitations pages are built from the checklist itself \u2014 '
@@ -19826,7 +19826,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.457';
+var APP_VERSION = 'v2.458';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19864,6 +19864,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.458',type:'feature',date:'09-09-2026',_static:true,title:'The Building Inspection gains a Location page, and its tab moves next to Sign-Off',desc:'The Inspection Report now runs Cover, Contents, Scope and Method, Location, then the inspection pages, Sign-Off, Attached Documents and Photographs. Location is the same map, address and co-ordinate block the appraisal report prints — it is the shipped one, not a copy, and it has quietly been built on every Building Inspection all along without ever being shown. With no GPS set it shows the address card instead of a map, so the page is never blank. Contents lists it and the page numbering counts it. Separately, the Building Inspection tab in Inspect Data has moved from second position to between Documents and Sign-Off, so the checklist is the last thing you complete before signing. That is tab order only — findings, the report and every other type are untouched.'},
   {v:'v2.457',type:'fix',date:'09-09-2026',_static:true,title:'The last two places in the app that stopped at Type 3',desc:'After v2.456, every list in the app that is looked up by report type was checked, not just the ones that had already gone wrong. Two were left, both on screen rather than on a printed report. Saving inspection data on a Building Inspection showed “Generated 14:22 · undefined — edit as needed”; it now names the type. And opening a Type 4 template in Report Customization built its sample order as a “Parcel + Building” appraisal, so you were shown the wrong kind of document while editing the right template. Nothing else in the sweep was type-dependent.'},
   {v:'v2.456',type:'fix',date:'09-09-2026',_static:true,title:'A Building Inspection no longer certifies itself as an appraisal',desc:'Found by rendering a real Type 4 report in a browser rather than by reading the code. Over the signature, and again on the Scope page, a Building Inspection was printing the Type 2 APPRAISAL certification — word for word: “This is a Type 2 — Parcel + Existing Building appraisal” and “prepared in conformity with USPAP” — on a document that appraises nothing and states no value. The correct Type 4 wording has existed since v2.443; the report simply could not reach it, because the list it reads certifications from stopped at Type 3 and fell back to Type 2. The Contents page had the same fault in a second place: it called the document “Appraisal Report · Type 2 · Parcel + Building”, beside a cover that correctly said Inspection Report. Both now read Type 4 · Building Inspection. Types 1, 2 and 3 print exactly as before.'},
   {v:'v2.455',type:'fix',date:'09-10-2026',_static:true,title:'The Building Inspection report reads in the right order, and prints what was inspected',desc:'Three things were wrong with the Building Inspection report and this puts all three right. The inspection pages were being printed at the very back of the document, behind the sign-off, the documents and the photographs, while their page numbers still said they were at the front \u2014 so the report opened on the cover and the contents and then went straight to the signature, and clicking a line in the contents jumped to the wrong page. They now print where the contents says they are. The materials, equipment, systems and finishes you record on the inspection tabs, and the condition assessment matrix that goes with them, were not printing at all: they had only ever appeared on the appraisal pages, and those were switched off on a Building Inspection because they carried the valuation. They now have a page of their own, Construction and Condition, between the Summary of Findings and the findings themselves. And two more things that were quietly wrong on the page: a second page of photographs printed without a page number, and a report with nothing recorded on the checklist told the reader that no safety hazards were found and that every item was accessible and inspected — which is a different thing from the checklist not having been filled in. It now says which of the two it is.'},
@@ -48967,6 +48968,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     if(RC.rcPageCover!==false)   _pgList.push('cover');
     if(RC.rcPageTOC!==false)     _pgList.push('toc');
     _pgList.push('t4scope');
+    _pgList.push('t4loc');                                   // §T4-LOC (v2.458) — page 4
     _pgList.push('t4sum');
     _pgList.push('t4insp');                                  // §T4-BUILD — never optional
     _pgList.push('t4find');
@@ -49948,10 +49950,13 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     if (_isT4) {
       _tocEntries = [
         {n:'1', id:'t4scope', title:'Scope and Method',                    pg:_pg('t4scope'), desc:'What this inspection covered \u00b7 what it did not \u00b7 no value is stated'},
-        {n:'2', id:'t4sum',   title:'Summary of Findings',                 pg:_pg('t4sum'),   desc:'Safety hazards and items requiring repair, most urgent first'},
-        {n:'3', id:'t4insp',  title:'Construction and Condition',          pg:_pg('t4insp'),  desc:'Materials, equipment, systems and finishes \u00b7 the condition recorded for each'},
-        {n:'4', id:'t4find',  title:'Findings by Section',                 pg:_pg('t4find'),  desc:'Every item inspected, in the order it was walked'},
-        {n:'5', id:'t4lim',   title:'Limitations and Areas Not Inspected', pg:_pg('t4lim'),   desc:'What could not be seen on the date of inspection, and why'}
+        // \u00a7T4-LOC (v2.458) \u2014 Location is page 4 of the Inspection Report, so it is row 2
+        //   of the Contents and everything after it shifts down one.
+        {n:'2', id:'t4loc',   title:_rt('locationAndProperty'),            pg:_pg('t4loc'),   desc:_rt('subLocationProperty')},
+        {n:'3', id:'t4sum',   title:'Summary of Findings',                 pg:_pg('t4sum'),   desc:'Safety hazards and items requiring repair, most urgent first'},
+        {n:'4', id:'t4insp',  title:'Construction and Condition',          pg:_pg('t4insp'),  desc:'Materials, equipment, systems and finishes \u00b7 the condition recorded for each'},
+        {n:'5', id:'t4find',  title:'Findings by Section',                 pg:_pg('t4find'),  desc:'Every item inspected, in the order it was walked'},
+        {n:'6', id:'t4lim',   title:'Limitations and Areas Not Inspected', pg:_pg('t4lim'),   desc:'What could not be seen on the date of inspection, and why'}
       ];
       if (_t4Gen.trim()) _tocEntries.push({n:String(_tocEntries.length+1), id:'t4gen', title:'General Condition', pg:_pg('t4gen'), desc:'The inspector\u2019s overall view of the property'});
       if (RC.rcPageSignoff!==false && !_secMovedSignoff) _tocEntries.push({n:String(_tocEntries.length+1), id:'signoff', title:_rt('appraiserSignOff'), pg:_pg('signoff'), desc:_rt('subSignoff')});
@@ -52206,6 +52211,18 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       +   '. Every part of the property recorded below as <b>Not accessible</b> is listed again, with its reason, '
       +   'on the Limitations page. No part of the structure was opened and no installation was dismantled.</div>'
       + '</div>' + pgFtr('t4scope') + '</div></div>';
+
+    // ── §T4-LOC (v2.458) ─ Location and Property ───────────────────────
+    //   The map block the appraisal report puts on page 5. It is CALLED, not copied:
+    //   _locBlockCache is built unconditionally further up (the page-5 block only decides
+    //   whether to PRINT it), so a Type 4 has always had it and simply never showed it —
+    //   the same shape as the missing inspection data in v2.455. It carries its own
+    //   heading, sub-heading, map and address strip, and falls back to an address card
+    //   when no GPS is set, so this page is never blank.
+    html += '<div class="page"><div class="inner">' + pgHdr(_rt('locationAndProperty'))
+      + '<div class="page-body">'
+      + (_locBlockCache || '')
+      + '</div>' + pgFtr('t4loc') + '</div></div>';
 
     // ── Summary of findings ───────────────────────────────────────────────────
     var _t4hz = _t4Sum.filter(function(x){ return x.state==='haz'; });
