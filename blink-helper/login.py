@@ -38,16 +38,32 @@ async def main():
             session=session,
         )
 
+        started = None
         try:
-            await blink.start()
+            started = await blink.start()
         except BlinkTwoFARequiredError:
             # blinkpy 0.25.x: start() raises this once Blink has sent a code.
-            code = input("2FA code Blink just sent you: ").strip()
+            print("\nBlink sent a 2-factor code to your phone/e-mail.")
+            code = input("Enter the 2FA code: ").strip()
+            if not code:
+                print("\nNo code entered. Nothing saved. Re-run 1-LOGIN.cmd.")
+                return
             ok = await blink.auth.complete_2fa_login(code)
             if not ok:
-                print("\n2FA verification failed. Re-run and check the code.")
+                print("\n*** 2FA verification FAILED ***")
+                print("The code was wrong, expired, or already used. Nothing was saved.")
+                print("Re-run 1-LOGIN.cmd and type the newest code quickly.")
                 return
-            await blink.setup_post_verify()
+            started = await blink.setup_post_verify()
+
+        # start() returns False on a bad e-mail/password (no exception). Do NOT
+        # save a dead session — that would leave a creds.json that never works.
+        if started is False:
+            print("\n*** SIGN-IN FAILED ***")
+            print("Blink rejected the e-mail or password (no 2-factor step was reached).")
+            print("Check the e-mail and password are exactly your Blink/Amazon ones,")
+            print("then re-run 1-LOGIN.cmd. Nothing was saved.")
+            return
 
         await blink.refresh()
 
