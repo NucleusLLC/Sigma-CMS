@@ -19826,7 +19826,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.456';
+var APP_VERSION = 'v2.457';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19864,6 +19864,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.457',type:'fix',date:'09-09-2026',_static:true,title:'The last two places in the app that stopped at Type 3',desc:'After v2.456, every list in the app that is looked up by report type was checked, not just the ones that had already gone wrong. Two were left, both on screen rather than on a printed report. Saving inspection data on a Building Inspection showed “Generated 14:22 · undefined — edit as needed”; it now names the type. And opening a Type 4 template in Report Customization built its sample order as a “Parcel + Building” appraisal, so you were shown the wrong kind of document while editing the right template. Nothing else in the sweep was type-dependent.'},
   {v:'v2.456',type:'fix',date:'09-09-2026',_static:true,title:'A Building Inspection no longer certifies itself as an appraisal',desc:'Found by rendering a real Type 4 report in a browser rather than by reading the code. Over the signature, and again on the Scope page, a Building Inspection was printing the Type 2 APPRAISAL certification — word for word: “This is a Type 2 — Parcel + Existing Building appraisal” and “prepared in conformity with USPAP” — on a document that appraises nothing and states no value. The correct Type 4 wording has existed since v2.443; the report simply could not reach it, because the list it reads certifications from stopped at Type 3 and fell back to Type 2. The Contents page had the same fault in a second place: it called the document “Appraisal Report · Type 2 · Parcel + Building”, beside a cover that correctly said Inspection Report. Both now read Type 4 · Building Inspection. Types 1, 2 and 3 print exactly as before.'},
   {v:'v2.455',type:'fix',date:'09-10-2026',_static:true,title:'The Building Inspection report reads in the right order, and prints what was inspected',desc:'Three things were wrong with the Building Inspection report and this puts all three right. The inspection pages were being printed at the very back of the document, behind the sign-off, the documents and the photographs, while their page numbers still said they were at the front \u2014 so the report opened on the cover and the contents and then went straight to the signature, and clicking a line in the contents jumped to the wrong page. They now print where the contents says they are. The materials, equipment, systems and finishes you record on the inspection tabs, and the condition assessment matrix that goes with them, were not printing at all: they had only ever appeared on the appraisal pages, and those were switched off on a Building Inspection because they carried the valuation. They now have a page of their own, Construction and Condition, between the Summary of Findings and the findings themselves. And two more things that were quietly wrong on the page: a second page of photographs printed without a page number, and a report with nothing recorded on the checklist told the reader that no safety hazards were found and that every item was accessible and inspected — which is a different thing from the checklist not having been filled in. It now says which of the two it is.'},
   {v:'v2.454',type:'fix',date:'09-10-2026',_static:true,title:'A Building Inspection no longer prints unnumbered appraisal pages',desc:'The Building Inspection report was still producing the appraisal pages — project information, the condition matrix page, location and R.O.P.V. — in among its own. Because those pages are not part of a Building Inspection they had no place in its page list, so they printed with no page number at all and threw out the numbering of everything after them. They are no longer produced. The report is now only its own pages: cover, contents, scope, summary of findings, findings by section, limitations, general condition, sign-off, documents and photographs, numbered straight through.'},
@@ -59601,7 +59602,9 @@ async function genAiInspSummary() {
     if (noteEl) {
       noteEl.style.color = '';
       noteEl.textContent = '✓ Generated ' + new Date().toLocaleTimeString()
-        + ' · ' + {1:'Type 1 — Parcel Only', 2:'Type 2 — Parcel + Building', 3:'Type 3 — New Construction'}[apprType]
+        // §T4-MAPS (v2.457) — with no key 4 this read literally "· undefined — edit as
+        //   needed before submitting" on a Building Inspection.
+        + ' · ' + ({1:'Type 1 — Parcel Only', 2:'Type 2 — Parcel + Building', 3:'Type 3 — New Construction', 4:'Type 4 — Building Inspection'}[Number(apprType)] || 'Type ' + apprType)
         + ' — edit as needed before submitting.';
     }
 
@@ -60052,7 +60055,10 @@ function rcPreviewType(n){
   try{ win=window.open('','_blank','width=1060,height=840'); }catch(e){}
   if(win){ try{ win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>SIGMA — Building preview…</title></head><body style="margin:0;background:#0e0c0a;color:#c8922a;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;letter-spacing:.06em;">Building preview…</body></html>'); }catch(e){} }
   try{
-    var _tn={1:'Parcel Only',2:'Parcel + Building',3:'Parcel + New Construction'};
+    // §T4-MAPS (v2.457) — the || fallback below meant a Type 4 template preview built
+    //   itself a sample order labelled "Parcel + Building", so the owner was shown the
+    //   wrong document type while editing their Building Inspection template.
+    var _tn={1:'Parcel Only',2:'Parcel + Building',3:'Parcel + New Construction',4:'Building Inspection'};
     var _raw=null;
     try{_raw=localStorage.getItem(rcTypeKey(n));}catch(e){}
     var _tpl=_raw
@@ -60065,7 +60071,7 @@ function rcPreviewType(n){
     var _wasEmpty=!ORDERS||!ORDERS.length;
     var _demo={
       id:'2026-PREVIEW',ordered:'May 1, 2026',address:'Caya Betico Croes 42',
-      city:'Oranjestad, Aruba',apprType:n,type:_tn[n]||'Parcel + Building',
+      city:'Oranjestad, Aruba',apprType:n,type:_tn[Number(n)]||'Parcel + Building',
       appraiser:'Maria Santos',status:'Pending',
       clientFirst:'John',clientLast:'Doe',clientEmail:'john.doe@example.com',
       purpose:'Mortgage Loan',finInst:'Aruba Bank',
