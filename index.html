@@ -1473,6 +1473,11 @@ tr:hover td{background:#fdf9f1;} tr.ord-row{cursor:pointer;} tr.ord-row:hover td
 /* ─────────────────────────────────────────────────────────── */
 
 
+/* §T4-NOVAL (v2.462) — a stage that does not apply reads as neither done nor overdue. */
+.qv-track-step.na .qv-track-dot{background:var(--border,#d9d2c4);border-color:var(--border,#d9d2c4);opacity:.55;}
+.qv-track-step.na .qv-track-label{opacity:.5;}
+.qv-track-pill.na{background:transparent;border:1px dashed var(--border,#d9d2c4);color:var(--slate-lt,#8a7a6a);opacity:.75;}
+
 /* ── VALUATION SECTION ── */
 /* ─── VALUATION MODAL — compact redesign ──────────────────────── */
 .val-table{width:100%;border-collapse:collapse;margin-bottom:.6rem;}
@@ -19705,7 +19710,11 @@ function _orderControlDropdown(o){
     +'<div class="ord-ctrl-dd" id="'+ddId+'">'
     +b(dis,  'openEdit(_byId(\''+sid+'\'))',     '&#128196; Project Data')
     +b(dis,  'openInsp(_byId(\''+sid+'\'))',     '&#128247; Inspect Data')
-    +b(dis,  'openValModal(_byId(\''+sid+'\'))', '&#128200; Valuation')
+    // §T4-NOVAL (v2.462) — greyed for a Building Inspection with the same class the
+    //   locked state uses, and its action removed so the row cannot open it either.
+    +b(dis + (Number(o.apprType)===4?' oci-dis':''),
+       (Number(o.apprType)===4 ? "alert('This is a Type 4 \u2014 Building Inspection, which states no market value. It has no valuation.');" : 'openValModal(_byId(\''+sid+'\'))'),
+       '&#128200; Valuation')
     +b(dis,  'reportCheckRun(_byId(\''+sid+'\'))','&#128196; Report')
     // §PDF-CLEAR (v2.407) — in the dropdown it reads as a worded item, not a bare ×;
     //   a lone symbol in a list of labels is a guess, and this one deletes something.
@@ -19738,7 +19747,11 @@ function _orderControlCell(o){
   return '<td style="padding:10px 8px;min-width:130px;">'
     +btn('PROJECT DATA','openEdit(_byId(\''+sid+'\'))')
     +btn('INSPECT DATA','openInsp(_byId(\''+sid+'\'))')
-    +btn('VALUATION','openValModal(_byId(\''+sid+'\'))')
+    +(Number(o.apprType)===4
+        // §T4-NOVAL (v2.462) — this builder greys with an inline style rather than a
+        //   class; matched here so the two row menus look the same.
+        ? '<button style="display:block;width:100%;margin-bottom:4px;padding:5px 8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:5px;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;opacity:.35;cursor:not-allowed;" title="A Building Inspection states no market value and has no valuation." onclick="event.stopPropagation();">VALUATION</button>'
+        : btn('VALUATION','openValModal(_byId(\''+sid+'\'))'))
     // §PDF-CLEAR (v2.407) — REPORT and its clear-× share one line.
     +'<div style="display:flex;align-items:stretch;">'
       +'<div style="flex:1;min-width:0;">'+btn('REPORT','reportCheckRun(_byId(\''+sid+'\'))')+'</div>'
@@ -19852,7 +19865,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.462';
+var APP_VERSION = 'v2.463';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19890,6 +19903,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.463',type:'fix',date:'09-10-2026',_static:true,title:'Valuation is switched off for a Building Inspection',desc:'A Type 4 states no market value \u2014 its certification says so, and its report is built so that it cannot print one. The Valuation screen opened for one anyway, from QuickView and from both order-row menus, and offered to record three values that would never appear anywhere: anything typed in was quietly thrown away. Valuation is now greyed on a Building Inspection everywhere it appears, and says why on hover and on click rather than simply refusing. QuickView\u2019s Values panel says \u201cNo valuation \u2014 this is a Building Inspection\u201d instead of inviting you to enter some, and the workflow tracker marks the valuation stage \u201cNot applicable\u201d rather than leaving a \u201cNot Completed\u201d nobody could ever clear. One rule decides all of it, so a button cannot be grey while the screen behind it still opens \u2014 and the screen itself refuses a Type 4 as a backstop. Types 1, 2 and 3 are untouched.'},
   {v:'v2.462',type:'feature',date:'09-10-2026',ts:'09-10-2026 12:00',_static:true,title:'A report cannot leave DRAFT until the invoice is paid',desc:'A finished appraisal used to be one click away from being sent whether or not the client had paid. Now every NEW job order starts in DRAFT — red watermark on every page, no appraiser signature, no stamp — and DRAFT can only be switched off once the invoice for that order is settled in full. Turning DRAFT back ON is always allowed and needs no check. Turning it OFF asks the invoices directly, at that moment, and refuses if anything is outstanding, naming exactly what: an order with no invoice yet, an invoice still sitting as a draft, a part payment with the balance still owed, an overdue invoice, or a second invoice on the same order that has not been settled. The refusal tells you what to do — record the payment in Finance and try again. There is no password override, on purpose: Finance is the record of what has been paid, so that is where a report gets released. If the invoices cannot be read at all the answer is always no, because a report that escapes on a failed lookup is the exact thing this prevents. The DRAFT button now shows a lock while the money is outstanding, so you can see it before you click. IMPORTANT — orders that already existed are untouched and behave exactly as before: they were deliberately not switched to DRAFT, because doing that would have put a DRAFT watermark across appraisals that have already been finished and sent. This applies to job orders created from now on. Note also that it governs the DRAFT stamp, not the buttons: an unpaid report can still be emailed, but it goes out watermarked and unsigned.'},
   {v:'v2.461',type:'fix',date:'09-10-2026',_static:true,title:'Inspections sent to Google, Outlook or .ics went in at the wrong time \u2014 and sometimes on the wrong day',desc:'Three separate places built calendar entries, and all three read the time with a pattern that REQUIRES am/pm. The booking form produces 24-hour times, so \u201c14:00\u201d matched none of them and each silently fell back to its own default of 9am: every 2pm inspection ever added to Google, Outlook or an .ics file went in as a 9am appointment, with nothing to say so. The Google link was worse. It wrote the local wall clock and then labelled it UTC, so a 2pm Aruba inspection was sent as 2pm UTC \u2014 four hours out for everyone, and for anyone far enough east it rolled past midnight and landed on the FOLLOWING DAY. Booked Friday, shown Saturday. All three now use the one time reader the calendar itself uses, which understands both \u201c14:00\u201d and \u201c2:00 PM\u201d, and the Google link says which timezone the time is in instead of pretending it is UTC. A booking late in the day used to produce an impossible end time such as 25:00; the end now rolls into the next day properly. And Add to Calendar from the order card did nothing at all for any inspection booked from Project Data, because it could not read that screen\u2019s date format \u2014 it now uses the same date reader as everything else. SIGMA\u2019s own calendar was never affected: it was checked across seven timezones and places every booking on the day it was booked.'},
   {v:'v2.460',type:'fix',date:'09-10-2026',_static:true,title:'Instrument photographs now have a proper upload box, like Photos',desc:'Adding a photograph of an instrument was a small plus tile tucked inside the gallery grid, and it read as decoration rather than as a button. It is now the same dashed drop box the Photos section uses: click anywhere in it to browse, or drag pictures straight onto it, with a green Saved flash when they land and a running count of how many are stored. It also says something when a picture does NOT go in, which is the part that was missing. A photograph the browser cannot open is now named and refused with a reason, instead of being stored as an unreadable file that printed a blank box on the report \u2014 iPhone pictures are usually HEIC, which no browser can open, so set the camera to \u201cMost Compatible\u201d or export as JPG first. Running out of browser storage, or going past twelve photographs, now says so too, and nothing is half-saved: if the batch cannot be stored, none of it is kept.'},
@@ -43845,7 +43859,33 @@ function _valRestoreP2(pd){
   if(typeof vmP2AdjRestore==='function') vmP2AdjRestore(pd.adj, _pRowsExplicit);   // §VAL-PRESUM-ADJ (v2.093) / §VAL-ROW-DELETE (v2.300)
   try{ calcValP2(); }catch(e){}
 }
+// ── §T4-NOVAL (v2.462) — a Building Inspection has no valuation ────────────────
+//
+//   A Type 4 states NO market value; that is the whole point of the type, and its
+//   certification says so in as many words. Until now the Valuation modal opened for
+//   one anyway, from four separate places, and offered to record three values that the
+//   report is then structurally incapable of printing (§T4-PAGES forces rcPageValuation
+//   off). Work typed into it was silently thrown away.
+//
+//   ONE function decides, and every surface asks it, so a button cannot be grey while
+//   the thing behind it still opens. It returns the reason, not a boolean, because
+//   every surface has to SAY why — the same doctrine as §WA-INSP-NOTIFY (v2.422) and
+//   the disappearing-button rule of v2.294: grey it and explain it, never hide it.
+function _valBlockedFor(order){
+  if (!order) return '';
+  if (Number(order.apprType) !== 4) return '';
+  return 'This is a Type 4 \u2014 Building Inspection, which states no market value. '
+       + 'It has no valuation, and its report cannot print one.';
+}
+try { window._valBlockedFor = _valBlockedFor; } catch(e){}
+
 function openValModal(order) {
+  // §T4-NOVAL (v2.462) — the backstop. The QuickView button, both order-row menus and
+  //   valById() are all greyed, but this is the one place every one of them arrives at,
+  //   so the guard belongs here too: a Type 4 valuation cannot be opened by any route,
+  //   including a stale onclick or the console.
+  var _t4why = _valBlockedFor(order);
+  if (_t4why) { try { alert(_t4why + '\n\nNothing was opened.'); } catch(e){} return; }
   // §VAL-CLOBBER-GUARD (v2.249) — kill any pending debounced saves from a PRIOR
   //   valuation session before we reset this modal's tables; a stale _valSrvTimer
   //   firing mid-open would capture empty tables and blank the order.
@@ -45207,7 +45247,12 @@ function qvUpdateTracker(order) {
   var hasV1 = !!(order.valData && order.valData.v1 && order.valData.v1 !== '\u2014' && order.valData.v1 !== '');
   var hasV2 = !!(order.valData && order.valData.v2 && order.valData.v2 !== '\u2014' && order.valData.v2 !== '');
   var hasV3 = !!(order.valData && order.valData.v3 && order.valData.v3 !== '\u2014' && order.valData.v3 !== '');
-  if (hasV1 && hasV2 && hasV3) {
+  if (Number(order.apprType) === 4) {
+    // §T4-NOVAL (v2.462) — a stage that can never be completed must not be reported as
+    //   incomplete. A Building Inspection has no valuation, so the tracker says so
+    //   rather than showing a permanent "Not Completed" nobody can ever clear.
+    valSt = 'na';     valTxt = 'Not applicable';
+  } else if (hasV1 && hasV2 && hasV3) {
     valSt = 'done';   valTxt = 'Completed';
   } else {
     valSt = 'pending'; valTxt = 'Not Completed';
@@ -45225,7 +45270,7 @@ function qvUpdateTracker(order) {
   var steps = [
     { idx:0, st:editSt, txt:editTxt, lbl:'Edit'       },
     { idx:1, st:inspSt, txt:inspTxt, lbl:'Inspection' },
-    { idx:2, st:valSt,  txt:valTxt,  lbl:'Valuation'  },
+    { idx:2, st:valSt,  txt:valTxt,  lbl:(Number(order.apprType) === 4 ? 'Valuation \u2014 n/a' : 'Valuation')  },
     { idx:3, st:rptSt,  txt:rptTxt,  lbl:'Report'     },
   ];
 
@@ -45315,7 +45360,12 @@ function openQV(order) {
         </div>
       </div>`;
   } else {
-    valBox.innerHTML = '<div class="qv-no-val">No valuation data yet.<br><span style="font-size:11px;opacity:.6;">Open Valuation to enter values.</span></div>';
+    // §T4-NOVAL (v2.462) — "No valuation data yet" invites the reader to go and enter
+    //   some. On a Building Inspection there is none to enter, and saying so is the
+    //   difference between a blank that looks unfinished and one that is correct.
+    valBox.innerHTML = (Number(order.apprType) === 4)
+      ? '<div class="qv-no-val">No valuation \u2014 this is a Building Inspection.<br><span style="font-size:11px;opacity:.6;">A Type 4 states no market value. Findings are recorded under Inspect Data \u203a Building Inspection.</span></div>'
+      : '<div class="qv-no-val">No valuation data yet.<br><span style="font-size:11px;opacity:.6;">Open Valuation to enter values.</span></div>';
   }
 
   // Meta
@@ -45346,7 +45396,22 @@ function openQV(order) {
       _qib.title='Open billing for this order';
       _qib.onclick=function(){ var _o=order; closeQV(); setTimeout(function(){ try{ openEdit(_o); setTimeout(function(){ var _t=[].slice.call(document.querySelectorAll('#editTabStrip .etab')).filter(function(x){return x.textContent.trim()==='Billing';})[0]; if(_t) _t.click(); }, 120); }catch(e){} }, 60); };
   } }catch(_e){}
-  e('qvBtnVal').onclick  = () => { _qvLastOrder=order; closeQV(); setTimeout(() => openValModal(order), 50); };
+  // §T4-NOVAL (v2.462) — greyed and explaining itself for a Building Inspection,
+  //   exactly as the WhatsApp button does when it cannot be used. NOT disabled=, so
+  //   hovering AND clicking both still say why.
+  (function(){
+    var _vb = e('qvBtnVal'); if(!_vb) return;
+    var _why = (typeof _valBlockedFor==='function') ? _valBlockedFor(order) : '';
+    if(_why){
+      _vb.classList.add('qv-ab-disabled');
+      _vb.title = _why;
+      _vb.onclick = function(){ alert(_why + '\n\nNothing was opened.'); };
+      return;
+    }
+    _vb.classList.remove('qv-ab-disabled');
+    _vb.title = 'Open the valuation for this order';
+    _vb.onclick = function(){ _qvLastOrder=order; closeQV(); setTimeout(function(){ openValModal(order); }, 50); };
+  })();
   e('qvBtnRpt').onclick  = () => { var _oid = order.id; closeQV(); setTimeout(function(){ reportCheckRun(_oid); }, 50); };
   // §QV-SECORDER (v2.232) — open the Report Section Order tool straight from Quick-View.
   //   Opens ON TOP of the QV (overlay z-index 100000) so closing it returns here.
