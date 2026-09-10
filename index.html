@@ -19865,7 +19865,7 @@ function _unlockOrder(id){
 
 
 // ══ SINGLE SOURCE OF TRUTH FOR VERSION ══════════════════════════════════════
-var APP_VERSION = 'v2.463';
+var APP_VERSION = 'v2.464';
 // Called after login — injects APP_VERSION into every version display element
 function _syncVersionDisplays(){
   var containers = [
@@ -19903,6 +19903,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
+  {v:'v2.464',type:'fix',date:'09-10-2026',_static:true,title:'One bad photograph no longer swallows the whole batch of instrument pictures',desc:'Reported twice as adding a few instrument photographs and nothing happening, with every test passing. This was why. Pictures were added as a group and the group only finished when EVERY picture in it had been dealt with, so a single one the browser could not finish shrinking left the whole thing hanging: no pictures, no message, no saved tick, and the ones that had worked perfectly well were thrown away with it. Large camera photographs make that far likelier, because the failure is the browser running out of memory while re-encoding. Each photograph is now dealt with on its own and always finishes one way or the other, so the good ones go in even when one beside them cannot, and the one that could not is named. There is also a line saying how many are being added while it works — a big photograph takes a moment, and silence during that moment looked exactly like the fault.'},
   {v:'v2.463',type:'fix',date:'09-10-2026',_static:true,title:'Valuation is switched off for a Building Inspection',desc:'A Type 4 states no market value \u2014 its certification says so, and its report is built so that it cannot print one. The Valuation screen opened for one anyway, from QuickView and from both order-row menus, and offered to record three values that would never appear anywhere: anything typed in was quietly thrown away. Valuation is now greyed on a Building Inspection everywhere it appears, and says why on hover and on click rather than simply refusing. QuickView\u2019s Values panel says \u201cNo valuation \u2014 this is a Building Inspection\u201d instead of inviting you to enter some, and the workflow tracker marks the valuation stage \u201cNot applicable\u201d rather than leaving a \u201cNot Completed\u201d nobody could ever clear. One rule decides all of it, so a button cannot be grey while the screen behind it still opens \u2014 and the screen itself refuses a Type 4 as a backstop. Types 1, 2 and 3 are untouched.'},
   {v:'v2.462',type:'feature',date:'09-10-2026',ts:'09-10-2026 12:00',_static:true,title:'A report cannot leave DRAFT until the invoice is paid',desc:'A finished appraisal used to be one click away from being sent whether or not the client had paid. Now every NEW job order starts in DRAFT — red watermark on every page, no appraiser signature, no stamp — and DRAFT can only be switched off once the invoice for that order is settled in full. Turning DRAFT back ON is always allowed and needs no check. Turning it OFF asks the invoices directly, at that moment, and refuses if anything is outstanding, naming exactly what: an order with no invoice yet, an invoice still sitting as a draft, a part payment with the balance still owed, an overdue invoice, or a second invoice on the same order that has not been settled. The refusal tells you what to do — record the payment in Finance and try again. There is no password override, on purpose: Finance is the record of what has been paid, so that is where a report gets released. If the invoices cannot be read at all the answer is always no, because a report that escapes on a failed lookup is the exact thing this prevents. The DRAFT button now shows a lock while the money is outstanding, so you can see it before you click. IMPORTANT — orders that already existed are untouched and behave exactly as before: they were deliberately not switched to DRAFT, because doing that would have put a DRAFT watermark across appraisals that have already been finished and sent. This applies to job orders created from now on. Note also that it governs the DRAFT stamp, not the buttons: an unpaid report can still be emailed, but it goes out watermarked and unsigned.'},
   {v:'v2.461',type:'fix',date:'09-10-2026',_static:true,title:'Inspections sent to Google, Outlook or .ics went in at the wrong time \u2014 and sometimes on the wrong day',desc:'Three separate places built calendar entries, and all three read the time with a pattern that REQUIRES am/pm. The booking form produces 24-hour times, so \u201c14:00\u201d matched none of them and each silently fell back to its own default of 9am: every 2pm inspection ever added to Google, Outlook or an .ics file went in as a 9am appointment, with nothing to say so. The Google link was worse. It wrote the local wall clock and then labelled it UTC, so a 2pm Aruba inspection was sent as 2pm UTC \u2014 four hours out for everyone, and for anyone far enough east it rolled past midnight and landed on the FOLLOWING DAY. Booked Friday, shown Saturday. All three now use the one time reader the calendar itself uses, which understands both \u201c14:00\u201d and \u201c2:00 PM\u201d, and the Google link says which timezone the time is in instead of pretending it is UTC. A booking late in the day used to produce an impossible end time such as 25:00; the end now rolls into the next day properly. And Add to Calendar from the order card did nothing at all for any inspection booked from Project Data, because it could not read that screen\u2019s date format \u2014 it now uses the same date reader as everything else. SIGMA\u2019s own calendar was never affected: it was checked across seven timezones and places every booking on the day it was booked.'},
@@ -44683,7 +44684,26 @@ function _compressImage(dataUrl, opts, callback) {
     canvas.height = h;
     var ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, w, h);
-    var compressed = canvas.toDataURL(mimeOut, quality);
+    // §SCOPE-BATCH (v2.464) — this runs inside img.onload, so a throw here does NOT
+    //   reach the caller's try/catch: it escapes as an uncaught error in an event
+    //   handler and the callback is simply never made. Every caller of _compressImage
+    //   is written as "hand me the result eventually", and a result that never arrives
+    //   leaves each of them waiting forever with nothing on screen — which is exactly
+    //   how a batch of instrument photographs came to vanish in silence.
+    //
+    //   toDataURL genuinely throws: running out of memory re-encoding a large picture
+    //   is the common cause, and it gets likelier the bigger the photograph. On failure
+    //   hand back the ORIGINAL — the same contract img.onerror below already uses — so
+    //   a caller that checks what it got can refuse it, and one that does not is no
+    //   worse off than it was.
+    var compressed;
+    try {
+      compressed = canvas.toDataURL(mimeOut, quality);
+    } catch (_enc) {
+      try { console.warn('[compressImage] encode failed, returning original', _enc); } catch (_e) {}
+      callback(dataUrl);
+      return;
+    }
     callback(compressed);
   };
   img.onerror = function() { callback(dataUrl); }; // fallback: original
@@ -54369,6 +54389,9 @@ var DISC_DEFAULTS = {
 var SCOPE_INSTR_MAX = 12;
 var SCOPE_INSTR_PX  = 360;
 var SCOPE_INSTR_Q   = 0.70;
+// §SCOPE-BATCH (v2.464) — the ceiling that tells a shrunk tile from an original
+//   handed back by a failed encode. Generous: ~40 KB is typical at 360px.
+var SCOPE_INSTR_MAXBYTES = 400 * 1024;
 
 // Load saved disclaimers (or fall back to defaults)
 function discLoad() {
@@ -54655,6 +54678,28 @@ function scopeInstrPick(input) {
 
 // §SCOPE-UPLOAD (v2.460) — ONE path for the file picker and for drag-and-drop, so
 //   neither can work while the other quietly does not.
+// §SCOPE-UPLOAD (v2.460) — ONE path for the file picker and for drag-and-drop, so
+//   neither can work while the other quietly does not.
+//
+// §SCOPE-BATCH (v2.464) — AND ONE BAD PHOTOGRAPH CANNOT TAKE THE OTHERS WITH IT.
+//
+//   Reported twice as "I added a few photographs and nothing happens", with every
+//   test green. This was why. The batch counted down a `pending` tally and only did
+//   its work when the tally reached zero, so ANY file whose callback never arrived
+//   left the count stuck above zero forever: no tile, no error, no Saved flash, and
+//   the photographs that HAD encoded perfectly well were thrown away with it.
+//   Reproduced by making one file in three fail to encode — 3 selected, 0 stored,
+//   nothing said.
+//
+//   _compressImage can fail to call back for real reasons, and they get likelier the
+//   bigger the picture: canvas.toDataURL throwing on an out-of-memory encode is the
+//   common one, which is exactly what a 12-megapixel camera photograph invites. A
+//   FileReader can also abort, which fires neither load nor error.
+//
+//   So every file now settles exactly once, whatever happens to it: its own try/catch
+//   turns a throw into a refusal, a watchdog turns silence into a refusal, and the
+//   tally is driven by a settle() that ignores a second call. The good files land
+//   even when a bad one is beside them, and the bad one is named.
 function scopeInstrAddFiles(fileList) {
   var files = fileList ? [].slice.call(fileList) : [];
   if (!files.length) return;
@@ -54669,29 +54714,33 @@ function scopeInstrAddFiles(fileList) {
   var skippedForRoom = files.length - Math.min(files.length, room);
   var take = files.slice(0, room);
 
-  var pending = take.length, added = 0, rejected = [];
+  // Say something the instant files are chosen. A large photograph takes a moment to
+  // shrink, and silence during that moment is indistinguishable from silence forever.
+  _scopeInstrBusy(take.length);
 
-  var finish = function() {
-    if (pending > 0) return;
-    if (added) {
-      if (!scopeInstrSave(list)) {
-        // Put the store back the way it was rather than leaving a half-written gallery.
-        list.splice(list.length - added, added);
-        scopeInstrSave(list);
-        scopeInstrRender();
-        _scopeInstrErr('<b>Not saved &mdash; this browser is out of storage.</b> Nothing was added. '
-          + 'Remove an instrument you no longer carry, or clear unused report templates, and try again.');
-        return;
-      }
+  var left = take.length, added = 0, rejected = [], done = false;
+
+  function finish() {
+    if (done) return;            // belt and braces: only ever once
+    done = true;
+    _scopeInstrBusy(0);
+    if (added && !scopeInstrSave(list)) {
+      list.splice(list.length - added, added);
+      scopeInstrSave(list);
+      scopeInstrRender();
+      _scopeInstrErr('<b>Not saved &mdash; this browser is out of storage.</b> Nothing was added. '
+        + 'Remove an instrument you no longer carry, or clear unused report templates, and try again.');
+      return;
     }
     scopeInstrRender();
     if (added) _scopeInstrFlash();
     var notes = [];
     if (rejected.length) {
-      notes.push('<b>' + rejected.length + ' file' + (rejected.length === 1 ? '' : 's')
-        + ' could not be read as a picture:</b> ' + rejected.map(_scopeEsc).join(', ')
-        + '. iPhone photographs are often HEIC, which browsers cannot open &mdash; set the camera to '
-        + '&ldquo;Most Compatible&rdquo;, or export the picture as JPG first.');
+      notes.push('<b>' + rejected.length + ' of ' + take.length + ' could not be added:</b> '
+        + rejected.map(_scopeEsc).join(', ')
+        + '. The browser could not read them as pictures. iPhone photographs are often HEIC, '
+        + 'which browsers cannot open &mdash; set the camera to &ldquo;Most Compatible&rdquo;, or export as JPG first. '
+        + (added ? ('The other ' + added + ' went in.') : ''));
     }
     if (skippedForRoom > 0) {
       notes.push('<b>' + skippedForRoom + ' not added:</b> the gallery holds ' + SCOPE_INSTR_MAX + '.');
@@ -54700,30 +54749,75 @@ function scopeInstrAddFiles(fileList) {
       notes.push('<b>Nothing was added.</b> No readable picture was found in that selection.');
     }
     _scopeInstrErr(notes.join('<br><br>'));
-  };
+  }
 
   take.forEach(function(file){
+    var settled = false;
+    var watchdog = null;
+    // Settle once, whatever route gets here: success, refusal, throw, or silence.
+    function settle(smallOrNull){
+      if (settled) return;
+      settled = true;
+      if (watchdog) { try { clearTimeout(watchdog); } catch(e){} }
+      // Only a genuinely re-encoded JPEG is accepted. _compressImage hands back the
+      // ORIGINAL data URL when the browser could not decode the image, and storing that
+      // gives a broken tile and a blank box on the report (§SCOPE-UPLOAD, v2.460).
+      // A shrunk 360px tile lands around 15-40 KB. Anything far larger is not a tile:
+      // it is the ORIGINAL handed back because the encode failed, and storing a 10 MB
+      // camera photograph would fill the browser's storage on its own. Prefix alone was
+      // not enough to tell those apart, because the original is a real JPEG too.
+      if (typeof smallOrNull === 'string'
+          && smallOrNull.indexOf('data:image/jpeg;base64,') === 0
+          && smallOrNull.length >= 200
+          && smallOrNull.length <= SCOPE_INSTR_MAXBYTES) {
+        list.push({ name: _scopeGuessName(file.name), img: smallOrNull });
+        added++;
+      } else {
+        rejected.push(file.name || 'unnamed file');
+      }
+      left--;
+      if (left <= 0) finish();
+    }
+
+    // A picture that never comes back is a refusal, not a reason to lose the batch.
+    // Generous, because a 12-megapixel photograph really does take a few seconds.
+    watchdog = setTimeout(function(){ settle(null); }, 25000);
+
     var reader = new FileReader();
     reader.onload = function(e){
-      _compressImage(e.target.result, { maxPx: SCOPE_INSTR_PX, quality: SCOPE_INSTR_Q }, function(small){
-        // §SCOPE-UPLOAD (v2.460) — _compressImage hands back the ORIGINAL data URL when
-        //   the browser could not decode the image, which is exactly what an iPhone HEIC
-        //   does. Storing that gives a tile that renders as a broken picture and a report
-        //   with a blank box where an instrument should be, and it can be several
-        //   megabytes of it. So only a real, re-encoded JPEG is accepted; anything else
-        //   is named and refused, out loud.
-        if (typeof small !== 'string' || small.indexOf('data:image/jpeg;base64,') !== 0 || small.length < 200) {
-          rejected.push(file.name || 'unnamed file');
-        } else {
-          list.push({ name: _scopeGuessName(file.name), img: small });
-          added++;
-        }
-        pending--; finish();
-      });
+      try {
+        _compressImage(e.target.result, { maxPx: SCOPE_INSTR_PX, quality: SCOPE_INSTR_Q }, function(small){
+          try { settle(small); } catch(err){ settle(null); }
+        });
+      } catch(err) {
+        // canvas.toDataURL throwing on an out-of-memory encode used to escape here and
+        // wedge the whole batch.
+        try { console.warn('[scope-instruments] could not encode ' + (file.name || '?'), err); } catch(e2){}
+        settle(null);
+      }
     };
-    reader.onerror = function(){ rejected.push(file.name || 'unnamed file'); pending--; finish(); };
-    reader.readAsDataURL(file);
+    reader.onerror  = function(){ settle(null); };
+    reader.onabort  = function(){ settle(null); };   // fires neither load nor error
+    try { reader.readAsDataURL(file); } catch(err) { settle(null); }
   });
+}
+
+// A visible "working on it" line while pictures are being shrunk. Without it the only
+// feedback during a slow encode is nothing at all, which is the same thing the bug
+// above looked like.
+function _scopeInstrBusy(n) {
+  var host = document.getElementById('discScopeInstHost');
+  if (!host) return;
+  var el = document.getElementById('discScopeInstBusy');
+  if (!n) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'discScopeInstBusy';
+    el.className = 'photo-meta';
+    el.style.cssText = 'text-align:left;color:var(--gold,#c8922a);font-weight:700;';
+    host.appendChild(el);
+  }
+  el.textContent = 'Adding ' + n + ' photograph' + (n === 1 ? '' : 's') + '…';
 }
 
 function _scopeEsc(s) {
