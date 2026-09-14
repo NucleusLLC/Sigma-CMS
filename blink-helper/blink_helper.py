@@ -331,6 +331,36 @@ async def handle_snapshot(request: web.Request) -> web.Response:
         return _err(str(e))
 
 
+async def handle_storage(request: web.Request) -> web.Response:
+    """Where Blink keeps motion clips: USB on the Sync Module and/or the cloud.
+
+    Read-only, counts and flags only — no clip content, no addresses. Answers
+    "is there anything to archive?" before an archiver is built.
+    """
+    try:
+        blink = await _ensure_blink()
+        modules = []
+        for name, sync in blink.sync.items():
+            ls = getattr(sync, "_local_storage", {}) or {}
+            modules.append({
+                "name": name,
+                "usb_enabled": bool(ls.get("enabled")),
+                "usb_compatible": bool(ls.get("compatible")),
+                "usb_active": bool(ls.get("status")),
+                "usb_clips_in_manifest": len(ls.get("manifest") or []),
+            })
+        since = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time() - 30 * 86400))
+        try:
+            vids = await blink.get_videos_metadata(since=since, stop=3)
+            cloud = {"clips_last_30d_first_pages": len(vids),
+                     "newest": max((v.get("created_at") or "" for v in vids), default=None)}
+        except Exception as e:
+            cloud = {"error": str(e)}
+        return _cors(web.json_response({"sync_modules": modules, "cloud": cloud}))
+    except Exception as e:
+        return _err(str(e))
+
+
 async def handle_health(request: web.Request) -> web.Response:
     return _cors(web.json_response({
         "helper": "sigma-blink",
@@ -358,6 +388,7 @@ def build_app(key: str) -> web.Application:
     app.router.add_get(base + "/api/health", handle_health)
     app.router.add_get(base + "/api/cameras", handle_cameras)
     app.router.add_get(base + "/api/snapshot", handle_snapshot)
+    app.router.add_get(base + "/api/storage", handle_storage)
     app.router.add_route("OPTIONS", "/{tail:.*}", handle_options)
     app.router.add_get("/{tail:.*}", handle_nokey)
 
