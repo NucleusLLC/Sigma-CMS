@@ -487,10 +487,21 @@ async def handle_storage(request: web.Request) -> web.Response:
                 "usb_active": bool(ls.get("status")),
                 "usb_clips_in_manifest": len(ls.get("manifest") or []),
             })
-        since = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time() - 30 * 86400))
+        days = max(1, min(60, int(request.query.get("days", "30"))))
+        since = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time() - days * 86400))
         try:
-            vids = await blink.get_videos_metadata(since=since, stop=3)
-            cloud = {"clips_last_30d_first_pages": len(vids),
+            vids = await blink.get_videos_metadata(since=since, stop=400)
+            per_cam = {}
+            for v in vids:
+                if v.get("deleted"):
+                    continue
+                name = str(v.get("device_name") or "?").strip()
+                c = per_cam.setdefault(name, {"clips": 0, "oldest": None, "newest": None})
+                c["clips"] += 1
+                ca = v.get("created_at") or ""
+                c["oldest"] = min(c["oldest"] or ca, ca)
+                c["newest"] = max(c["newest"] or ca, ca)
+            cloud = {"days": days, "items_returned": len(vids), "per_camera": per_cam,
                      "newest": max((v.get("created_at") or "" for v in vids), default=None)}
         except Exception as e:
             cloud = {"error": str(e)}

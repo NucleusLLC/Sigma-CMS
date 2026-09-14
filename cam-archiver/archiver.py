@@ -49,6 +49,8 @@ RETENTION_DAYS = int(os.environ.get("CAM_ARCHIVER_RETENTION_DAYS", "14"))
 BACKFILL_DAYS = int(os.environ.get("CAM_ARCHIVER_BACKFILL_DAYS", "14"))
 OVERLAP_SECONDS = 2 * 3600       # re-scan the last 2h every run: clips upload late
 DOWNLOAD_PAUSE = 0.5             # seconds between downloads; gentle on the vendor APIs
+RING_PAUSE = float(os.environ.get("CAM_ARCHIVER_RING_PAUSE", "3"))   # Ring answers 429 at 0.5 s
+RING_HISTORY_PAGES = 30          # x100 events; stops early once past the window
 LOG_FILE = os.environ.get("CAM_ARCHIVER_LOG", os.path.join(HERE, "archiver.log"))
 LOG_MAX_BYTES = 5 * 1024 * 1024
 
@@ -231,7 +233,9 @@ async def blink_archive(dest, state, now):
     try:
         since = since_epoch(state, "blink_last", now)
         since_str = dt.datetime.fromtimestamp(since).strftime("%Y/%m/%d %H:%M:%S")
-        items = await blink.get_videos_metadata(since=since_str, stop=40)
+        # blinkpy stops at `stop` pages even when more exist; 400 is far past any
+        # 14-day window (1,462 clips came back in well under that).
+        items = await blink.get_videos_metadata(since=since_str, stop=400)
         for item in items:
             if item.get("deleted"):
                 continue
@@ -345,10 +349,25 @@ async def ring_archive(dest, state, now):
                 log("Ring: %s has no Ring Protect plan — Ring keeps no recordings to copy" % name)
                 continue
             since = since_epoch(last, str(cam.id), now)
-            events = await cam.async_history(limit=100)
+            # Ring returns at most 100 events per call, newest first. Page back with
+            # older_than until the window is covered — one call covered only 100
+            # events, so a busy doorbell's older clips were never even requested.
+            events, older = [], None
+            for _ in range(RING_HISTORY_PAGES):
+                page = await cam.async_history(limit=100, older_than=older)
+                if not page:
+                    break
+                events.extend(page)
+                older = page[-1].get("id")
+                tail = parse_time(page[-1].get("created_at"))
+                if older is None or (tail and tail.timestamp() < since):
+                    break
             newest = last.get(str(cam.id))
             oldest_failed = None
+            rate_limited = False
             for ev in events:
+                if rate_limited:
+                    break
                 when = parse_time(ev.get("created_at"))
                 if not when or when.timestamp() < since:
                     continue
@@ -365,10 +384,16 @@ async def ring_archive(dest, state, now):
                             raise RuntimeError("no recording returned")
                         write_atomic(path, data, when)
                         got += 1
-                        await asyncio.sleep(DOWNLOAD_PAUSE)
+                        await asyncio.sleep(RING_PAUSE)
                     except Exception as e:
                         failed += 1
                         oldest_failed = min(oldest_failed or when.timestamp(), when.timestamp())
+                        if "429" in str(e) or "Too Many Requests" in str(e):
+                            # Ring is throttling. Stop for this run: every clip not yet
+                            # copied stays behind the bookmark and is retried in 15 min.
+                            rate_limited = True
+                            log("Ring: rate-limited by Ring after %d clip(s) — continuing next run" % got)
+                            continue
                         log("Ring: FAILED %s — %s" % (path, e))
                         continue
                 newest = max(float(newest or 0), when.timestamp())

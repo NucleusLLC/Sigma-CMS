@@ -107,6 +107,7 @@ fb, fs = FakeBlink(), FakeSession()
 async def fake_blink_session(): return fb, fs
 A.blink_session = fake_blink_session
 A.DOWNLOAD_PAUSE = 0
+A.RING_PAUSE = 0
 
 state = {}
 ok = asyncio.run(A.blink_archive(dest, state, now))
@@ -143,8 +144,12 @@ class FakeRingCam:
     def __init__(self, cid, name, sub, events):
         self.id, self.name, self.has_subscription, self.events = cid, name, sub, events
         self.dl = []
-    async def async_history(self, limit=30):
-        return self.events
+    async def async_history(self, limit=30, older_than=None):
+        evs = sorted(self.events, key=lambda e: e["created_at"], reverse=True)
+        if older_than is not None:
+            idx = [e["id"] for e in evs].index(older_than)
+            evs = evs[idx + 1:]
+        return evs[:limit]
     async def async_recording_download(self, rid):
         self.dl.append(rid)
         return b"RING%d" % rid
@@ -179,6 +184,34 @@ check(cam2.dl == [], "Ring: camera without Ring Protect is not downloaded")
 check(len(ring_files) == 1 and "_motion_501.mp4" in ring_files[0], "Ring file layout")
 check(fa.closed, "Ring auth closed")
 check(str(11) in state["ring_last"], "Ring state per camera")
+
+# paging: 250 events in the window must all be requested, not just the newest 100
+many = [ev(1000 + i, 600 + i * 60) for i in range(250)]
+cam3 = FakeRingCam(13, "Busy Door", True, many)
+class FakeRing3:
+    def video_devices(self): return [cam3]
+async def rs3(): return FakeRing3(), FakeAuth()
+A.ring_session = rs3
+asyncio.run(A.ring_archive(os.path.join(TMP, "r3"), {}, now))
+check(len(cam3.dl) == 250, "Ring pages past 100 events (got %d)" % len(cam3.dl))
+
+# 429: stop at once, keep the bookmark behind the first throttled clip
+class ThrottledCam(FakeRingCam):
+    async def async_recording_download(self, rid):
+        if len(self.dl) >= 2:
+            raise RuntimeError("HTTP error with status code 429 ... Too Many Requests")
+        self.dl.append(rid)
+        return b"R"
+cam4 = ThrottledCam(14, "Throttled", True, [ev(2000 + i, 600 + i * 60) for i in range(10)])
+class FakeRing4:
+    def video_devices(self): return [cam4]
+async def rs4(): return FakeRing4(), FakeAuth()
+A.ring_session = rs4
+st4 = {}
+ok4 = asyncio.run(A.ring_archive(os.path.join(TMP, "r4"), st4, now))
+check(len(cam4.dl) == 2 and ok4 is False, "Ring 429 stops the run instead of hammering (downloaded %d)" % len(cam4.dl))
+third = now - (600 + 2 * 60)
+check(st4["ring_last"]["14"] < third, "bookmark stays behind the throttled clip so it is retried")
 
 # ---- run() with nothing signed in is a no-op, not a crash --------------------
 rc = asyncio.run(A.cmd_run())
