@@ -38,8 +38,10 @@ DSM › Control Panel › **Task Scheduler** › Create › Scheduled Task › *
   Frequency **every 15 minutes**, last run `23:45`.
 - **Task Settings › Run command:**
   ```
-  sh "$(ls -d /volume*/Surveillance/_archiver | head -1)/run.sh"
+  D="$(ls -d /volume*/[Ss]urveillance/_archiver | head -1)"; sh "$D/run.sh" >> "$D/task-output.log" 2>&1
   ```
+  The Surveillance Station share is **lowercase** on disk (`/volume1/surveillance`),
+  so a capitalised path finds nothing and the task exits 127 — hence `[Ss]`.
 - Save. Select the task › **Run** once to start now.
 
 The first run installs Python and the libraries into `_archiver\.runtime`
