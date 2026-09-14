@@ -337,7 +337,7 @@ async def ring_session():
 
 async def ring_archive(dest, state, now):
     ring, auth = await ring_session()
-    got = skipped = failed = 0
+    got = skipped = failed = no_video = 0
     last = dict(state.get("ring_last") or {})
     try:
         cams = ring.video_devices()
@@ -386,6 +386,13 @@ async def ring_archive(dest, state, now):
                         got += 1
                         await asyncio.sleep(RING_PAUSE)
                     except Exception as e:
+                        if "404" in str(e):
+                            # Ring lists the event but holds no video for it (expired, never
+                            # uploaded, or before Ring Protect). Retrying cannot help, and
+                            # holding the bookmark back for it would re-page history forever.
+                            no_video += 1
+                            newest = max(float(newest or 0), when.timestamp())
+                            continue
                         failed += 1
                         oldest_failed = min(oldest_failed or when.timestamp(), when.timestamp())
                         if "429" in str(e) or "Too Many Requests" in str(e):
@@ -404,7 +411,8 @@ async def ring_archive(dest, state, now):
     finally:
         await auth.async_close()
     state["ring_last"] = last
-    log("Ring: %d new, %d already on NAS, %d failed" % (got, skipped, failed))
+    log("Ring: %d new, %d already on NAS, %d failed, %d listed by Ring without a video"
+        % (got, skipped, failed, no_video))
     return failed == 0
 
 

@@ -213,6 +213,23 @@ check(len(cam4.dl) == 2 and ok4 is False, "Ring 429 stops the run instead of ham
 third = now - (600 + 2 * 60)
 check(st4["ring_last"]["14"] < third, "bookmark stays behind the throttled clip so it is retried")
 
+# 404: Ring lists the event but has no video -> not a failure, bookmark moves on
+class GoneCam(FakeRingCam):
+    async def async_recording_download(self, rid):
+        if rid == 3001:
+            raise RuntimeError("HTTP error with status code 404 during query of url .../recording")
+        self.dl.append(rid)
+        return b"R"
+cam5 = GoneCam(15, "Gone", True, [ev(3001, 5000), ev(3002, 900)])
+class FakeRing5:
+    def video_devices(self): return [cam5]
+async def rs5(): return FakeRing5(), FakeAuth()
+A.ring_session = rs5
+st5 = {}
+ok5 = asyncio.run(A.ring_archive(os.path.join(TMP, "r5"), st5, now))
+check(ok5 is True and cam5.dl == [3002], "404 (no video at Ring) is not a failure")
+check(abs(st5["ring_last"]["15"] - (now - 900)) < 2, "404 does not pin the bookmark")
+
 # ---- run() with nothing signed in is a no-op, not a crash --------------------
 rc = asyncio.run(A.cmd_run())
 check(rc == 0, "run with no accounts signed in exits 0")
