@@ -1,7 +1,13 @@
 creds.json
+creds.json.tmp
+helper-key.txt
+tunnel.yml
+*.cf-credentials.json
 __pycache__/
 *.pyc
 cloudflared.exe
 .venv/
 boot.log
 tunnel.log
+logindebug*
+login-debug.log
