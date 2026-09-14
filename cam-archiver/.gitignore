@@ -1,0 +1,5 @@
+.runtime/
+.venv-pc/
+*.log
+*.log.1
+__pycache__/

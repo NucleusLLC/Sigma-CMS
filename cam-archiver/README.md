@@ -10,80 +10,68 @@ every 15 minutes, and deletes clips older than 90 days.
 \\Zencave\Surveillance\
   Blink\<camera>\2026-09-14\2026-09-14_03-14-52_123456789.mp4
   Ring\<camera>\2026-09-14\2026-09-14_07-02-11_motion_7412....mp4
-  _archiver\            <- this folder (code, run.sh, archiver.log)
+  _archiver\            <- this folder (code, run.sh, archiver.log, install.log)
 ```
 
 Existing folders in the share (e.g. `FLoodLight Rear Cam`) are never touched.
+No Docker, **no SSH**, nothing system-wide.
 
-No Docker. Nothing system-wide. Passwords are used once at sign-in and never
-stored; only tokens, in `~/.cam-archiver` on the NAS (not in the share).
+## 1. Sign in (once) — on the PC
 
-## 1. Install (once)
+Double-click **`login-on-pc.cmd`** (in `sigma-deploy\cam-archiver` on the PC).
+It asks for the Blink e-mail, password and 2FA code, then the same for Ring.
+Passwords are used once and never saved. Only tokens are written, into your
+**private** NAS home folder `\\Zencave\home\.cam-archiver` — not into the
+Surveillance share, where anyone with access could read them.
 
-DSM › Control Panel › Terminal & SNMP › **Enable SSH** (already on).
-DSM › Control Panel › User & Group › Advanced › **Enable user home service** (if not on).
+Ring prints, per camera, whether it has **Ring Protect** — without it Ring keeps
+no recordings for that camera and there is nothing to copy.
 
-From Windows Terminal / PowerShell:
+The NAS gets its **own** Blink session; the SIGMA camera helper is unaffected.
 
-```
-ssh YOUR_DSM_USER@192.168.0.41
-cd "/volume1/Surveillance/_archiver"
-sh install.sh
-```
-
-(If `cd` fails, the share is on another volume: `ls -d /volume*/Surveillance`.)
-
-## 2. Sign in (once each, interactive)
-
-```
-~/.cam-archiver/venv/bin/python archiver.py login-blink
-~/.cam-archiver/venv/bin/python archiver.py login-ring
-```
-
-Each asks for e-mail, password and the 2FA code. Ring also prints, per camera,
-whether it has **Ring Protect** — without it Ring keeps no recordings and there is
-nothing to copy for that camera.
-
-The NAS gets its **own** Blink session; the PC camera helper for SIGMA is
-unaffected.
-
-## 3. First run by hand
-
-```
-sh run.sh
-```
-
-The first run copies the last 30 days (Blink had 400+ clips) — let it finish.
-Check `archiver.log` or run `~/.cam-archiver/venv/bin/python archiver.py status`.
-
-## 4. Schedule it
+## 2. Schedule it — in DSM
 
 DSM › Control Panel › **Task Scheduler** › Create › Scheduled Task › **User-defined script**
 
-- General: Task `SIGMA cam-archiver`, User **your DSM user** (not root)
-- Schedule: Daily, every **15 minutes**, first run 00:00, last run 23:45
-- Task Settings › Run command:
+- **General:** Task `SIGMA cam-archiver`. User: **greg** if listed, otherwise **root**.
+- **Schedule:** Run on the following days: Daily. Time: first run `00:00`,
+  Frequency **every 15 minutes**, last run `23:45`.
+- **Task Settings › Run command:**
   ```
-  sh "/volume1/Surveillance/_archiver/run.sh"
+  sh "$(ls -d /volume*/Surveillance/_archiver | head -1)/run.sh"
   ```
-- Optional: Send run details by email › only when the script terminates abnormally.
+- Save. Select the task › **Run** once to start now.
 
-## Settings (environment variables, set in run.sh)
+The first run installs Python and the libraries into `_archiver\.runtime`
+(a few minutes, see `install.log`), then copies the last 30 days of clips
+(`archiver.log`). Later runs take seconds.
+
+> If the task runs as **root**: anyone who can WRITE to the Surveillance share
+> could change `run.sh` and have it run as root. Keep write access to that share
+> limited to admins, or run the task as your own user.
+
+If your DSM user is not called `greg`, add `ARCHIVER_OWNER=youruser ` in front of
+`sh` in the run command.
+
+## Settings
+
+Set in front of `sh` in the run command, e.g. `CAM_ARCHIVER_RETENTION_DAYS=180 sh …`
 
 | Variable | Default | |
 |---|---|---|
 | `CAM_ARCHIVER_RETENTION_DAYS` | 90 | 0 = keep forever |
 | `CAM_ARCHIVER_BACKFILL_DAYS` | 30 | first run only |
-| `CAM_ARCHIVER_DEST` | the share this folder is in | |
+| `ARCHIVER_OWNER` | greg | whose home folder holds the tokens |
 
 ## When it stops copying
 
-- `archiver.log` says **not signed in / refused the saved session** → run the login
-  command again (tokens expire if the job does not run for weeks, or after a
-  password change).
+- `archiver.log` says **not signed in / refused the saved session** → double-click
+  `login-on-pc.cmd` again (tokens lapse if the job does not run for weeks, or after
+  a password change).
 - **no Ring Protect plan** → that Ring camera has no cloud recordings.
-- Unofficial vendor APIs: Amazon or Ring can change them. Update with
-  `~/.local/bin/uv pip install --python ~/.cam-archiver/venv/bin/python -U blinkpy ring_doorbell`.
+- **install failed** → read `install.log`.
+- Unofficial vendor APIs: Amazon or Ring can change them. Delete `_archiver\.runtime`
+  and the next run reinstalls the latest pinned libraries.
 
 ## Test (on any PC)
 
