@@ -45,8 +45,8 @@ import uuid
 HERE = os.path.dirname(os.path.abspath(__file__))
 SECRETS_DIR = os.environ.get("CAM_ARCHIVER_HOME", os.path.expanduser("~/.cam-archiver"))
 DEST = os.environ.get("CAM_ARCHIVER_DEST", os.path.dirname(HERE))
-RETENTION_DAYS = int(os.environ.get("CAM_ARCHIVER_RETENTION_DAYS", "90"))
-BACKFILL_DAYS = int(os.environ.get("CAM_ARCHIVER_BACKFILL_DAYS", "30"))
+RETENTION_DAYS = int(os.environ.get("CAM_ARCHIVER_RETENTION_DAYS", "14"))
+BACKFILL_DAYS = int(os.environ.get("CAM_ARCHIVER_BACKFILL_DAYS", "14"))
 OVERLAP_SECONDS = 2 * 3600       # re-scan the last 2h every run: clips upload late
 DOWNLOAD_PAUSE = 0.5             # seconds between downloads; gentle on the vendor APIs
 LOG_FILE = os.environ.get("CAM_ARCHIVER_LOG", os.path.join(HERE, "archiver.log"))
@@ -238,6 +238,10 @@ async def blink_archive(dest, state, now):
             when = parse_time(item.get("created_at"))
             address = item.get("media")
             if not when or not address:
+                continue
+            # Blink's "since" is not a filter — it pages back through everything the
+            # cloud still holds (a 1-day test pulled 674 clips). Enforce it here.
+            if when.timestamp() < since:
                 continue
             ext = os.path.splitext(address.split("?")[0])[1] or ".mp4"
             path = clip_path(dest, "Blink", item.get("device_name"), when, item.get("id"), ext=ext)

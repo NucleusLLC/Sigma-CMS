@@ -124,7 +124,13 @@ _orig = A.blink_session; A.blink_session = fb2s; st2 = {}
 asyncio.run(A.blink_archive(os.path.join(TMP, "d2"), st2, now)); A.blink_session = _orig
 check(st2["blink_last"] < now - 5000, "older failed clip holds the bookmark back for retry")
 first_since = fb.since
-check(dt.datetime.strptime(first_since, "%Y/%m/%d %H:%M:%S").timestamp() < now - 29 * 86400, "first run backfills 30 days")
+# Blink ignores "since": clips older than the window must be skipped by us
+fb3 = FakeBlink(); fb3.items = [{"id": 9, "created_at": iso(40 * 86400), "device_name": "Y", "media": "/m/9.mp4", "deleted": False}]
+async def fb3s(): return fb3, FakeSession()
+_o = A.blink_session; A.blink_session = fb3s
+asyncio.run(A.blink_archive(os.path.join(TMP, "d3"), {}, now)); A.blink_session = _o
+check(fb3.downloads == [], "clip older than the backfill window is not downloaded")
+check(dt.datetime.strptime(first_since, "%Y/%m/%d %H:%M:%S").timestamp() < now - 13 * 86400, "first run backfills 14 days")
 
 fb.downloads.clear(); fb.items = fb.items[:2]
 ok = asyncio.run(A.blink_archive(dest, state, now + 900))

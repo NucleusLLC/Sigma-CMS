@@ -4,7 +4,7 @@ Blink and Ring **battery** cameras cannot be recorded by Synology Surveillance
 Station: they serve no RTSP/ONVIF stream and sleep until motion. They do produce a
 **motion clip per event** in the vendor cloud — Blink (subscription) and Ring
 (Ring Protect). This job copies every new clip into `\\Zencave\Surveillance`,
-every 15 minutes, and deletes clips older than 90 days.
+every 15 minutes, and deletes clips older than 14 days.
 
 ```
 \\Zencave\Surveillance\
@@ -43,7 +43,7 @@ DSM › Control Panel › **Task Scheduler** › Create › Scheduled Task › *
 - Save. Select the task › **Run** once to start now.
 
 The first run installs Python and the libraries into `_archiver\.runtime`
-(a few minutes, see `install.log`), then copies the last 30 days of clips
+(a few minutes, see `install.log`), then copies the last 14 days of clips
 (`archiver.log`). Later runs take seconds.
 
 > If the task runs as **root**: anyone who can WRITE to the Surveillance share
@@ -59,8 +59,8 @@ Set in front of `sh` in the run command, e.g. `CAM_ARCHIVER_RETENTION_DAYS=180 s
 
 | Variable | Default | |
 |---|---|---|
-| `CAM_ARCHIVER_RETENTION_DAYS` | 90 | 0 = keep forever |
-| `CAM_ARCHIVER_BACKFILL_DAYS` | 30 | first run only |
+| `CAM_ARCHIVER_RETENTION_DAYS` | 14 | 0 = keep forever |
+| `CAM_ARCHIVER_BACKFILL_DAYS` | 14 | first run only |
 | `ARCHIVER_OWNER` | greg | whose home folder holds the tokens |
 
 ## When it stops copying

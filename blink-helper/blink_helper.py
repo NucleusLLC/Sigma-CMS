@@ -86,6 +86,24 @@ _trigger_at = {}   # camera name -> epoch of our last snap request
 _seen = {}         # camera name -> {"hash", "captured", "source"}
 _saved_tokens = None
 
+# --- Ring (optional) --------------------------------------------------------
+# Ring battery cameras, like Blink, serve no local stream. Ring keeps a periodic
+# snapshot per camera (Ring app > camera > Snapshot Capture) with its own
+# timestamp. They join the same camera list as "Ring · <name>", so SIGMA's
+# snapshot tiles and their honest capture time work with no page change.
+# The helper has its OWN Ring sign-in (ring-session/ring.json, written by
+# 3-RING-LOGIN.cmd): Ring rotates refresh tokens, and sharing one with the NAS
+# archiver would sign each other out.
+RING_PREFIX = "Ring · "
+RING_TOKEN = os.path.join(os.environ.get("RING_SESSION_DIR", "ring-session"), "ring.json")
+RING_USER_AGENT = "SIGMA-cam-helper/1.0"
+_ring = None
+_ring_auth = None
+_ring_lock = asyncio.Lock()
+_ring_devices = {}     # display name -> device
+_ring_devices_at = 0.0
+_ring_cache = {}       # display name -> {"at", "jpeg", "captured"}
+
 
 # ---------------------------------------------------------------------------
 # key
@@ -256,6 +274,89 @@ async def _poller(app):
 
 
 # ---------------------------------------------------------------------------
+# Ring
+# ---------------------------------------------------------------------------
+
+def ring_display_name(device_name):
+    return RING_PREFIX + str(device_name or "camera").strip()
+
+
+def _ring_save_token(token, hardware_id):
+    data = {"token": token, "hardware_id": hardware_id}
+    tmp = RING_TOKEN + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp, RING_TOKEN)
+
+
+async def _ensure_ring():
+    """The Ring session, or None when Ring was never signed in on this PC."""
+    global _ring, _ring_auth, _ring_devices, _ring_devices_at
+    if not os.path.exists(RING_TOKEN):
+        return None
+    async with _ring_lock:
+        if _ring is None:
+            from ring_doorbell import Auth as RingAuth, Ring
+            with open(RING_TOKEN, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+            hw = saved.get("hardware_id")
+            auth = RingAuth(RING_USER_AGENT, saved.get("token"),
+                            lambda tok: _ring_save_token(tok, hw), hardware_id=hw)
+            ring = Ring(auth)
+            await ring.async_update_data()
+            _ring, _ring_auth = ring, auth
+            _ring_devices_at = 0.0
+        if time.time() - _ring_devices_at > 600:
+            await _ring.async_update_devices()
+            _ring_devices = {ring_display_name(d.name): d for d in _ring.video_devices()}
+            _ring_devices_at = time.time()
+    return _ring
+
+
+def ring_ts_seconds(value, now=None):
+    """Ring snapshot timestamps are epoch milliseconds; reject anything implausible."""
+    try:
+        ts = float(value)
+    except (TypeError, ValueError):
+        return None
+    if ts > 10**12:
+        ts = ts / 1000.0
+    now = time.time() if now is None else now
+    if ts <= 0 or ts > now + 300 or ts < now - 400 * 86400:
+        return None
+    return ts
+
+
+async def ring_snapshot(name, now=None):
+    """(jpeg, captured_epoch_or_None) for a Ring camera, cached for SNAP_EVERY."""
+    from ring_doorbell.const import SNAPSHOT_ENDPOINT, SNAPSHOT_TIMESTAMP_ENDPOINT
+    now = time.time() if now is None else now
+    hit = _ring_cache.get(name)
+    if hit and now - hit["at"] < SNAP_EVERY and hit["jpeg"]:
+        return hit["jpeg"], hit["captured"]
+    dev = _ring_devices.get(name)
+    if dev is None:
+        raise KeyError(name)
+    dev_id = dev._attrs.get("id")
+    captured = None
+    try:
+        resp = await _ring.async_query(SNAPSHOT_TIMESTAMP_ENDPOINT, method="POST",
+                                       json={"doorbot_ids": [dev_id]})
+        stamps = (resp.json() or {}).get("timestamps") or []
+        if stamps:
+            captured = ring_ts_seconds(stamps[0].get("timestamp"), now)
+    except Exception:
+        captured = None
+    resp = await _ring.async_query(SNAPSHOT_ENDPOINT.format(dev_id))
+    jpeg = resp.content if getattr(resp, "status_code", 200) == 200 else b""
+    if jpeg:
+        _ring_cache[name] = {"at": now, "jpeg": jpeg, "captured": captured}
+    elif hit:
+        return hit["jpeg"], hit["captured"]
+    return jpeg, captured
+
+
+# ---------------------------------------------------------------------------
 # http
 # ---------------------------------------------------------------------------
 
@@ -293,11 +394,32 @@ async def handle_cameras(request: web.Request) -> web.Response:
                 "capture_source": source,
             })
         cams.sort(key=lambda c: c["name"].lower())
-        return _cors(web.json_response({
-            "cameras": cams, "count": len(cams), "snap_every": SNAP_EVERY,
-        }))
     except Exception as e:
-        return _err(str(e))
+        blink_error = str(e)
+        cams = []
+    else:
+        blink_error = None
+    ring_error = None
+    try:
+        if await _ensure_ring() is not None:
+            for dname, dev in sorted(_ring_devices.items()):
+                hit = _ring_cache.get(dname) or {}
+                cams.append({
+                    "name": dname, "vendor": "ring",
+                    "battery": getattr(dev, "battery_life", None),
+                    "captured_at": hit.get("captured"),
+                    "capture_source": "ring" if hit.get("captured") else "unknown",
+                })
+    except Exception as e:
+        ring_error = str(e)
+    if not cams and (blink_error or ring_error):
+        return _err(blink_error or ring_error)
+    body = {"cameras": cams, "count": len(cams), "snap_every": SNAP_EVERY}
+    if blink_error:
+        body["blink_error"] = blink_error
+    if ring_error:
+        body["ring_error"] = ring_error
+    return _cors(web.json_response(body))
 
 
 async def handle_snapshot(request: web.Request) -> web.Response:
@@ -307,6 +429,22 @@ async def handle_snapshot(request: web.Request) -> web.Response:
     name = request.query.get("cam", "")
     if not name:
         return _err("cam query parameter is required")
+    if name.startswith(RING_PREFIX):
+        try:
+            if await _ensure_ring() is None:
+                return _err("Ring is not signed in on this PC — run 3-RING-LOGIN.cmd")
+            jpeg, captured = await ring_snapshot(name, now)
+            if not jpeg:
+                return _err("Ring has no snapshot for %r — turn on Snapshot Capture for it in the Ring app" % name)
+            resp = web.Response(body=jpeg, content_type="image/jpeg")
+            resp.headers["X-Blink-Captured"] = "" if captured is None else str(int(captured))
+            resp.headers["X-Blink-Capture-Source"] = "ring" if captured else "unknown"
+            resp.headers["X-Blink-Snap-Every"] = str(int(SNAP_EVERY))
+            return _cors(resp)
+        except KeyError:
+            return _err("no Ring camera named %r" % name)
+        except Exception as e:
+            return _err(str(e))
     try:
         blink = await _ensure_blink()
         cam = blink.cameras.get(name)
@@ -397,6 +535,11 @@ def build_app(key: str) -> web.Application:
 
     async def stop_bg(app):
         app["poller"].cancel()
+        if _ring_auth is not None:
+            try:
+                await _ring_auth.async_close()
+            except Exception:
+                pass
         if _blink is not None:
             try:
                 save_tokens(_blink)

@@ -11,3 +11,4 @@ boot.log
 tunnel.log
 logindebug*
 login-debug.log
+ring-session/
