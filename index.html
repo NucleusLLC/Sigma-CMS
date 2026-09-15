@@ -17273,6 +17273,536 @@ try{
   window.t4Blockers = t4Blockers; window.t4Summary = t4Summary; window.t4Limitations = t4Limitations;
 }catch(e){}
 
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §T5-MODEL (v2.527) — Type 5 · Assessment Report: the data and its rules      ║
+// ║                                                                              ║
+// ║  Everything here is PURE: no DOM, no storage, no clock except where a caller   ║
+// ║  passes one. The form, the report and the checks all call these functions,     ║
+// ║  so what the form allows, what the report prints and what blocks issuing can   ║
+// ║  never disagree — the §T4 doctrine (t4Blockers) carried over.                  ║
+// ║                                                                              ║
+// ║  WHERE IT LIVES: insp_data.s15._t5, one JSON object. Photographs are           ║
+// ║  referenced by storage path, never embedded (the 16 Jul 2026 outage).           ║
+// ║                                                                              ║
+// ║  THE RULES THAT MUST NOT BEND                                                  ║
+// ║   · Applicability, observation, condition, severity and priority are separate  ║
+// ║     fields. Not inspected / not accessible / unknown are NOT conditions, and a  ║
+// ║     component that was not inspected can never carry one (t5ComponentClean).   ║
+// ║   · A finding's reference (F-001) comes from a counter that only ever goes up.  ║
+// ║     Removing a finding keeps it (removed:true), so no reference is reused and   ║
+// ║     sorting never renumbers anything.                                          ║
+// ║   · A blank price is "Not estimated", never zero. An excluded line counts for   ║
+// ║     nothing. Currencies are never summed without a recorded exchange rate.      ║
+// ║   · Approval is tied to the content hash. Any change afterwards invalidates it. ║
+// ║   · Issued revisions are frozen snapshots; a correction opens a new revision.   ║
+// ║                                                                              ║
+// ║  PROPOSED BASELINE, not an approved specification (see docs/type-5-assessment). ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var T5_SCHEMA = 1;
+var T5_PURPOSES = [
+  { id:'general',     label:'General condition review' },
+  { id:'prepurchase', label:'Pre-purchase condition review' },
+  { id:'maintenance', label:'Maintenance planning' },
+  { id:'damage',      label:'Observed damage review' },
+  { id:'renovation',  label:'Renovation planning' },
+  { id:'other',       label:'Other' }
+];
+var T5_METHODS = [
+  { id:'visual',         label:'Visual inspection',               onSite:true  },
+  { id:'limited_visual', label:'Limited visual inspection',       onSite:true  },
+  { id:'desktop',        label:'Desktop / document review',       onSite:false },
+  { id:'specialist',     label:'Specialist-assisted inspection',  onSite:true  }
+];
+var T5_ACCESS = [
+  { id:'full',          label:'Full access' },
+  { id:'partial',       label:'Partial access' },
+  { id:'exterior',      label:'Exterior only' },
+  { id:'none',          label:'No access' },
+  { id:'document_only', label:'Document-only review' }
+];
+var T5_AREA_SOURCES = [
+  { id:'measured',  label:'Measured on site' },
+  { id:'plan',      label:'Supplied plan' },
+  { id:'cadastral', label:'Cadastral document' },
+  { id:'estimate',  label:'Estimate' },
+  { id:'unknown',   label:'Unknown' }
+];
+var T5_COMPONENTS = [
+  { code:'C01', label:'Site, access, drainage and external works' },
+  { code:'C02', label:'Foundation and visible structural elements' },
+  { code:'C03', label:'Walls, columns, beams and slabs' },
+  { code:'C04', label:'Roof structure, covering, waterproofing and drainage' },
+  { code:'C05', label:'Interior finishes, ceilings, doors and windows' },
+  { code:'C06', label:'Kitchens and bathrooms' },
+  { code:'C07', label:'Plumbing, water supply and wastewater' },
+  { code:'C08', label:'Electrical, HVAC and installed equipment' },
+  { code:'C09', label:'Fencing, gates, retaining walls and ancillary structures' },
+  { code:'C10', label:'Pools, terraces, carports, landscaping and other improvements' }
+];
+var T5_APPLICABILITY = [ { id:'applicable', label:'Applicable' }, { id:'not_applicable', label:'Not applicable' } ];
+var T5_OBSERVATION = [
+  { id:'inspected',      label:'Inspected' },
+  { id:'not_inspected',  label:'Not inspected' },
+  { id:'not_accessible', label:'Not accessible' },
+  { id:'unknown',        label:'Unknown' }
+];
+// The condition codes this app already uses on its condition matrix. Stored as codes,
+//   printed as labels; nothing historical is mapped onto a new scale.
+var T5_CONDITIONS = [
+  { id:'NEW', label:'New' }, { id:'GOOD', label:'Good' }, { id:'FAIR', label:'Fair' },
+  { id:'POOR', label:'Poor' }, { id:'BAD', label:'Bad' }, { id:'UNFINISHED', label:'Unfinished' }
+];
+var T5_SEVERITY = [
+  { id:'low', label:'Low' }, { id:'moderate', label:'Moderate' }, { id:'high', label:'High' }, { id:'critical', label:'Critical' }
+];
+// Timeframes are labels the assessor selects; nothing is inferred from them.
+var T5_PRIORITY = [
+  { id:'urgent',  label:'Urgent attention',    timeframe:'Immediately' },
+  { id:'short',   label:'Short term',          timeframe:'Within 3 months' },
+  { id:'planned', label:'Planned maintenance', timeframe:'Within 12 months' },
+  { id:'monitor', label:'Monitor',             timeframe:'Review at next inspection' }
+];
+var T5_ACTION_TYPES = [
+  { id:'repair',      label:'Repair' },
+  { id:'investigate', label:'Further investigation' },
+  { id:'specialist',  label:'Specialist referral' },
+  { id:'monitor',     label:'Monitor' }
+];
+var T5_CONFIDENCE = [ { id:'low', label:'Low' }, { id:'medium', label:'Medium' }, { id:'high', label:'High' } ];
+var T5_STATES = [
+  { id:'draft',     label:'Draft' },
+  { id:'in_review', label:'In review' },
+  { id:'approved',  label:'Approved' },
+  { id:'issued',    label:'Issued' }
+];
+var T5_CURRENCIES = ['AWG', 'USD'];
+
+function t5Label(list, id){ for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i].label; return ''; }
+function t5Str(v){ return String(v == null ? '' : v).trim(); }
+function t5Uid(){
+  try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch(e){}
+  return 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+/** A new, empty assessment. */
+function t5Empty(){
+  var comps = {};
+  T5_COMPONENTS.forEach(function(c){ comps[c.code] = { applicability:'', observation:'', condition:'', notes:'' }; });
+  return {
+    schema: T5_SCHEMA,
+    assignment: { purpose:'', purposeOther:'', intendedUse:'', recipients:'', inspector:'', reviewer:'',
+                  inspectionDate:'', effectiveDate:'', issueDate:'', source:null },
+    scope: { method:'', access:'', areasInspected:'', areasExcluded:'', accessRestrictions:'', occupancy:'',
+             weather:'', documents:'', equipment:'', areas:[] },
+    locations: [],               // [{id:'L1', label:'Main dwelling'}] — optional; findings may use a manual label
+    components: comps,           // component code → the one-location condition matrix
+    locComponents: {},           // 'L1|C04' → per-location rows when locations are used
+    findings: [],
+    nextRef: 1,
+    costs: { enabled:false, currency:'AWG', contingencyPct:'', taxPct:'', taxBase:'subtotal', basis:'', estimateDate:'',
+             exclusions:'', fx:{ rate:'', from:'', to:'', date:'', source:'' }, lines:[] },
+    conclusion: { overall:'', rationale:'', summary:'', limitations:'', reviewerConclusion:'' },
+    lifecycle: { state:'draft', submittedAt:'', submittedBy:'', approvedHash:'', approvedAt:'', approvedBy:'',
+                 reviewNotes:'', signatory:'' },
+    revision: 1,
+    issued: [],                  // [{rev, hash, at, by, signatory, reason, snapshot}]
+    audit: []                    // [{at, by, ev, detail}]
+  };
+}
+
+/** Fill in anything an older or partial object is missing, without discarding what is there. */
+function t5Normalize(m){
+  var e = t5Empty();
+  if (!m || typeof m !== 'object') return e;
+  var out = Object.assign({}, e, m);
+  ['assignment','scope','costs','conclusion','lifecycle'].forEach(function(k){
+    out[k] = Object.assign({}, e[k], (m[k] && typeof m[k] === 'object') ? m[k] : {});
+  });
+  out.costs.fx = Object.assign({}, e.costs.fx, (m.costs && m.costs.fx) || {});
+  out.costs.lines = Array.isArray(out.costs.lines) ? out.costs.lines : [];
+  out.scope.areas = Array.isArray(out.scope.areas) ? out.scope.areas : [];
+  out.components = Object.assign({}, e.components, (m.components && typeof m.components === 'object') ? m.components : {});
+  T5_COMPONENTS.forEach(function(c){ out.components[c.code] = Object.assign({ applicability:'', observation:'', condition:'', notes:'' }, out.components[c.code] || {}); });
+  out.locComponents = (m.locComponents && typeof m.locComponents === 'object') ? m.locComponents : {};
+  out.locations = Array.isArray(m.locations) ? m.locations : [];
+  out.findings = Array.isArray(m.findings) ? m.findings : [];
+  out.issued = Array.isArray(m.issued) ? m.issued : [];
+  out.audit = Array.isArray(m.audit) ? m.audit : [];
+  out.nextRef = Math.max(Number(m.nextRef) || 1, t5MaxRefNum(out.findings) + 1);
+  out.revision = Math.max(1, Number(m.revision) || 1);
+  return out;
+}
+function t5MaxRefNum(findings){
+  var max = 0;
+  (findings || []).forEach(function(f){ var n = parseInt(String((f && f.ref) || '').replace(/^F-/, ''), 10); if (n > max) max = n; });
+  return max;
+}
+function t5FormatRef(n){ var s = String(n); while (s.length < 3) s = '0' + s; return 'F-' + s; }
+
+/** Clears any condition on a component that was not actually inspected, or does not apply. */
+function t5ComponentClean(row){
+  var r = Object.assign({ applicability:'', observation:'', condition:'', notes:'' }, row || {});
+  if (r.applicability === 'not_applicable') { r.observation = ''; r.condition = ''; }
+  if (r.observation !== 'inspected') r.condition = '';
+  return r;
+}
+
+/** Adds a finding with the next reference. Returns the finding. `who`/`at` are passed in (pure). */
+function t5AddFinding(m, who, at){
+  var ref = t5FormatRef(m.nextRef);
+  m.nextRef = (Number(m.nextRef) || 1) + 1;
+  var f = { uid:t5Uid(), ref:ref, location:'', locationId:'', component:'', material:'', observation:'',
+            extent:'', quantity:'', unit:'', condition:'', severity:'', priority:'', timeframe:'',
+            causeSuspected:'', causeConfirmed:'', causeSource:'', confidence:'', action:'', actionType:'',
+            monitoringNote:'', evidence:[], evidenceLimitation:'', evidenceAckBy:'', evidenceAckAt:'',
+            inspector:who || '', observedAt:at || '', createdBy:who || '', createdAt:at || '', editedBy:'', editedAt:'',
+            reviewStatus:'unreviewed', imported:false, removed:false };
+  m.findings.push(f);
+  return f;
+}
+/** Removes a finding from the report while keeping its reference reserved and its history. */
+function t5RemoveFinding(m, uid, who, at){
+  (m.findings || []).forEach(function(f){ if (f.uid === uid){ f.removed = true; f.editedBy = who || ''; f.editedAt = at || ''; } });
+  // A removed finding cannot hold cost lines to itself: unlink it so no line is priced against nothing.
+  (m.costs.lines || []).forEach(function(l){ l.findings = (l.findings || []).filter(function(x){ return x !== uid; }); });
+}
+function t5LiveFindings(m){ return (m && m.findings || []).filter(function(f){ return f && !f.removed; }); }
+
+// ── Money: integer cents, rounded half away from zero on the DECIMAL value ─────
+//   Same policy as _cents (§PROMILLE-FIX): toFixed sees the half that binary floats lose,
+//   so 0.125 → 0.13 and 649.935 → 649.94, matching a numeric database.
+function t5Cents(v){
+  var n = Number(v);
+  if (!isFinite(n)) return NaN;
+  var neg = n < 0; if (neg) n = -n;
+  var s = n.toFixed(4), p = s.split('.');
+  var c = Number(p[0]) * 100 + Number(p[1].slice(0, 2));
+  if (Number(p[1].charAt(2)) >= 5) c += 1;
+  return neg ? -c : c;
+}
+//   `money` true  — an amount: the app's own convention (§PM-PARSE), so "1.500" and "1,500"
+//                   are one thousand five hundred, as everywhere else in SIGMA.
+//   `money` false — a quantity or a percentage: never grouped, so "2.500" m³ is 2.5, not 2500.
+function t5Num(v, money){
+  if (v === null || v === undefined) return NaN;
+  var s = String(v).trim();
+  if (s === '') return NaN;
+  if (typeof _pmNum === 'function') return _pmNum(s, money !== false);   // the app's own number reader (§PM-PARSE)
+  var n = Number(s.replace(/,/g, ''));
+  return isFinite(n) ? n : NaN;
+}
+function t5Money(cents, cur){
+  if (!isFinite(cents)) return 'Not estimated';
+  var neg = cents < 0, a = Math.abs(cents);
+  var whole = Math.floor(a / 100), frac = String(a % 100); if (frac.length < 2) frac = '0' + frac;
+  return (cur ? cur + ' ' : '') + (neg ? '−' : '') + whole.toLocaleString('en-US') + '.' + frac;
+}
+
+/**
+ * The cost schedule, computed deterministically.
+ *   quantity line = quantity × (materials rate + labour rate), rounded to cents per line
+ *   lump-sum line = the entered amount, rounded to cents
+ *   subtotal      = sum of INCLUDED, PRICED line amounts (in the base currency)
+ *   contingency   = subtotal × contingency % — only when a percentage was entered
+ *   tax           = tax base × tax % — only when a rate was entered; base is the subtotal, or
+ *                   subtotal + contingency when taxBase is 'subtotal_contingency'
+ *   total         = subtotal + contingency + tax
+ * A line in the other currency is converted only with an explicit rate; without one the
+ * schedule has an error and NO total. Nothing is ever defaulted: no rate, no tax, no price.
+ */
+function t5CostCalc(costs){
+  var c = costs || {};
+  var base = T5_CURRENCIES.indexOf(c.currency) >= 0 ? c.currency : '';
+  var out = { enabled: !!c.enabled, currency: base, lines: [], subtotal: 0, contingency: 0, tax: 0, total: 0,
+              contingencyApplied:false, taxApplied:false, incomplete:false, errors:[], hasTotal:true };
+  if (!base) { out.errors.push('Choose the base currency of the cost schedule.'); }
+  var fx = c.fx || {};
+  (c.lines || []).forEach(function(l, i){
+    var row = { uid:l.uid, index:i, desc:t5Str(l.desc), mode:l.mode, include:l.include !== false, currency:l.currency || base,
+                amount:NaN, original:NaN, status:'', error:'' };
+    var mode = l.mode;
+    if (mode !== 'qty' && mode !== 'lump'){ row.status = 'invalid'; row.error = 'Choose quantity × rates or a lump sum.'; }
+    else if (mode === 'qty'){
+      var q = t5Num(l.qty, false), ma = t5Num(l.mat), la = t5Num(l.lab);
+      var anyPrice = isFinite(ma) || isFinite(la);
+      if (t5Str(l.lump) !== '') { row.status = 'invalid'; row.error = 'A line uses one calculation mode: clear the lump sum or switch to lump sum.'; }
+      else if (!isFinite(q) || !anyPrice) { row.status = 'unpriced'; }
+      else if (q < 0 || (isFinite(ma) && ma < 0) || (isFinite(la) && la < 0)) { row.status = 'invalid'; row.error = 'Quantities and rates cannot be negative.'; }
+      else { row.original = t5Cents(q * ((isFinite(ma) ? ma : 0) + (isFinite(la) ? la : 0))); row.status = 'priced'; }
+    } else {
+      var ls = t5Num(l.lump);
+      if (t5Str(l.qty) !== '' || t5Str(l.mat) !== '' || t5Str(l.lab) !== '') { row.status = 'invalid'; row.error = 'A line uses one calculation mode: clear the quantity and rates or switch to quantity × rates.'; }
+      else if (!isFinite(ls)) { row.status = 'unpriced'; }
+      else if (ls < 0) { row.status = 'invalid'; row.error = 'A lump sum cannot be negative.'; }
+      else { row.original = t5Cents(ls); row.status = 'priced'; }
+    }
+    // Currency conversion — explicit or not at all.
+    if (row.status === 'priced'){
+      if (!base || row.currency === base){ row.amount = row.original; }
+      else {
+        var rate = t5Num(fx.rate, false);
+        if (!(rate > 0) || !t5Str(fx.date) || !t5Str(fx.source)) {
+          row.status = 'invalid'; row.error = 'This line is in ' + row.currency + ' and the schedule is in ' + base
+            + ': record the exchange rate, its date and its source before it can be counted.';
+        } else if (fx.from === row.currency && fx.to === base) { row.amount = t5Cents(row.original / 100 * rate); }
+        else if (fx.from === base && fx.to === row.currency) { row.amount = t5Cents(row.original / 100 / rate); }
+        else { row.status = 'invalid'; row.error = 'The recorded exchange rate is not between ' + row.currency + ' and ' + base + '.'; }
+      }
+    }
+    if (!row.include) row.status = (row.status === 'invalid') ? 'invalid' : 'excluded';
+    if (row.status === 'invalid' && row.include) out.errors.push('Line ' + (i + 1) + (row.desc ? ' (' + row.desc + ')' : '') + ': ' + row.error);
+    if (row.include && row.status === 'unpriced') out.incomplete = true;
+    if (row.include && row.status === 'priced') out.subtotal += row.amount;
+    out.lines.push(row);
+  });
+  var cp = t5Num(c.contingencyPct, false), tp = t5Num(c.taxPct, false);
+  if (t5Str(c.contingencyPct) !== '') {
+    if (!(cp >= 0)) out.errors.push('The contingency percentage is not a number.');
+    else { out.contingency = t5Cents(out.subtotal / 100 * cp / 100); out.contingencyApplied = true; }
+  }
+  if (t5Str(c.taxPct) !== '') {
+    if (!(tp >= 0)) out.errors.push('The tax rate is not a number.');
+    else {
+      var taxBase = (c.taxBase === 'subtotal_contingency') ? (out.subtotal + out.contingency) : out.subtotal;
+      out.tax = t5Cents(taxBase / 100 * tp / 100); out.taxApplied = true;
+    }
+  }
+  out.total = out.subtotal + out.contingency + out.tax;
+  if (out.errors.length) out.hasTotal = false;
+  return out;
+}
+
+// ── Hashing: what an approval is an approval OF ───────────────────────────────
+function t5Stable(v){
+  if (v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if (Array.isArray(v)) return '[' + v.map(t5Stable).join(',') + ']';
+  return '{' + Object.keys(v).sort().map(function(k){ return JSON.stringify(k) + ':' + t5Stable(v[k]); }).join(',') + '}';
+}
+/** Content hash: everything a reader of the report could see, NOT the review/issue bookkeeping. */
+function t5Hash(m){
+  var x = Object.assign({}, m || {});
+  delete x.lifecycle; delete x.issued; delete x.audit;
+  var s = t5Stable(x), h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (var i = 0; i < s.length; i++){
+    var ch = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return ('00000000' + (h2 >>> 0).toString(16)).slice(-8) + ('00000000' + (h1 >>> 0).toString(16)).slice(-8);
+}
+
+/** The state a reader should see: an approval that no longer matches the content is not an approval. */
+function t5EffectiveState(m){
+  var lc = (m && m.lifecycle) || {};
+  var st = lc.state || 'draft';
+  var h = t5Hash(m);
+  if (st === 'approved' && lc.approvedHash !== h) return { state:'in_review', invalidated:true, hash:h };
+  if (st === 'issued'){
+    var last = (m.issued || [])[(m.issued || []).length - 1];
+    if (!last || last.rev !== m.revision || last.hash !== h) return { state:'in_review', invalidated:true, hash:h };
+  }
+  return { state:st, invalidated:false, hash:h };
+}
+function t5IsLocked(m){ return t5EffectiveState(m).state === 'issued'; }
+function t5IsOnSite(m){ var me = m && m.scope && m.scope.method; for (var i = 0; i < T5_METHODS.length; i++) if (T5_METHODS[i].id === me) return T5_METHODS[i].onSite; return false; }
+function t5IsDocumentOnly(m){ return !!(m && m.scope && (m.scope.method === 'desktop' || m.scope.access === 'document_only')); }
+
+/**
+ * What stops the assessment going forward. stage 'review' = submitting for review;
+ * stage 'issue' = issuing. Each item: {code, where, msg}. `order` supplies property identity.
+ * Draft SAVING never calls this: an incomplete draft always saves.
+ */
+function t5Blockers(m, order, stage){
+  var out = [], add = function(code, where, msg){ out.push({ code:code, where:where, msg:msg }); };
+  m = t5Normalize(m);
+  var a = m.assignment, sc = m.scope;
+  // Property identity
+  if (!t5Str(order && order.address)) add('property', 'assignment', 'The property address is missing on the job order.');
+  // Assignment
+  if (!a.purpose) add('purpose', 'assignment', 'Choose the purpose of the assessment.');
+  if (a.purpose === 'other' && !t5Str(a.purposeOther)) add('purposeOther', 'assignment', 'Explain the purpose ("Other").');
+  if (!t5Str(a.intendedUse)) add('intendedUse', 'assignment', 'State the intended use of the report.');
+  if (!t5Str(a.inspector)) add('inspector', 'assignment', 'Name the responsible inspector.');
+  // Scope
+  if (!sc.method) add('method', 'scope', 'Choose the inspection method.');
+  if (!sc.access) add('access', 'scope', 'Record the access status.');
+  var docOnly = t5IsDocumentOnly(m);
+  if (!t5Str(a.inspectionDate)) add('inspectionDate', 'assignment', docOnly ? 'Enter the date of the document review.' : 'Enter the inspection date.');
+  if (docOnly && !t5Str(sc.documents)) add('documents', 'scope', 'A document review must list the documents consulted.');
+  if (sc.method === 'desktop' && sc.access && sc.access !== 'document_only' && sc.access !== 'none')
+    add('desktopAccess', 'scope', 'A desktop review cannot record site access. Set access to Document-only review or No access.');
+  if ((sc.access === 'partial' || sc.access === 'exterior' || sc.access === 'none') && !t5Str(sc.accessRestrictions))
+    add('accessRestrictions', 'scope', 'Describe the access restrictions.');
+  (sc.areas || []).forEach(function(ar, i){
+    if (t5Str(ar.value) && !ar.source) add('areaSource' + i, 'scope', 'Say where the area "' + (t5Str(ar.label) || ('#' + (i + 1))) + '" comes from.');
+    if (ar.source === 'measured' && docOnly) add('areaMeasured' + i, 'scope', 'A document review cannot have measured "' + (t5Str(ar.label) || ('#' + (i + 1))) + '" on site.');
+  });
+  // Components (the ten mandatory sections)
+  T5_COMPONENTS.forEach(function(c){
+    var r = m.components[c.code] || {};
+    if (!r.applicability) add('comp' + c.code, 'components', c.label + ': say whether it applies.');
+    else if (r.applicability === 'applicable' && !r.observation) add('comp' + c.code, 'components', c.label + ': record whether it was inspected.');
+    if (r.condition && r.observation !== 'inspected') add('compCond' + c.code, 'components', c.label + ': a condition cannot be given for something that was not inspected.');
+    if (r.applicability === 'applicable' && r.observation && r.observation !== 'inspected' && !t5Str(r.notes))
+      add('compWhy' + c.code, 'components', c.label + ': explain why it was ' + t5Label(T5_OBSERVATION, r.observation).toLowerCase() + '.');
+  });
+  // Findings
+  t5LiveFindings(m).forEach(function(f){
+    var w = 'finding:' + f.uid, nm = f.ref;
+    if (!t5Str(f.observation)) add('fObs', w, nm + ': the observation is empty.');
+    if (!t5Str(f.location) && !t5Str(f.locationId)) add('fLoc', w, nm + ': give a location.');
+    if (!f.priority) add('fPri', w, nm + ': choose a priority.');
+    if (!t5Str(f.action) && !(f.actionType === 'monitor' && t5Str(f.monitoringNote)))
+      add('fAct', w, nm + ': recommend an action, or choose Monitor and explain the monitoring decision.');
+    if (t5Str(f.causeConfirmed) && !t5Str(f.causeSource)) add('fCause', w, nm + ': a confirmed cause needs its source of confirmation.');
+    if (f.priority === 'urgent'){
+      var hasEvidence = (f.evidence || []).length > 0;
+      if (!hasEvidence && !t5Str(f.evidenceLimitation)) add('fEvid', w, nm + ' is urgent: attach evidence, or state why there is none.');
+      if (stage === 'issue' && !hasEvidence && t5Str(f.evidenceLimitation) && !t5Str(f.evidenceAckBy))
+        add('fAck', w, nm + ' is urgent with no evidence: the reviewer must acknowledge the stated limitation.');
+    }
+  });
+  // Costs
+  if (m.costs.enabled){
+    var cc = t5CostCalc(m.costs);
+    cc.errors.forEach(function(e){ add('cost', 'costs', e); });
+    if (!t5Str(m.costs.basis)) add('costBasis', 'costs', 'State the basis of the cost estimates.');
+    if (!t5Str(m.costs.estimateDate)) add('costDate', 'costs', 'Enter the estimate date.');
+  }
+  // Conclusion
+  if (!m.conclusion.overall) add('overall', 'conclusion', 'Give the overall condition conclusion.');
+  if (!t5Str(m.conclusion.rationale)) add('rationale', 'conclusion', 'Explain the overall conclusion.');
+  if (stage === 'issue'){
+    var es = t5EffectiveState(m);
+    if (!t5Str(a.reviewer)) add('reviewer', 'review', 'Name the reviewer.');
+    if (!t5Str(m.conclusion.reviewerConclusion)) add('reviewerConclusion', 'review', 'The reviewer has not recorded a conclusion.');
+    if (!t5Str(m.lifecycle.signatory)) add('signatory', 'review', 'Name the signatory.');
+    if (es.state !== 'approved') add('approval', 'review', es.invalidated
+      ? 'The assessment changed after it was approved. It must be reviewed and approved again.'
+      : 'The assessment has not been approved.');
+  }
+  return out;
+}
+
+/** Recommended actions grouped by priority, urgent first; each row keeps its finding reference. */
+function t5ActionSchedule(m){
+  var groups = T5_PRIORITY.map(function(p){ return { id:p.id, label:p.label, rows:[] }; });
+  var unset = { id:'', label:'Priority not set', rows:[] };
+  t5LiveFindings(m).forEach(function(f){
+    var g = null; for (var i = 0; i < groups.length; i++) if (groups[i].id === f.priority) g = groups[i];
+    (g || unset).rows.push(f);
+  });
+  var sev = { critical:0, high:1, moderate:2, low:3 };
+  groups.concat([unset]).forEach(function(g){
+    g.rows.sort(function(a, b){
+      var d = (sev[a.severity] == null ? 4 : sev[a.severity]) - (sev[b.severity] == null ? 4 : sev[b.severity]);
+      return d || String(a.ref).localeCompare(String(b.ref));
+    });
+  });
+  return groups.concat(unset.rows.length ? [unset] : []).filter(function(g){ return g.rows.length; });
+}
+/** The findings the executive summary must show whatever the overall condition: urgent, or high/critical severity. */
+function t5KeyFindings(m){
+  return t5LiveFindings(m).filter(function(f){ return f.priority === 'urgent' || f.severity === 'critical' || f.severity === 'high'; })
+    .sort(function(a, b){ return (a.priority === 'urgent' ? 0 : 1) - (b.priority === 'urgent' ? 0 : 1) || String(a.ref).localeCompare(String(b.ref)); });
+}
+
+// ── Lifecycle — every transition returns {ok, msg} and writes the audit trail ─────
+function t5Audit(m, who, at, ev, detail){
+  m.audit = m.audit || [];
+  m.audit.push({ at:at || '', by:who || '', ev:ev, detail:detail || '' });
+  if (m.audit.length > 400) m.audit.splice(0, m.audit.length - 400);
+}
+function t5SubmitForReview(m, order, who, at){
+  var st = t5EffectiveState(m).state;
+  if (st === 'issued') return { ok:false, msg:'This revision is issued. Open a new revision to change it.' };
+  var b = t5Blockers(m, order, 'review');
+  if (b.length) return { ok:false, msg:b.length + ' item(s) must be completed before review.', blockers:b };
+  m.lifecycle.state = 'in_review'; m.lifecycle.submittedAt = at || ''; m.lifecycle.submittedBy = who || '';
+  m.lifecycle.approvedHash = ''; m.lifecycle.approvedAt = ''; m.lifecycle.approvedBy = '';
+  t5Audit(m, who, at, 'submitted', 'rev ' + m.revision);
+  return { ok:true };
+}
+function t5Approve(m, order, who, at){
+  var es = t5EffectiveState(m);
+  if (es.state !== 'in_review') return { ok:false, msg:'Only an assessment in review can be approved.' };
+  // A reviewer must be named before anything is approved. The inspector MAY also be the
+  //   reviewer — a one-person bureau has no one else — but who approved is always recorded.
+  //   This is a client-side rule on a browser that can write the row directly: it is a
+  //   record, not a security control (docs/type-5-assessment/audit.md §4).
+  if (!t5Str(m.assignment.reviewer)) return { ok:false, msg:'Name the reviewer before approving.' };
+  var b = t5Blockers(m, order, 'review');
+  if (b.length) return { ok:false, msg:b.length + ' item(s) must be completed before approval.', blockers:b };
+  m.lifecycle.state = 'approved'; m.lifecycle.approvedHash = es.hash; m.lifecycle.approvedAt = at || ''; m.lifecycle.approvedBy = who || '';
+  t5Audit(m, who, at, 'approved', 'rev ' + m.revision + ' hash ' + es.hash);
+  return { ok:true };
+}
+function t5ReturnToDraft(m, who, at, reason){
+  var st = t5EffectiveState(m).state;
+  if (st === 'issued') return { ok:false, msg:'An issued revision cannot return to draft. Open a new revision.' };
+  m.lifecycle.state = 'draft'; m.lifecycle.approvedHash = ''; m.lifecycle.approvedAt = ''; m.lifecycle.approvedBy = '';
+  t5Audit(m, who, at, 'returned', t5Str(reason));
+  return { ok:true };
+}
+/** Issue the current revision. Idempotent: issuing an already-issued, unchanged revision does nothing. */
+function t5Issue(m, order, who, at){
+  var es = t5EffectiveState(m);
+  var last = m.issued[m.issued.length - 1];
+  if (es.state === 'issued' && last && last.rev === m.revision) return { ok:true, already:true, entry:last };
+  var b = t5Blockers(m, order, 'issue');
+  if (b.length) return { ok:false, msg:b.length + ' item(s) block issuing.', blockers:b };
+  var snap = JSON.parse(JSON.stringify(m)); delete snap.issued; delete snap.audit;
+  var entry = { rev:m.revision, hash:es.hash, at:at || '', by:who || '', signatory:m.lifecycle.signatory,
+                reviewer:m.assignment.reviewer, reason:(m.lifecycle.revisionReason || ''), snapshot:snap };
+  m.issued.push(entry);
+  m.lifecycle.state = 'issued';
+  t5Audit(m, who, at, 'issued', 'rev ' + m.revision + ' hash ' + es.hash);
+  return { ok:true, entry:entry };
+}
+/** Opens the next revision of an issued assessment. The issued snapshot is never touched. */
+function t5StartRevision(m, who, at, reason){
+  if (t5EffectiveState(m).state !== 'issued') return { ok:false, msg:'Only an issued assessment can be revised.' };
+  if (!t5Str(reason)) return { ok:false, msg:'Give the reason for the revision.' };
+  m.revision = (Number(m.revision) || 1) + 1;
+  m.lifecycle = Object.assign({}, m.lifecycle, { state:'draft', approvedHash:'', approvedAt:'', approvedBy:'', submittedAt:'', submittedBy:'', revisionReason:t5Str(reason) });
+  m.conclusion.reviewerConclusion = '';
+  t5LiveFindings(m).forEach(function(f){ f.reviewStatus = 'unreviewed'; });
+  t5Audit(m, who, at, 'revision', 'rev ' + m.revision + ': ' + t5Str(reason));
+  return { ok:true };
+}
+/** The frozen content of an issued revision, or null. */
+function t5IssuedSnapshot(m, rev){
+  var list = (m && m.issued) || [];
+  for (var i = list.length - 1; i >= 0; i--) if (list[i].rev === rev) return list[i];
+  return null;
+}
+/** Copy compatible observations from another order's assessment, marked as needing confirmation. */
+function t5ImportFrom(m, source, sourceId, who, at){
+  var src = t5Normalize(source);
+  var n = 0;
+  t5LiveFindings(src).forEach(function(sf){
+    var f = t5AddFinding(m, who, at);
+    ['location','component','material','observation','extent','quantity','unit','severity','causeSuspected','action','actionType'].forEach(function(k){ f[k] = sf[k] || ''; });
+    f.imported = true; f.importedFrom = String(sourceId || ''); f.importedRef = sf.ref; f.importedAt = at || '';
+    f.reviewStatus = 'needs_confirmation'; f.priority = ''; f.condition = ''; f.evidence = [];
+    n++;
+  });
+  m.assignment.source = { orderId:String(sourceId || ''), at:at || '', by:who || '', findings:n };
+  t5Audit(m, who, at, 'imported', n + ' finding(s) from ' + sourceId);
+  return n;
+}
+
+try {
+  window.T5_COMPONENTS = T5_COMPONENTS; window.T5_PRIORITY = T5_PRIORITY; window.T5_CONDITIONS = T5_CONDITIONS;
+  window.t5Empty = t5Empty; window.t5Normalize = t5Normalize; window.t5CostCalc = t5CostCalc; window.t5Blockers = t5Blockers;
+  window.t5Hash = t5Hash; window.t5EffectiveState = t5EffectiveState; window.t5AddFinding = t5AddFinding;
+  window.t5RemoveFinding = t5RemoveFinding; window.t5ActionSchedule = t5ActionSchedule; window.t5KeyFindings = t5KeyFindings;
+  window.t5SubmitForReview = t5SubmitForReview; window.t5Approve = t5Approve; window.t5ReturnToDraft = t5ReturnToDraft;
+  window.t5Issue = t5Issue; window.t5StartRevision = t5StartRevision; window.t5IssuedSnapshot = t5IssuedSnapshot;
+  window.t5ImportFrom = t5ImportFrom; window.t5ComponentClean = t5ComponentClean;
+} catch(e){}
+
 // One place decides the section set, so a new type is added once, not twice.
 function _secIdxsFor(t){
   // §T4-VISIBLE (v2.452) — coerce. The strict === meant a type arriving as the STRING
