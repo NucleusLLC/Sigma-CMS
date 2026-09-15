@@ -1,0 +1,90 @@
+# Type 5 — Assessment Report: verification
+
+Run on 15 Sep 2026 against the branch build (`sigma-t5/index.html`), Chrome 64-bit headless via `puppeteer-core`, Node 24.12.
+Every browser check boots the **shipped** `index.html` on `file://` and drives real functions and real DOM. Only the network and persistence edges are stubbed. All fixtures are synthetic.
+
+## How to run
+
+The checks live in `AppraisalSuite/tools` and read `sigma-deploy/index.html` by default. To run them against the branch, copy each tool with the path swapped:
+
+```bash
+sed 's#AppraisalSuite/sigma-deploy/index.html#AppraisalSuite/sigma-t5/index.html#g' tools/<check>.mjs > /tmp/<check>.mjs
+node /tmp/<check>.mjs
+```
+
+## Results
+
+Columns: exit code · `ok` lines · `FAIL` lines.
+
+### New for Type 5
+
+| Check | What it proves | exit | ok | fail |
+|---|---|---|---|---|
+| `type-registry-check` | Types 1–4 print exactly the v2.526 strings at every former literal site; Type 5 resolves everywhere; valuation gates | 0 | 42 | 0 |
+| `t5-skeleton-check` | Real new-order form creates a Type 5 (label, fee, DRAFT); `_toRow`/`_fromRow` round trip; tabs; Quick-View; disclaimers; cover; also the Type 4 fee-0 fix | 0 | 21 | 0 |
+| `t5-model-check` | Spec cost fixture (400/100/excluded 50/500/50/0/**550**, unpriced → incomplete); rounding; currency; one mode per line; review/issue gates; desktop rules; stable refs; urgent evidence; approval invalidation; idempotent issue; revisions; import | 0 | 83 | 0 |
+| `t5-form-check` | Assessment form in Chrome: fields and rules; not accessible clears condition; refs never reused; evidence = path + caption; live cost totals; autosave writes one `_t5`, no flat keys; **no bleed between orders**; reopen; full lifecycle through the buttons; issued read-only; revision 2; desktop label; import | 0 | 30 | 0 |
+| `t5-report-check` | Three rendered reports read sheet by sheet (below) plus pre-flight | 0 | 63 | 0 |
+| `t5-revision-pdf-check` | Issued + released revision kept at `-r<N>.pdf` without overwrite, recorded, never re-uploaded; drafts, unreleased and revision-2 drafts keep nothing | 0 | 11 | 0 |
+
+### Existing checks (regression)
+
+| Check | exit | ok | fail |
+|---|---|---|---|
+| `type-baseline` (Types 1–3 byte-identical) | 0 | 16 | 0 |
+| `type4-check` (updated to accept the registry form; still passes on main) | 0 | 92 | 0 |
+| `t4-bleed-check` (new with the hotfix) | 0 | 6 | 0 |
+| `t4-checklist-check` | 0 | 33 | 0 |
+| `t4-form-check` | 0 | 30 | 0 |
+| `t4-render-check` | 0 | 50 | 0 |
+| `t4-noval-check` | 0 | 26 | 0 |
+| `t4-report-order-check` (layout guard may name `_isT5`; passes on main) | 0 | 61 | 0 |
+| `t4-preflight-check` (loop bound ≥ 15; passes on main) | 0 | 24 | 0 |
+| `t4-arrange-check` | 0 | 23 | 0 |
+| `t4-sectionorder-check` | 0 | 39 | 0 |
+| `t4-loc-toggle-check` | 0 | 11 | 0 |
+| `t4-letters-check` | 0 | 13 | 0 |
+| `t4-compact-check` | 0 | 8 | 0 |
+| `t4-relay-check` | 0 | 8 | 0 |
+| `t4-print-check` | 0 | 5 | 0 |
+| `t4-email-check` | 0 | 22 | 0 |
+| `t4-gen-ai-check` | 0 | 37 | 0 |
+| `pdf-latest-check` | 0 | 26 | 0 |
+| `billing-disc-send-check` | 0 | 21 | 0 |
+| `cost-prefs-check` | 0 | 14 | 0 |
+| `master-fees-check` | 0 | 29 | 0 |
+| `sec-disable-check` | 0 | 8 | 0 |
+| `spill-heading-check` | 0 | 3 | 0 |
+| `scope-print-check` | 0 | 7 | 0 |
+| `spill-check` | **1** | 56 | 0 |
+
+`spill-check` exits 1 with `ReferenceError: _t4ReflowRuntime is not defined` after 56 passing checks. It does exactly the same on `main` v2.526/v2.527, so it is not caused by this work.
+
+Not run, because they need an input file and do not self-test by default: `print-check`, `opinion-check`, `report-pdf-check` (`pdfjs-dist` is not installed where the copied tool runs).
+
+## Report QA (`t5-report-check`)
+
+| Report | Scenario | Sheets | Asserted |
+|---|---|---|---|
+| A | Issued, released; urgent finding with an acknowledged evidence limitation; cost schedule enabled (spec fixture plus an unpriced line) | 9 | Page order = Contents order; each Contents number = the sheet its link lands on; one "of N"; nothing in the footer band; no valuation/USPAP/"appraisal report"; cover "Rev. 1 · Issued"; no watermark; urgent item in the executive summary; suspected cause labelled not confirmed; total AWG 550.00 INCOMPLETE; excluded and not-estimated lines; reviewer conclusion and signatory; no appraisal stamp |
+| B | Draft; two buildings; 14 long findings; one photograph present, one missing | 14 | As A, plus DRAFT watermark on every sheet; "Not issued"; findings run across several sheets; building labels kept; photograph and caption print; the missing photograph is named; action schedule groups by priority; "not signed", no signatory name |
+| C | Desktop review; one component not accessible, one not applicable; costs disabled (with a hidden line); no findings | 8 | "The property was not visited"; no on-site wording; "Document review date"; plan area shows its source; Not accessible / Not applicable printed as such; no cost page or totals; the document-review no-defects wording; no action schedule page |
+| Pre-flight | A, B, C | — | Assessment Report group and no valuation group; issued/ready; incomplete costs flagged; draft prints as DRAFT; missing evidence photograph named; costs not included |
+
+## Visual inspection
+
+The three reports were printed to A4 PDF with Chrome after their layout scripts ran. Every sheet was screenshotted and inspected: cover, executive summary, findings, cost schedule and sign-off (A); condition matrix, action schedule and watermark (B); executive summary and assignment (C).
+
+Two defects were found and fixed:
+
+1. The cover type strip wrapped into the scope line. It is now shortened to "Assessment Report · Rev. N · …".
+2. A "Property type" row fell back to the report-type label. It now shows only the order's property type.
+
+Samples (not in the repository): `AppraisalSuite/output/type5-samples/t5-sample-{A,B,C}.{html,pdf}` and `png-{A,B,C}/sheet-NN.png`.
+
+## Not verified
+
+- Anything against production data, storage or the database. Production reads were blocked in this session, and the spec forbids it.
+- Real photograph bytes from the `Storage` bucket in the report. Fixtures used inline data.
+- iPad/tablet layout of the form. Checked at desktop width only.
+- Dutch-language Type 5 report output. Strings exist but were not rendered.
