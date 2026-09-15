@@ -12754,6 +12754,14 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
       </div>
     </div>
 
+    <!-- §T5-FORM (v2.527) — Type 5 Assessment. An empty host: the whole assessment is drawn
+         from the live model by t5Render(), and captured as insp_data.s15._t5. -->
+    <div class="isec" id="isec-15">
+      <div class="isec-title">Assessment</div>
+      <div class="isec-desc">The assessment itself: assignment, scope and access, the condition of each component, the findings register, optional indicative costs, the conclusion, and review. A draft saves as you type, however incomplete. Items still needed before review or issue are listed at the top &mdash; click one to go to it.</div>
+      <div id="t5Host"></div>
+    </div>
+
     <div class="isec" id="isec-13">
       <div class="isec-title">14. Summary &amp; Sign-Off</div>
       <div class="isec-desc">Provide a final summary of findings, confirm all sections have been completed, and sign off on the inspection report before submission.</div>
@@ -16500,7 +16508,9 @@ const SECS_ALL=['1. Classification','2. Foundation & Walls','3. Roof','4. Interi
   //   the APPRAISAL sequence, and this section sits second on a Type 4, so '15.' in front
   //   of the second tab reads as a mistake. buildTabs strips a leading 'N. ' when a section
   //   is marked done, and copes fine with there being none.
-  'Building Inspection'];
+  'Building Inspection',
+  // §T5-FORM (v2.527) — index 15, reachable only through SECS_T5. Types 1–4 never list it.
+  'Assessment'];
 var SECS_T1=[0,1,8,10,11,12,13];var SECS_ALL_IDX=[0,1,2,3,4,5,6,7,8,9,10,11,12,13];
 // §TYPE4 (v2.398) — Building Inspection walks every physical section but NOT
 //   section 12 (Opinions), which is where the valuation lives: R.O.P.V., the
@@ -16568,7 +16578,7 @@ try {
 
 // §TYPE5 (v2.527) — Assessment Report: Classification, Photos, Documents, Sign-Off. The
 //   Assessment section itself (index 15) is added to this list when its form exists.
-var SECS_T5=[0,10,11,13];
+var SECS_T5=[0,15,10,11,13];   // Classification · Assessment · Photos · Documents · Sign-Off
 var SECS_T4=[0,1,2,3,4,5,6,7,8,9,10,11,14,13]   /* §T4-TABORDER (v2.458) — the checklist sits between Documents (11) and Sign-Off (13), i.e. last thing before signing. Order here is TAB order only; it does not touch the report. */;   // 0 Classification · 14 the checklist · then the rest
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -17732,6 +17742,9 @@ function t5Approve(m, order, who, at){
   //   This is a client-side rule on a browser that can write the row directly: it is a
   //   record, not a security control (docs/type-5-assessment/audit.md §4).
   if (!t5Str(m.assignment.reviewer)) return { ok:false, msg:'Name the reviewer before approving.' };
+  // The reviewer's conclusion prints on the report, so it is part of what is approved:
+  //   written afterwards, it would invalidate the approval it belongs to.
+  if (!t5Str(m.conclusion.reviewerConclusion)) return { ok:false, msg:'Write the reviewer conclusion before approving: it is part of the approved content.' };
   var b = t5Blockers(m, order, 'review');
   if (b.length) return { ok:false, msg:b.length + ' item(s) must be completed before approval.', blockers:b };
   m.lifecycle.state = 'approved'; m.lifecycle.approvedHash = es.hash; m.lifecycle.approvedAt = at || ''; m.lifecycle.approvedBy = who || '';
@@ -17801,6 +17814,572 @@ try {
   window.t5SubmitForReview = t5SubmitForReview; window.t5Approve = t5Approve; window.t5ReturnToDraft = t5ReturnToDraft;
   window.t5Issue = t5Issue; window.t5StartRevision = t5StartRevision; window.t5IssuedSnapshot = t5IssuedSnapshot;
   window.t5ImportFrom = t5ImportFrom; window.t5ComponentClean = t5ComponentClean;
+} catch(e){}
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §T5-FORM (v2.527) — Inspect Data › Assessment                                ║
+// ║                                                                              ║
+// ║  Renders the whole assessment from the live model (_t5Live) and binds every    ║
+// ║  field by PATH (data-t5="findings[uid].observation"), so there is one source    ║
+// ║  of truth and no field-by-field copy to fall out of step.                       ║
+// ║                                                                              ║
+// ║  · Saves through the section's ordinary autosave: every input bubbles to the    ║
+// ║    body listener (_inspOnChange → _inspLocalSave(15) → _inspCapture adds _t5).  ║
+// ║    Lifecycle actions save at once. Drafts save incomplete; nothing is refused   ║
+// ║    at save time.                                                               ║
+// ║  · The model belongs to ONE order (_t5LiveOrder). It is reset in openInsp and    ║
+// ║    re-created if the open order changes, so an assessment can never be written  ║
+// ║    into another order — the §T4-NO-BLEED lesson (v2.527).                     ║
+// ║  · Issued content is read-only: the form sits in a disabled <fieldset> until     ║
+// ║    a new revision is opened with a reason.                                      ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var _t5Live = null, _t5LiveOrder = '', _t5Msg = null;
+function _t5Who(){ try { return (typeof _authUser !== 'undefined' && _authUser && (_authUser.name || _authUser.email)) || ''; } catch(e){ return ''; } }
+function _t5Now(){ return new Date().toISOString(); }
+function _t5OrderId(){ try { return String((typeof _inspOrderId !== 'undefined' && _inspOrderId) || ''); } catch(e){ return ''; } }
+function _t5Model(){
+  var id = _t5OrderId();
+  if (!_t5Live || _t5LiveOrder !== id){ _t5Live = t5Normalize(null); _t5LiveOrder = id; _t5Msg = null; }
+  return _t5Live;
+}
+function _t5Capture(){ return JSON.parse(JSON.stringify(_t5Model())); }
+function _t5Apply(saved){
+  _t5Live = t5Normalize((saved && typeof saved === 'object') ? JSON.parse(JSON.stringify(saved)) : null);
+  _t5LiveOrder = _t5OrderId(); _t5Msg = null;
+  try { t5Render(); } catch(e){}
+}
+function _t5Reset(){ _t5Live = null; _t5LiveOrder = ''; _t5Msg = null; try { var h = document.getElementById('t5Host'); if (h) h.innerHTML = ''; } catch(e){} }
+function _t5Order(){ try { var id = _t5OrderId(); return (ORDERS || []).find(function(o){ return String(o.id) === id; }) || {}; } catch(e){ return {}; } }
+function _t5Esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function _t5Persist(){
+  try { if (typeof _inspLocalSave === 'function') _inspLocalSave(15); } catch(e){}
+  try { if (typeof persistOrders === 'function') persistOrders(_t5OrderId()); } catch(e){}
+}
+
+// ── Path binding ────────────────────────────────────────────────────────────────
+function _t5Tokens(path){ var t = [], re = /([^.\[\]]+)|\[([^\]]*)\]/g, m; while ((m = re.exec(path))) t.push(m[1] != null ? { k:m[1] } : { i:m[2] }); return t; }
+function _t5Step(cur, tok){
+  if (cur == null) return undefined;
+  if (tok.k != null) return cur[tok.k];
+  if (Array.isArray(cur)){
+    for (var j = 0; j < cur.length; j++) if (cur[j] && cur[j].uid === tok.i) return cur[j];
+    var n = parseInt(tok.i, 10); return isFinite(n) ? cur[n] : undefined;
+  }
+  return cur[tok.i];
+}
+function _t5Get(m, path){ return _t5Tokens(path).reduce(_t5Step, m); }
+function _t5Set(m, path, value){
+  var toks = _t5Tokens(path), last = toks.pop();
+  var parent = toks.reduce(_t5Step, m);
+  if (parent == null) return false;
+  var key = last.k != null ? last.k : last.i;
+  parent[key] = value;
+  return true;
+}
+
+// ── Field builders ──────────────────────────────────────────────────────────────
+function _t5Opts(list, cur, blank){
+  return (blank === false ? '' : '<option value="">— Select —</option>')
+    + list.map(function(o){ return '<option value="' + _t5Esc(o.id) + '"' + (o.id === cur ? ' selected' : '') + '>' + _t5Esc(o.label) + '</option>'; }).join('');
+}
+function _t5In(path, val, ph, extra){ return '<input type="text" data-t5="' + _t5Esc(path) + '" value="' + _t5Esc(val) + '"' + (ph ? ' placeholder="' + _t5Esc(ph) + '"' : '') + (extra || '') + '>'; }
+function _t5Date(path, val){ return '<input type="date" data-t5="' + _t5Esc(path) + '" value="' + _t5Esc(val) + '">'; }
+function _t5Ta(path, val, rows, ph){ return '<textarea data-t5="' + _t5Esc(path) + '" rows="' + (rows || 2) + '"' + (ph ? ' placeholder="' + _t5Esc(ph) + '"' : '') + '>' + _t5Esc(val) + '</textarea>'; }
+function _t5Sel(path, list, cur, extra){ return '<select data-t5="' + _t5Esc(path) + '"' + (extra || '') + '>' + _t5Opts(list, cur) + '</select>'; }
+function _t5F(label, inner, req, wide){ return '<label class="t5-f' + (wide ? ' t5-wide' : '') + '"><span>' + _t5Esc(label) + (req ? ' <b class="t5-req">*</b>' : '') + '</span>' + inner + '</label>'; }
+function _t5Card(id, title, sub, body){
+  return '<section class="t5-card" id="t5p-' + id + '"><div class="t5-card-h"><h4>' + _t5Esc(title) + '</h4>'
+    + (sub ? '<div class="t5-sub">' + sub + '</div>' : '') + '</div>' + body + '</section>';
+}
+
+/** Photographs already on this order (Inspect Data › Photos), as evidence choices. Never bytes. */
+function _t5Photos(){
+  var out = [], seen = {};
+  try {
+    var o = _t5Order(), s10 = (o.inspData && o.inspData.s10) || {};
+    try { var raw = localStorage.getItem('insp_' + _t5OrderId() + '_10'); if (raw) s10 = Object.assign({}, s10, JSON.parse(raw)); } catch(e){}
+    var ph = s10._photos || {};
+    Object.keys(ph).forEach(function(z){
+      (ph[z] || []).forEach(function(p, i){
+        if (!p) return;
+        var key = p.storagePath || (z + ':' + (p.name || i));
+        if (seen[key]) return; seen[key] = true;
+        out.push({ key:key, path:p.storagePath || '', name:p.name || ('Photo ' + (i + 1)), zone:z });
+      });
+    });
+  } catch(e){}
+  return out;
+}
+
+// ── Panels ──────────────────────────────────────────────────────────────────────
+function _t5HtmlStatus(m){
+  var order = _t5Order(), es = t5EffectiveState(m), st = es.state;
+  var stage = (st === 'approved') ? 'issue' : 'review';
+  var blk = t5Blockers(m, order, stage);
+  var chip = '<span class="t5-chip t5-st-' + st + '">' + _t5Esc(t5Label(T5_STATES, st)) + '</span>';
+  var h = '<div class="t5-status" id="t5Status">'
+    + '<div class="t5-status-row">' + chip + '<span class="t5-rev">Revision ' + m.revision + '</span>'
+    + (m.issued.length ? '<span class="t5-rev">Last issued: rev ' + m.issued[m.issued.length - 1].rev + (m.issued[m.issued.length - 1].at ? ' · ' + _t5Esc(String(m.issued[m.issued.length - 1].at).slice(0, 10)) : '') + '</span>' : '')
+    + '</div>';
+  if (es.invalidated) h += '<div class="t5-warn">The assessment changed after it was approved, so the approval no longer applies. It must be reviewed and approved again.</div>';
+  if (_t5Msg) h += '<div class="t5-msg t5-msg-' + _t5Esc(_t5Msg.kind) + '">' + _t5Esc(_t5Msg.text) + '</div>';
+  h += '<div class="t5-val"><b>' + (blk.length ? (blk.length + ' item(s) to complete before ' + (stage === 'issue' ? 'issuing' : 'review')) : ('Nothing blocks ' + (stage === 'issue' ? 'issuing' : 'review'))) + '</b>';
+  if (blk.length){
+    h += '<ul>' + blk.slice(0, 40).map(function(b){
+      return '<li><a href="#" data-t5act="goto" data-where="' + _t5Esc(b.where) + '">' + _t5Esc(b.msg) + '</a></li>';
+    }).join('') + (blk.length > 40 ? '<li>… and ' + (blk.length - 40) + ' more</li>' : '') + '</ul>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+function _t5HtmlAssignment(m){
+  var a = m.assignment, names = [];
+  try { names = (APPRAISERS || []).map(function(x){ return x.name; }); } catch(e){}
+  var dl = '<datalist id="t5People">' + names.map(function(n){ return '<option value="' + _t5Esc(n) + '">'; }).join('') + '</datalist>';
+  var docOnly = t5IsDocumentOnly(m);
+  return _t5Card('assignment', 'Assignment', 'Who the report is for, why, and who is responsible. Dates are kept separate.',
+    '<div class="t5-grid">'
+    + _t5F('Purpose', _t5Sel('assignment.purpose', T5_PURPOSES, a.purpose), true)
+    + (a.purpose === 'other' ? _t5F('Explain the purpose', _t5In('assignment.purposeOther', a.purposeOther), true) : '')
+    + _t5F('Intended use', _t5In('assignment.intendedUse', a.intendedUse, 'e.g. maintenance planning by the owner'), true, true)
+    + _t5F('Intended recipients', _t5In('assignment.recipients', a.recipients, 'Named client; any other named recipient'), false, true)
+    + _t5F('Responsible inspector', _t5In('assignment.inspector', a.inspector, '', ' list="t5People"'), true)
+    + _t5F('Reviewer', _t5In('assignment.reviewer', a.reviewer, '', ' list="t5People"'))
+    + _t5F(docOnly ? 'Document review date' : 'Inspection date', _t5Date('assignment.inspectionDate', a.inspectionDate), true)
+    + _t5F('Assessment effective date', _t5Date('assignment.effectiveDate', a.effectiveDate))
+    + _t5F('Issue date', _t5Date('assignment.issueDate', a.issueDate))
+    + '</div>' + dl
+    + (a.source ? '<div class="t5-note">Observations imported from job ' + _t5Esc(a.source.orderId) + ' on ' + _t5Esc(String(a.source.at).slice(0, 10)) + ' (' + (a.source.findings || 0) + ' finding(s)). Each is marked as needing confirmation for this inspection.</div>' : ''));
+}
+
+function _t5HtmlScope(m){
+  var s = m.scope;
+  var areas = (s.areas || []).map(function(ar, i){
+    return '<tr><td>' + _t5In('scope.areas[' + i + '].label', ar.label, 'e.g. Living area') + '</td>'
+      + '<td>' + _t5In('scope.areas[' + i + '].value', ar.value, 'm²') + '</td>'
+      + '<td>' + _t5Sel('scope.areas[' + i + '].source', T5_AREA_SOURCES, ar.source) + '</td>'
+      + '<td><button type="button" class="t5-x" data-t5act="remove-area" data-i="' + i + '" title="Remove">×</button></td></tr>';
+  }).join('');
+  var limited = (s.access === 'partial' || s.access === 'exterior' || s.access === 'none');
+  return _t5Card('scope', 'Scope, method and access', 'What was actually done. A desktop review never prints on-site wording, and an area that was not measured is never shown as measured.',
+    '<div class="t5-grid">'
+    + _t5F('Method', _t5Sel('scope.method', T5_METHODS, s.method), true)
+    + _t5F('Access', _t5Sel('scope.access', T5_ACCESS, s.access), true)
+    + _t5F('Areas inspected', _t5Ta('scope.areasInspected', s.areasInspected, 2), false, true)
+    + _t5F('Areas excluded', _t5Ta('scope.areasExcluded', s.areasExcluded, 2), false, true)
+    + _t5F('Access restrictions', _t5Ta('scope.accessRestrictions', s.accessRestrictions, 2), limited, true)
+    + _t5F('Occupancy', _t5In('scope.occupancy', s.occupancy, 'e.g. occupied, furnished'))
+    + _t5F('Weather', _t5In('scope.weather', s.weather, 'if relevant'))
+    + _t5F('Documents consulted', _t5Ta('scope.documents', s.documents, 2, 'Plans, permits, previous reports — with dates'), t5IsDocumentOnly(m), true)
+    + _t5F('Equipment and tests actually used', _t5Ta('scope.equipment', s.equipment, 2, 'Only what was used on this assessment'), false, true)
+    + '</div>'
+    + '<div class="t5-subh">Areas and their source</div>'
+    + '<table class="t5-tbl"><thead><tr><th>Area</th><th>Value (m²)</th><th>Source</th><th></th></tr></thead><tbody>' + (areas || '<tr><td colspan="4" class="t5-empty">No areas recorded.</td></tr>') + '</tbody></table>'
+    + '<button type="button" class="t5-btn" data-t5act="add-area">+ Area</button>');
+}
+
+function _t5HtmlLocations(m){
+  var rows = (m.locations || []).map(function(l, i){
+    var used = t5LiveFindings(m).some(function(f){ return f.locationId === l.id; });
+    return '<div class="t5-loc"><span class="t5-code">' + _t5Esc(l.id) + '</span>' + _t5In('locations[' + i + '].label', l.label, 'e.g. Main dwelling · ground floor · kitchen')
+      + (used ? '<span class="t5-dim">in use</span>' : '<button type="button" class="t5-x" data-t5act="remove-location" data-i="' + i + '" title="Remove">×</button>') + '</div>';
+  }).join('');
+  return _t5Card('locations', 'Buildings, units, floors and rooms', 'Optional. Add a location for each building, unit, floor or room you want findings attached to; a finding can also carry a manual location.',
+    (rows || '<div class="t5-empty">No locations. Findings can still carry a manual location.</div>')
+    + '<button type="button" class="t5-btn" data-t5act="add-location">+ Location</button>');
+}
+
+function _t5HtmlComponents(m){
+  var rows = T5_COMPONENTS.map(function(c){
+    var r = m.components[c.code] || {}, na = r.applicability === 'not_applicable', insp = r.observation === 'inspected';
+    return '<tr><td><span class="t5-code">' + c.code + '</span> ' + _t5Esc(c.label) + '</td>'
+      + '<td>' + _t5Sel('components.' + c.code + '.applicability', T5_APPLICABILITY, r.applicability) + '</td>'
+      + '<td>' + _t5Sel('components.' + c.code + '.observation', T5_OBSERVATION, r.observation, na ? ' disabled' : '') + '</td>'
+      + '<td>' + _t5Sel('components.' + c.code + '.condition', T5_CONDITIONS, r.condition, insp ? '' : ' disabled title="A condition can only be given for something that was inspected"') + '</td>'
+      + '<td>' + _t5In('components.' + c.code + '.notes', r.notes, (r.observation && !insp) ? 'Why it was not inspected' : 'Notes') + '</td></tr>';
+  }).join('');
+  return _t5Card('components', 'Condition matrix', 'Applicability, whether it was inspected, and the condition are separate. Not inspected, not accessible and unknown are not conditions.',
+    '<div class="t5-scroll"><table class="t5-tbl"><thead><tr><th>Component</th><th>Applies</th><th>Observation</th><th>Condition</th><th>Notes</th></tr></thead><tbody>' + rows + '</tbody></table></div>');
+}
+
+function _t5HtmlFinding(m, f, photos){
+  var P = 'findings[' + f.uid + '].';
+  var locOpts = [{ id:'', label:'— Manual location —' }].concat((m.locations || []).map(function(l){ return { id:l.id, label:l.id + ' · ' + (l.label || '') }; }));
+  var compOpts = T5_COMPONENTS.map(function(c){ return { id:c.code, label:c.code + ' · ' + c.label }; });
+  var ev = (f.evidence || []).map(function(e){ return e.key; });
+  var urgentNoEv = f.priority === 'urgent' && !(f.evidence || []).length;
+  var evHtml = photos.length
+    ? '<div class="t5-ev">' + photos.map(function(p){
+        var on = ev.indexOf(p.key) >= 0;
+        return '<button type="button" class="t5-evb' + (on ? ' on' : '') + '" data-t5act="evidence-toggle" data-uid="' + _t5Esc(f.uid) + '" data-key="' + _t5Esc(p.key) + '">' + (on ? '✓ ' : '') + _t5Esc(p.name) + '</button>';
+      }).join('') + '</div>'
+    : '<div class="t5-dim">No photographs on this order yet (Inspect Data › Photos).</div>';
+  var caps = (f.evidence || []).map(function(e, i){ return _t5F('Caption · ' + (e.name || e.key), _t5In(P + 'evidence[' + i + '].caption', e.caption, 'What the photograph shows'), false, true); }).join('');
+  return '<div class="t5-find' + (f.priority === 'urgent' ? ' t5-urgent' : '') + '" data-t5card="' + _t5Esc(f.uid) + '" id="t5f-' + _t5Esc(f.uid) + '">'
+    + '<div class="t5-find-h"><span class="t5-ref">' + _t5Esc(f.ref) + '</span>'
+    + (f.imported ? '<span class="t5-chip t5-imp">Imported from ' + _t5Esc(f.importedFrom) + ' · ' + _t5Esc(f.importedRef || '') + ' — confirm for this inspection</span>' : '')
+    + '<span class="t5-dim">' + (f.editedAt ? 'edited ' + _t5Esc(String(f.editedAt).slice(0, 16).replace('T', ' ')) + (f.editedBy ? ' by ' + _t5Esc(f.editedBy) : '') : (f.createdBy ? 'by ' + _t5Esc(f.createdBy) : '')) + '</span>'
+    + '<button type="button" class="t5-x" data-t5act="remove-finding" data-uid="' + _t5Esc(f.uid) + '" title="Remove from the report (the reference is kept)">×</button></div>'
+    + '<div class="t5-grid">'
+    + _t5F('Location', '<select data-t5="' + P + 'locationId">' + _t5Opts(locOpts, f.locationId, false) + '</select>')
+    + _t5F('Manual location', _t5In(P + 'location', f.location, 'e.g. north elevation, lower wall'))
+    + _t5F('Component', _t5Sel(P + 'component', compOpts, f.component))
+    + _t5F('Affected material', _t5In(P + 'material', f.material))
+    + _t5F('Observation — what was seen or supplied', _t5Ta(P + 'observation', f.observation, 3, 'Factual: what was seen, where, how much'), true, true)
+    + _t5F('Extent', _t5In(P + 'extent', f.extent, 'e.g. approx. 2 m wide band'))
+    + _t5F('Quantity', _t5In(P + 'quantity', f.quantity))
+    + _t5F('Unit', _t5In(P + 'unit', f.unit, 'm², m, no.'))
+    + _t5F('Condition', _t5Sel(P + 'condition', T5_CONDITIONS, f.condition))
+    + _t5F('Severity', _t5Sel(P + 'severity', T5_SEVERITY, f.severity))
+    + _t5F('Priority', _t5Sel(P + 'priority', T5_PRIORITY, f.priority), true)
+    + _t5F('Recommended timeframe', _t5In(P + 'timeframe', f.timeframe))
+    + _t5F('Suspected cause (unconfirmed)', _t5In(P + 'causeSuspected', f.causeSuspected), false, true)
+    + _t5F('Confirmed cause', _t5In(P + 'causeConfirmed', f.causeConfirmed))
+    + _t5F('Source of confirmation', _t5In(P + 'causeSource', f.causeSource, 'e.g. laboratory report dated …'))
+    + _t5F('Confidence', _t5Sel(P + 'confidence', T5_CONFIDENCE, f.confidence))
+    + _t5F('Action type', _t5Sel(P + 'actionType', T5_ACTION_TYPES, f.actionType))
+    + _t5F('Recommended action, investigation or referral', _t5Ta(P + 'action', f.action, 2), f.actionType !== 'monitor', true)
+    + (f.actionType === 'monitor' ? _t5F('Monitoring decision — why and how', _t5Ta(P + 'monitoringNote', f.monitoringNote, 2), true, true) : '')
+    + _t5F('Review status', _t5Sel(P + 'reviewStatus', [{ id:'unreviewed', label:'Not reviewed' }, { id:'needs_confirmation', label:'Needs confirmation' }, { id:'reviewed', label:'Reviewed' }], f.reviewStatus))
+    + '</div>'
+    + '<div class="t5-subh">Evidence</div>' + evHtml + '<div class="t5-grid">' + caps + '</div>'
+    + (urgentNoEv || t5Str(f.evidenceLimitation)
+        ? '<div class="t5-grid">' + _t5F('Evidence limitation — why there is none', _t5Ta(P + 'evidenceLimitation', f.evidenceLimitation, 2), urgentNoEv, true) + '</div>'
+          + (urgentNoEv && t5Str(f.evidenceLimitation)
+              ? (f.evidenceAckBy
+                  ? '<div class="t5-note">Limitation acknowledged by ' + _t5Esc(f.evidenceAckBy) + ' on ' + _t5Esc(String(f.evidenceAckAt).slice(0, 10)) + '.</div>'
+                  : '<button type="button" class="t5-btn" data-t5act="evidence-ack" data-uid="' + _t5Esc(f.uid) + '">Reviewer: acknowledge the evidence limitation</button>')
+              : '')
+        : '')
+    + '</div>';
+}
+
+function _t5HtmlFindings(m){
+  var photos = _t5Photos();
+  var live = t5LiveFindings(m);
+  var removed = (m.findings || []).filter(function(f){ return f.removed; });
+  return _t5Card('findings', 'Findings register', 'Every reference is permanent. Removing a finding keeps its reference so it is never reused. A valid assessment can have no findings.',
+    (live.map(function(f){ return _t5HtmlFinding(m, f, photos); }).join('') || '<div class="t5-empty">No findings recorded. That is a valid outcome when nothing was observed.</div>')
+    + '<button type="button" class="t5-btn t5-pri" data-t5act="add-finding">+ Finding</button>'
+    + (removed.length ? '<div class="t5-dim" style="margin-top:6px;">Removed (references reserved): ' + removed.map(function(f){ return _t5Esc(f.ref); }).join(', ') + '</div>' : ''));
+}
+
+function _t5HtmlCostTotals(m){
+  if (!m.costs.enabled) return '<div id="t5CostTotals"></div>';
+  var c = t5CostCalc(m.costs), cur = c.currency;
+  var h = '<div id="t5CostTotals" class="t5-totals">';
+  h += '<div><span>Subtotal (included, priced)</span><b>' + t5Money(c.subtotal, cur) + '</b></div>';
+  if (c.contingencyApplied) h += '<div><span>Contingency ' + _t5Esc(m.costs.contingencyPct) + '%</span><b>' + t5Money(c.contingency, cur) + '</b></div>';
+  if (c.taxApplied) h += '<div><span>Tax ' + _t5Esc(m.costs.taxPct) + '% on ' + (m.costs.taxBase === 'subtotal_contingency' ? 'subtotal + contingency' : 'subtotal') + '</span><b>' + t5Money(c.tax, cur) + '</b></div>';
+  h += '<div class="t5-tot"><span>Total</span><b>' + (c.hasTotal ? t5Money(c.total, cur) : 'No total — resolve the errors') + '</b></div>';
+  if (c.incomplete) h += '<div class="t5-warn">Incomplete: at least one included line is not estimated. The total covers priced lines only and will be printed as incomplete.</div>';
+  if (c.errors.length) h += '<div class="t5-err">' + c.errors.map(_t5Esc).join('<br>') + '</div>';
+  return h + '</div>';
+}
+
+function _t5HtmlCosts(m){
+  var k = m.costs, calc = t5CostCalc(k), live = t5LiveFindings(m);
+  var modeOpts = [{ id:'qty', label:'Quantity × rates' }, { id:'lump', label:'Lump sum' }];
+  var curOpts = T5_CURRENCIES.map(function(x){ return { id:x, label:x }; });
+  var body = '<label class="t5-toggle"><input type="checkbox" data-t5="costs.enabled"' + (k.enabled ? ' checked' : '') + '> Include an indicative remedial cost schedule in this report</label>';
+  if (k.enabled){
+    body += '<div class="t5-grid">'
+      + _t5F('Base currency', '<select data-t5="costs.currency">' + _t5Opts(curOpts, k.currency, false) + '</select>', true)
+      + _t5F('Estimate date', _t5Date('costs.estimateDate', k.estimateDate), true)
+      + _t5F('Contingency %', _t5In('costs.contingencyPct', k.contingencyPct, 'blank = none'))
+      + _t5F('Tax %', _t5In('costs.taxPct', k.taxPct, 'blank = none'))
+      + _t5F('Tax applies to', '<select data-t5="costs.taxBase">' + _t5Opts([{ id:'subtotal', label:'Subtotal' }, { id:'subtotal_contingency', label:'Subtotal + contingency' }], k.taxBase, false) + '</select>')
+      + _t5F('Basis of the estimates', _t5Ta('costs.basis', k.basis, 2, 'e.g. contractor rates obtained Sep 2026; no quotations'), true, true)
+      + _t5F('Exclusions', _t5Ta('costs.exclusions', k.exclusions, 2), false, true)
+      + '</div>'
+      + '<div class="t5-subh">Exchange rate (only for lines in the other currency)</div><div class="t5-grid">'
+      + _t5F('Rate', _t5In('costs.fx.rate', k.fx.rate, 'e.g. 1.79'))
+      + _t5F('From', '<select data-t5="costs.fx.from">' + _t5Opts(curOpts, k.fx.from) + '</select>')
+      + _t5F('To', '<select data-t5="costs.fx.to">' + _t5Opts(curOpts, k.fx.to) + '</select>')
+      + _t5F('Rate date', _t5Date('costs.fx.date', k.fx.date))
+      + _t5F('Rate source', _t5In('costs.fx.source', k.fx.source, 'e.g. Centrale Bank van Aruba'))
+      + '</div>'
+      + '<div class="t5-subh">Lines</div>'
+      + k.lines.map(function(l, i){
+          var P = 'costs.lines[' + l.uid + '].', row = calc.lines[i] || {};
+          var links = live.map(function(f){
+            var on = (l.findings || []).indexOf(f.uid) >= 0;
+            return '<button type="button" class="t5-evb' + (on ? ' on' : '') + '" data-t5act="link-toggle" data-line="' + _t5Esc(l.uid) + '" data-uid="' + _t5Esc(f.uid) + '">' + (on ? '✓ ' : '') + _t5Esc(f.ref) + '</button>';
+          }).join('');
+          var status = row.status === 'priced' ? t5Money(row.amount, calc.currency) + (row.currency !== calc.currency ? ' (from ' + t5Money(row.original, row.currency) + ')' : '')
+                     : row.status === 'unpriced' ? 'Not estimated' : row.status === 'excluded' ? 'Excluded' : 'Error';
+          return '<div class="t5-line' + (l.include === false ? ' t5-excl' : '') + '"><div class="t5-grid">'
+            + _t5F('Description', _t5In(P + 'desc', l.desc), false, true)
+            + _t5F('Mode', '<select data-t5="' + P + 'mode">' + _t5Opts(modeOpts, l.mode) + '</select>')
+            + (l.mode === 'lump'
+                ? _t5F('Lump sum', _t5In(P + 'lump', l.lump))
+                : _t5F('Quantity', _t5In(P + 'qty', l.qty)) + _t5F('Unit', _t5In(P + 'unit', l.unit)) + _t5F('Materials rate', _t5In(P + 'mat', l.mat)) + _t5F('Labour rate', _t5In(P + 'lab', l.lab)))
+            + _t5F('Currency', '<select data-t5="' + P + 'currency">' + _t5Opts(curOpts, l.currency || k.currency, false) + '</select>')
+            + _t5F('Source', _t5In(P + 'source', l.source))
+            + _t5F('Source date', _t5Date(P + 'sourceDate', l.sourceDate))
+            + _t5F('Notes', _t5In(P + 'notes', l.notes), false, true)
+            + '</div><div class="t5-line-f"><label class="t5-toggle"><input type="checkbox" data-t5="' + P + 'include"' + (l.include !== false ? ' checked' : '') + '> Included</label>'
+            + '<span class="t5-dim">Findings:</span>' + (links || '<span class="t5-dim">none recorded</span>')
+            + '<span class="t5-amt">' + _t5Esc(status) + '</span>'
+            + '<button type="button" class="t5-x" data-t5act="remove-line" data-uid="' + _t5Esc(l.uid) + '" title="Remove line">×</button></div>'
+            + (row.error ? '<div class="t5-err">' + _t5Esc(row.error) + '</div>' : '') + '</div>';
+        }).join('')
+      + '<button type="button" class="t5-btn" data-t5act="add-line">+ Cost line</button>'
+      + _t5HtmlCostTotals(m);
+  }
+  return _t5Card('costs', 'Remedial cost schedule (optional)', 'Indicative estimates only. A blank price is Not estimated, never zero. Nothing — rate, tax or contingency — is assumed.', body);
+}
+
+function _t5HtmlConclusion(m){
+  var c = m.conclusion;
+  return _t5Card('conclusion', 'Professional assessment', 'An explicit judgement with its reasons. No score is calculated.',
+    '<div class="t5-grid">'
+    + _t5F('Overall condition', _t5Sel('conclusion.overall', T5_CONDITIONS, c.overall), true)
+    + _t5F('Rationale', _t5Ta('conclusion.rationale', c.rationale, 3), true, true)
+    + _t5F('Executive summary', _t5Ta('conclusion.summary', c.summary, 3, 'Purpose, scope, conclusion and key findings, in a few sentences'), false, true)
+    + _t5F('Scope-specific limitations', _t5Ta('conclusion.limitations', c.limitations, 3), false, true)
+    + '</div>');
+}
+
+function _t5HtmlReview(m){
+  var lc = m.lifecycle, es = t5EffectiveState(m), st = es.state;
+  var btns = '';
+  if (st === 'draft') btns += '<button type="button" class="t5-btn t5-pri" data-t5act="submit">Submit for review</button>';
+  if (st === 'in_review') btns += '<button type="button" class="t5-btn t5-pri" data-t5act="approve">Approve this revision</button>'
+    + '<button type="button" class="t5-btn" data-t5act="return">Return to draft</button>';
+  if (st === 'approved') btns += '<button type="button" class="t5-btn t5-pri" data-t5act="issue">Issue revision ' + m.revision + '</button>'
+    + '<button type="button" class="t5-btn" data-t5act="return">Return to draft</button>';
+  var fields = '<div class="t5-grid">'
+    + _t5F('Reviewer conclusion (written before approving)', _t5Ta('conclusion.reviewerConclusion', m.conclusion.reviewerConclusion, 2), st === 'in_review' || st === 'approved', true)
+    + _t5F('Signatory', _t5In('lifecycle.signatory', lc.signatory, 'Name as it will print under the signature', ' list="t5People"'), st === 'approved')
+    + _t5F('Review notes (internal)', _t5Ta('lifecycle.reviewNotes', lc.reviewNotes, 2), false, true)
+    + _t5F('Reason (returning to draft)', '<input type="text" id="t5ReturnReason" placeholder="Optional">')
+    + '</div>';
+  var hist = (m.audit || []).slice(-12).reverse().map(function(x){
+    return '<li><span class="t5-dim">' + _t5Esc(String(x.at).slice(0, 16).replace('T', ' ')) + '</span> ' + _t5Esc(x.ev) + (x.by ? ' · ' + _t5Esc(x.by) : '') + (x.detail ? ' · ' + _t5Esc(x.detail) : '') + '</li>';
+  }).join('');
+  var issued = (m.issued || []).map(function(x){ return '<li>Revision ' + x.rev + ' · issued ' + _t5Esc(String(x.at).slice(0, 10)) + ' · ' + _t5Esc(x.signatory || '') + (x.reason ? ' · ' + _t5Esc(x.reason) : '') + '</li>'; }).join('');
+  return _t5Card('review', 'Review and issue', 'Draft → In review → Approved → Issued. An approval belongs to exactly the content that was approved. Issuing does not release the report: that still goes through the DRAFT switch and its payment rule.',
+    fields + '<div class="t5-actions">' + btns + '</div>'
+    + (issued ? '<div class="t5-subh">Issued revisions</div><ul class="t5-list">' + issued + '</ul>' : '')
+    + (hist ? '<div class="t5-subh">Recent activity</div><ul class="t5-list">' + hist + '</ul>' : ''));
+}
+
+function _t5HtmlImport(m){
+  var id = _t5OrderId();
+  var src = [];
+  try {
+    (ORDERS || []).forEach(function(o){
+      if (String(o.id) === id || Number(o.apprType) !== 5) return;
+      var s = o.inspData && o.inspData.s15 && o.inspData.s15._t5;
+      try { var raw = localStorage.getItem('insp_' + o.id + '_15'); if (raw){ var p = JSON.parse(raw); if (p && p._t5) s = p._t5; } } catch(e){}
+      if (s && t5LiveFindings(t5Normalize(s)).length) src.push({ id:o.id, label:o.id + ' · ' + (o.address || '') });
+    });
+  } catch(e){}
+  if (!src.length) return '';
+  return _t5Card('import', 'Copy observations from another assessment', 'Only findings are copied. Each is marked as needing confirmation; no priority, condition, evidence, signature or issued status is ever copied.',
+    '<div class="t5-actions"><select id="t5ImportSrc">' + _t5Opts(src, '') + '</select><button type="button" class="t5-btn" data-t5act="import">Copy findings</button></div>');
+}
+
+var _T5_CSS = '<style id="t5Css">'
+  + '#t5Host{--t5b:var(--border,#d9d2c4);--t5m:var(--slate-lt,#8a8478);font-size:13px;}'
+  + '#t5Host fieldset{border:0;margin:0;padding:0;min-width:0;}'
+  + '.t5-card{border:1px solid var(--t5b);border-radius:8px;padding:12px 14px;margin:0 0 14px;background:var(--paper,transparent);}'
+  + '.t5-card-h h4{margin:0 0 2px;font-size:14px;} .t5-sub{font-size:11.5px;color:var(--t5m);margin-bottom:10px;line-height:1.5;}'
+  + '.t5-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px 12px;}'
+  + '.t5-f{display:flex;flex-direction:column;gap:3px;margin:0;font-size:11.5px;color:var(--t5m);text-transform:none;letter-spacing:0;font-weight:600;}'
+  + '.t5-f.t5-wide{grid-column:1/-1;} .t5-req{color:#dc2626;}'
+  + '#t5Host input[type=text],#t5Host input[type=date],#t5Host select,#t5Host textarea{width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:1px solid var(--t5b);border-radius:5px;background:var(--surface-2,var(--paper,#fff));color:var(--ink,#111);font-family:inherit;font-weight:400;}'
+  + '#t5Host select:disabled,#t5Host input:disabled,#t5Host textarea:disabled{opacity:.55;}'
+  + '.t5-subh{font-weight:700;font-size:12px;margin:12px 0 6px;} .t5-dim{color:var(--t5m);font-size:11.5px;} .t5-empty{color:var(--t5m);font-size:12px;padding:6px 0;}'
+  + '.t5-note{font-size:11.5px;color:var(--t5m);margin-top:8px;} .t5-warn{background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.45);border-radius:6px;padding:7px 10px;margin:8px 0;font-size:12px;}'
+  + '.t5-err{background:rgba(220,38,38,.10);border:1px solid rgba(220,38,38,.4);border-radius:6px;padding:7px 10px;margin:6px 0;font-size:12px;}'
+  + '.t5-btn{font-size:12px;padding:6px 12px;border:1px solid var(--t5b);border-radius:6px;background:transparent;color:var(--ink,#111);cursor:pointer;margin:8px 8px 0 0;}'
+  + '.t5-btn.t5-pri{background:#c8922a;border-color:#c8922a;color:#111;font-weight:700;} .t5-x{border:0;background:transparent;color:#dc2626;font-size:16px;cursor:pointer;margin-left:auto;}'
+  + '.t5-tbl{width:100%;border-collapse:collapse;} .t5-tbl th{font-size:11px;text-align:left;color:var(--t5m);padding:4px 6px;border-bottom:1px solid var(--t5b);} .t5-tbl td{padding:4px 6px;border-bottom:1px solid var(--t5b);vertical-align:top;} .t5-scroll{overflow-x:auto;}'
+  + '.t5-code,.t5-ref{font-family:var(--font-mono,monospace);font-size:11.5px;font-weight:700;color:#c8922a;}'
+  + '.t5-find{border:1px solid var(--t5b);border-radius:7px;padding:10px;margin:0 0 10px;} .t5-find.t5-urgent{border-left:4px solid #dc2626;}'
+  + '.t5-find-h,.t5-line-f,.t5-loc,.t5-status-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;} .t5-loc input{flex:1;min-width:180px;}'
+  + '.t5-chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid var(--t5b);} .t5-st-draft{color:#a16207;} .t5-st-in_review{color:#1d4ed8;} .t5-st-approved{color:#15803d;} .t5-st-issued{color:#111;background:#c8922a;border-color:#c8922a;} .t5-imp{color:#7c3aed;}'
+  + '.t5-rev{font-size:11.5px;color:var(--t5m);} .t5-ev{display:flex;flex-wrap:wrap;gap:6px;} .t5-evb{font-size:11px;padding:3px 8px;border:1px solid var(--t5b);border-radius:12px;background:transparent;color:var(--ink,#111);cursor:pointer;} .t5-evb.on{background:rgba(200,146,42,.18);border-color:#c8922a;}'
+  + '.t5-line{border:1px dashed var(--t5b);border-radius:7px;padding:8px;margin:0 0 8px;} .t5-line.t5-excl{opacity:.6;} .t5-amt{margin-left:auto;font-family:var(--font-mono,monospace);font-weight:700;}'
+  + '.t5-totals{margin-top:10px;border-top:1px solid var(--t5b);padding-top:8px;} .t5-totals>div{display:flex;justify-content:space-between;gap:10px;padding:2px 0;} .t5-tot{font-size:14px;border-top:1px solid var(--t5b);margin-top:4px;padding-top:4px!important;}'
+  + '.t5-toggle{display:flex;align-items:center;gap:6px;font-size:12.5px;margin:0 0 8px;text-transform:none;letter-spacing:0;}'
+  + '.t5-status{border:1px solid var(--t5b);border-radius:8px;padding:10px 14px;margin:0 0 14px;} .t5-val ul{margin:6px 0 0 18px;padding:0;} .t5-val li{margin:2px 0;} .t5-val a{color:inherit;}'
+  + '.t5-msg{font-size:12px;margin:6px 0;} .t5-msg-ok{color:#15803d;} .t5-msg-err{color:#dc2626;} .t5-list{margin:4px 0 0 18px;padding:0;font-size:12px;} .t5-actions{display:flex;flex-wrap:wrap;align-items:center;gap:0;}'
+  + '.t5-lock{background:rgba(200,146,42,.12);border:1px solid #c8922a;border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:12.5px;}'
+  + '</style>';
+
+function t5Render(){
+  var host = document.getElementById('t5Host');
+  if (!host) return;
+  var m = _t5Model(), locked = t5IsLocked(m);
+  var scrollY = 0; try { var sc = host.closest('.imodal-body, .ibody, .modal-body') || document.scrollingElement; scrollY = sc ? sc.scrollTop : 0; } catch(e){}
+  var lock = locked
+    ? '<div class="t5-lock"><b>Revision ' + m.revision + ' is issued and cannot be changed.</b> To correct it, open a new revision; this issued revision and its content stay exactly as they are.'
+      + '<div class="t5-actions"><input type="text" id="t5RevReason" placeholder="Reason for the revision (required)" style="flex:1;min-width:220px;margin-top:8px;">'
+      + '<button type="button" class="t5-btn t5-pri" data-t5act="revision">Open revision ' + (m.revision + 1) + '</button></div></div>'
+    : '';
+  host.innerHTML = _T5_CSS + _t5HtmlStatus(m) + lock
+    + '<fieldset' + (locked ? ' disabled' : '') + '>'
+    + _t5HtmlAssignment(m) + _t5HtmlScope(m) + _t5HtmlLocations(m) + _t5HtmlComponents(m)
+    + _t5HtmlFindings(m) + _t5HtmlCosts(m) + _t5HtmlConclusion(m) + _t5HtmlImport(m)
+    + '</fieldset>'
+    + _t5HtmlReview(m);
+  try { var sc2 = host.closest('.imodal-body, .ibody, .modal-body') || document.scrollingElement; if (sc2) sc2.scrollTop = scrollY; } catch(e){}
+  host._t5State = _t5StateKey(m);
+  _t5Wire(host);
+}
+function _t5StateKey(m){ var es = t5EffectiveState(m); return es.state + (es.invalidated ? '*' : ''); }
+function _t5RefreshDerived(){
+  var m = _t5Model();
+  try { var s = document.getElementById('t5Status'); if (s) s.outerHTML = _t5HtmlStatus(m); } catch(e){}
+  try { var t = document.getElementById('t5CostTotals'); if (t) t.outerHTML = _t5HtmlCostTotals(m); } catch(e){}
+  // An edit can change the EFFECTIVE state — typing into an approved assessment invalidates
+  //   the approval. The review panel's buttons must follow at once (Issue must not stay on
+  //   offer), but it holds text fields too, so it is only redrawn when the state actually
+  //   changed and the person is not typing inside it.
+  try {
+    var host = document.getElementById('t5Host'), key = _t5StateKey(m);
+    if (host && host._t5State !== key){
+      var card = document.getElementById('t5p-review'), ae = document.activeElement;
+      if (card && !(ae && card.contains(ae))){ card.outerHTML = _t5HtmlReview(m); host._t5State = key; }
+    }
+  } catch(e){}
+}
+function _t5Wire(host){
+  if (host._t5Wired) return;
+  host._t5Wired = true;
+  var onEdit = function(ev){
+    var el = ev.target; if (!el || !el.getAttribute) return;
+    var p = el.getAttribute('data-t5'); if (!p) return;
+    var m = _t5Model();
+    if (t5IsLocked(m)) return;
+    var v = (el.type === 'checkbox') ? !!el.checked : el.value;
+    var prevPriority = null, fm = p.match(/^findings\[([^\]]+)\]\.(\w+)/);
+    if (fm && fm[2] === 'priority'){ var f0 = _t5Get(m, 'findings[' + fm[1] + ']'); prevPriority = f0 ? f0.priority : null; }
+    if (!_t5Set(m, p, v)) return;
+    var cm = p.match(/^components\.(C\d\d)\./);
+    if (cm) m.components[cm[1]] = t5ComponentClean(m.components[cm[1]]);
+    if (fm){
+      var f = _t5Get(m, 'findings[' + fm[1] + ']');
+      if (f){
+        f.editedBy = _t5Who(); f.editedAt = _t5Now();
+        if (fm[2] === 'priority'){
+          var def = function(id){ for (var i = 0; i < T5_PRIORITY.length; i++) if (T5_PRIORITY[i].id === id) return T5_PRIORITY[i].timeframe; return ''; };
+          if (!t5Str(f.timeframe) || f.timeframe === def(prevPriority)) f.timeframe = def(f.priority);
+        }
+      }
+    }
+    var lm = p.match(/^costs\.lines\[([^\]]+)\]\.mode$/);
+    if (lm){ var ln = _t5Get(m, 'costs.lines[' + lm[1] + ']'); if (ln){ if (v === 'lump'){ ln.qty = ''; ln.mat = ''; ln.lab = ''; } else if (v === 'qty'){ ln.lump = ''; } } }
+    if (ev.type === 'change' && (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date')) t5Render();
+    else _t5RefreshDerived();
+  };
+  host.addEventListener('input', onEdit);
+  host.addEventListener('change', onEdit);
+  host.addEventListener('click', function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest('[data-t5act]') : null;
+    if (!b) return;
+    ev.preventDefault();
+    _t5Action(b.getAttribute('data-t5act'), b);
+  });
+}
+function _t5Goto(where){
+  var id = /^finding:/.test(where) ? ('t5f-' + where.slice(8)) : ('t5p-' + where);
+  var el = document.getElementById(id);
+  if (el){ try { el.scrollIntoView({ behavior:'smooth', block:'start' }); } catch(e){ el.scrollIntoView(); } el.style.outline = '2px solid #c8922a'; setTimeout(function(){ el.style.outline = ''; }, 1600); }
+}
+function _t5Action(act, b){
+  var m = _t5Model(), order = _t5Order(), who = _t5Who(), at = _t5Now();
+  var uid = b.getAttribute('data-uid'), i = parseInt(b.getAttribute('data-i'), 10);
+  var locked = t5IsLocked(m), res = null, lifecycle = false;
+  if (act === 'goto'){ _t5Goto(b.getAttribute('data-where') || ''); return; }
+  if (locked && act !== 'revision') return;
+  switch (act){
+    case 'add-finding': { var nf = t5AddFinding(m, who, at); t5Render(); _t5Goto('finding:' + nf.uid); _t5Persist(); return; }
+    case 'remove-finding': {
+      var rf = _t5Get(m, 'findings[' + uid + ']');
+      if (!rf || !confirm('Remove ' + rf.ref + ' from the report?\n\nIts reference stays reserved and is never reused.')) return;
+      t5RemoveFinding(m, uid, who, at); t5Audit(m, who, at, 'finding removed', rf.ref); break;
+    }
+    case 'evidence-toggle': {
+      var ef = _t5Get(m, 'findings[' + uid + ']'), key = b.getAttribute('data-key');
+      if (!ef) return;
+      var ph = _t5Photos().filter(function(p){ return p.key === key; })[0];
+      var idx = (ef.evidence || []).map(function(e){ return e.key; }).indexOf(key);
+      if (idx >= 0) ef.evidence.splice(idx, 1);
+      else if (ph) ef.evidence.push({ key:ph.key, path:ph.path, name:ph.name, zone:ph.zone, caption:'' });
+      ef.editedBy = who; ef.editedAt = at; break;
+    }
+    case 'evidence-ack': {
+      var af = _t5Get(m, 'findings[' + uid + ']');
+      if (!af) return;
+      if (!confirm('Acknowledge, as reviewer, that ' + af.ref + ' is urgent and has no evidence, for this reason:\n\n' + af.evidenceLimitation)) return;
+      af.evidenceAckBy = who || m.assignment.reviewer || ''; af.evidenceAckAt = at; t5Audit(m, who, at, 'evidence limitation acknowledged', af.ref); break;
+    }
+    case 'add-area': m.scope.areas.push({ label:'', value:'', source:'' }); break;
+    case 'remove-area': if (isFinite(i)) m.scope.areas.splice(i, 1); break;
+    case 'add-location': {
+      var maxL = 0; (m.locations || []).forEach(function(l){ var n = parseInt(String(l.id).replace(/^L/, ''), 10); if (n > maxL) maxL = n; });
+      m.locations.push({ id:'L' + (maxL + 1), label:'' }); break;
+    }
+    case 'remove-location': if (isFinite(i)) m.locations.splice(i, 1); break;
+    case 'add-line': m.costs.lines.push({ uid:t5Uid(), mode:'qty', desc:'', qty:'', unit:'', mat:'', lab:'', lump:'', currency:m.costs.currency || 'AWG', include:true, findings:[], source:'', sourceDate:'', notes:'' }); break;
+    case 'remove-line': {
+      var rl = _t5Get(m, 'costs.lines[' + uid + ']');
+      if (!rl || !confirm('Remove this cost line?' + (rl.desc ? '\n\n' + rl.desc : '') + '\n\nTo keep it on record without counting it, untick Included instead.')) return;
+      m.costs.lines = m.costs.lines.filter(function(l){ return l.uid !== uid; }); t5Audit(m, who, at, 'cost line removed', rl.desc || ''); break;
+    }
+    case 'link-toggle': {
+      var cl = _t5Get(m, 'costs.lines[' + b.getAttribute('data-line') + ']');
+      if (!cl) return;
+      cl.findings = cl.findings || [];
+      var li = cl.findings.indexOf(uid);
+      if (li >= 0) cl.findings.splice(li, 1); else cl.findings.push(uid);
+      break;
+    }
+    case 'import': {
+      var sel = document.getElementById('t5ImportSrc'), sid = sel ? sel.value : '';
+      if (!sid) return;
+      var so = (ORDERS || []).find(function(o){ return String(o.id) === sid; });
+      var ss = so && so.inspData && so.inspData.s15 && so.inspData.s15._t5;
+      try { var raw = localStorage.getItem('insp_' + sid + '_15'); if (raw){ var pp = JSON.parse(raw); if (pp && pp._t5) ss = pp._t5; } } catch(e){}
+      if (!ss) return;
+      var n = t5ImportFrom(m, ss, sid, who, at);
+      _t5Msg = { kind:'ok', text:n + ' finding(s) copied from ' + sid + '. Confirm each one for this inspection.' };
+      break;
+    }
+    case 'submit':  res = t5SubmitForReview(m, order, who, at); lifecycle = true; break;
+    case 'approve': res = t5Approve(m, order, who, at); lifecycle = true; break;
+    case 'return': {
+      var rr = document.getElementById('t5ReturnReason');
+      res = t5ReturnToDraft(m, who, at, rr ? rr.value : ''); lifecycle = true; break;
+    }
+    case 'issue': {
+      if (!confirm('Issue revision ' + m.revision + '?\n\nIts content is frozen and can only be corrected by opening a new revision. Issuing does not release the report to the client: that still goes through the DRAFT switch.')) return;
+      res = t5Issue(m, order, who, at); lifecycle = true;
+      if (res && res.ok && !res.already && !t5Str(m.assignment.issueDate)){ /* the issue date is recorded, not invented: left to the reviewer */ }
+      break;
+    }
+    case 'revision': {
+      var rv = document.getElementById('t5RevReason');
+      res = t5StartRevision(m, who, at, rv ? rv.value : ''); lifecycle = true; break;
+    }
+    default: return;
+  }
+  if (lifecycle && res){
+    _t5Msg = res.ok
+      ? { kind:'ok', text:({ submit:'Submitted for review.', approve:'Approved revision ' + m.revision + '.', return:'Returned to draft.', issue:(res.already ? 'Revision ' + m.revision + ' was already issued; nothing changed.' : 'Revision ' + m.revision + ' issued.'), revision:'Revision ' + m.revision + ' opened.' })[act] }
+      : { kind:'err', text:res.msg || 'Not possible.' };
+  }
+  t5Render();
+  _t5Persist();
+}
+try {
+  window.t5Render = t5Render; window._t5Capture = _t5Capture; window._t5Apply = _t5Apply; window._t5Reset = _t5Reset;
+  window._t5Model = _t5Model; window._t5Action = _t5Action;
 } catch(e){}
 
 // One place decides the section set, so a new type is added once, not twice.
@@ -23073,7 +23652,7 @@ var done = [];
 // ── Inspection modal helpers (tab builder, section switcher) ──────────────
 function buildTabs(){SECS=_secIdxs.map(function(si){return SECS_ALL[si];});SECS_ALL.forEach(function(l,si){var el=document.getElementById('isec-'+si);if(el)el.style.display=(_secIdxs.indexOf(si)!==-1)?'':'none';});document.getElementById('iTabStrip').innerHTML=SECS.map(function(l,ti){var si=_secIdxs[ti];return'<div class="itab '+(ti===0?'active':'')+' '+(done[si]?'done':'')+' " id="itab-'+ti+'" onclick="jumpSec('+ti+')">'+  (done[si]?'✓ '+l.replace(/^\d+\.\s*/,''):l)+'</div>';}).join('');}
 
-function showSec(tp){var si=(_secIdxs[tp]!==undefined)?_secIdxs[tp]:tp;if(si===14){try{t4Render();}catch(e){}}document.querySelectorAll('.isec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.itab').forEach(function(t){t.classList.remove('active');});var se=document.getElementById('isec-'+si),te=document.getElementById('itab-'+tp);if(se)se.classList.add('active');if(te){te.classList.add('active');te.scrollIntoView({inline:'nearest',behavior:'smooth'});}secIdx=tp;try{iArrUpdate();}catch(e){}updateProg();updateFtr();document.getElementById('iBody').scrollTop=0;}
+function showSec(tp){var si=(_secIdxs[tp]!==undefined)?_secIdxs[tp]:tp;if(si===14){try{t4Render();}catch(e){}}if(si===15){try{t5Render();}catch(e){}}document.querySelectorAll('.isec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.itab').forEach(function(t){t.classList.remove('active');});var se=document.getElementById('isec-'+si),te=document.getElementById('itab-'+tp);if(se)se.classList.add('active');if(te){te.classList.add('active');te.scrollIntoView({inline:'nearest',behavior:'smooth'});}secIdx=tp;try{iArrUpdate();}catch(e){}updateProg();updateFtr();document.getElementById('iBody').scrollTop=0;}
 
 // _inspWireAutoSave: canonical version below
 
@@ -23100,7 +23679,7 @@ function updateFtr(){
   }
 }
 
-function showSec(tp){var si=(_secIdxs[tp]!==undefined)?_secIdxs[tp]:tp;if(si===14){try{t4Render();}catch(e){}}document.querySelectorAll('.isec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.itab').forEach(function(t){t.classList.remove('active');});var se=document.getElementById('isec-'+si),te=document.getElementById('itab-'+tp);if(se)se.classList.add('active');if(te){te.classList.add('active');te.scrollIntoView({inline:'nearest',behavior:'smooth'});}secIdx=tp;try{iArrUpdate();}catch(e){}updateProg();updateFtr();document.getElementById('iBody').scrollTop=0;}
+function showSec(tp){var si=(_secIdxs[tp]!==undefined)?_secIdxs[tp]:tp;if(si===14){try{t4Render();}catch(e){}}if(si===15){try{t5Render();}catch(e){}}document.querySelectorAll('.isec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.itab').forEach(function(t){t.classList.remove('active');});var se=document.getElementById('isec-'+si),te=document.getElementById('itab-'+tp);if(se)se.classList.add('active');if(te){te.classList.add('active');te.scrollIntoView({inline:'nearest',behavior:'smooth'});}secIdx=tp;try{iArrUpdate();}catch(e){}updateProg();updateFtr();document.getElementById('iBody').scrollTop=0;}
 
 // _inspWireAutoSave: canonical version below
 
@@ -23174,6 +23753,8 @@ function openInsp(order){
   //   saved section 14. Open Building Inspection A, then B with no checklist saved yet, and
   //   B showed A's findings — and the next autosave wrote them into B's insp_data.
   try { if (typeof _t4Apply === 'function') _t4Apply({}); else window._t4Live = {}; } catch(e){ window._t4Live = {}; }
+  // §T5-FORM (v2.527) — the same for the Assessment: it belongs to one order only.
+  try { if (typeof _t5Reset === 'function') _t5Reset(); } catch(e){}
   // Restore any previously saved inspection data
   _inspRestore(order.id);
   // §LAZY-INSP (v1.944) — insp_data is no longer pulled for every order on login.
@@ -24634,7 +25215,7 @@ function _inspAssignKeys() {
     var si = sec.id.replace('isec-', '');
     var fi = 0;
     // selects, textareas, inputs
-    sec.querySelectorAll('select, textarea, input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"]').forEach(function(el) {
+    sec.querySelectorAll('select, textarea, input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"]').forEach(function(el) { if (el.closest && el.closest('#t5Host')) return;   /* §T5-FORM (v2.527) — captured as _t5, never as flat keys */
       if (!el.dataset.key) {
         el.dataset.key = (el.id && el.id !== '') ? el.id : ('s' + si + 'f' + fi);
         fi++;
@@ -24668,7 +25249,7 @@ function _inspCapture(secIdx) {
   var d = { _ts: Date.now(), _done: done[secIdx] };
 
   // selects, textareas, inputs
-  sec.querySelectorAll('select, textarea, input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"]').forEach(function(el) {
+  sec.querySelectorAll('select, textarea, input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"]').forEach(function(el) { if (el.closest && el.closest('#t5Host')) return;   /* §T5-FORM (v2.527) — captured as _t5, never as flat keys */
     // §INTRO-NOTE-MOVE (v2.421) — the Introductory Note sits in isec-12 but its home is
     //   order.internalNotes. A copy in insp_data could drift from the value the report
     //   actually prints, so it is never captured. (_inspAssignKeys stamps a data-key on
@@ -24696,6 +25277,10 @@ function _inspCapture(secIdx) {
   if (secIdx === 14) {
     try { d._t4 = _t4Capture(); d._t4Scheme = (typeof _T4_SCHEME !== 'undefined') ? _T4_SCHEME : 2; } catch(e){}
     try { var _tg = document.getElementById('t4General'); if (_tg) d._t4General = _tg.value; } catch(e){}
+  }
+  // §T5-FORM (v2.527) — the Assessment, captured as ONE object keyed to this order.
+  if (secIdx === 15) {
+    try { d._t5 = _t5Capture(); } catch(e){}
   }
 
   // Photos section (isec-10) — capture all uploaded photo data
@@ -24819,7 +25404,7 @@ function _inspApplySection(secIdx, d) {
   try { if (typeof _inspOrderId !== 'undefined' && typeof ORDERS !== 'undefined')
           _aOrder = ORDERS.find(function(o){ return o.id === _inspOrderId; }) || null; } catch(e) {}
 
-  sec.querySelectorAll('select, textarea, input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"]').forEach(function(el) {
+  sec.querySelectorAll('select, textarea, input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"]').forEach(function(el) { if (el.closest && el.closest('#t5Host')) return;   /* §T5-FORM (v2.527) — captured as _t5, never as flat keys */
     // §INTRO-NOTE-MOVE (v2.421) — matching guard to the one in _inspCapture: an old or
     //   foreign insp_data record carrying an `eInternalNotes` key must never repaint this
     //   textarea. openInsp() is the only thing that loads it, from order.internalNotes.
@@ -24883,6 +25468,10 @@ function _inspApplySection(secIdx, d) {
   if (secIdx === 14) {
     try { _t4Apply((typeof _t4Realias === 'function') ? _t4Realias(d._t4 || {}, d._t4Scheme) : (d._t4 || {})); } catch(e){}
     try { var _tg2 = document.getElementById('t4General'); if (_tg2) _tg2.value = d._t4General || ''; } catch(e){}
+  }
+  // §T5-FORM (v2.527) — restore the Assessment and redraw it.
+  if (secIdx === 15) {
+    try { _t5Apply(d._t5 || null); } catch(e){}
   }
 
   // Photos section (isec-10) — restore uploaded photos
@@ -49641,7 +50230,7 @@ function _rcBuildChecks(order, type) {
   var id = order.id, inspData = {};
   if (order.inspData) try { inspData = JSON.parse(JSON.stringify(order.inspData)); } catch(e) {}
   // §T4-PREFLIGHT (v2.450) — 15, not 14: one short of the checklist.
-  for (var si = 0; si < 15; si++) {
+  for (var si = 0; si < 16; si++) {   // §T5-FORM (v2.527) — 16: section 15 is the Assessment
     try { var lr = localStorage.getItem("insp_" + id + "_" + si);
       if (lr) { var lp = JSON.parse(lr); if (!inspData["s"+si]) inspData["s"+si] = {}; Object.assign(inspData["s"+si], lp); }
     } catch(e) {}
@@ -64640,7 +65229,7 @@ async function genAiInspSummary() {
     for (var key in saved) { if (saved.hasOwnProperty(key)) d[key] = Object.assign({}, saved[key]); }
     // Overlay with live localStorage values (most current field values)
     // §T4-PREFLIGHT (v2.450) — 15, not 14: the checklist lives in section 14.
-    for (var si = 0; si < 15; si++) {
+    for (var si = 0; si < 16; si++) {   // §T5-FORM (v2.527) — 16: section 15 is the Assessment
       try {
         var raw = localStorage.getItem('insp_' + order.id + '_' + si);
         if (raw) {
