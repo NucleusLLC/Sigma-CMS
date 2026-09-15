@@ -18382,6 +18382,47 @@ try {
   window._t5Model = _t5Model; window._t5Action = _t5Action;
 } catch(e){}
 
+// ── §T5-REPORT (v2.527) — helpers shared by the page list, the Contents and the pages ──
+/** The stock cover title becomes ASSESSMENT REPORT (same doctrine as §T4-COVER: a title the owner typed is left alone). */
+function _t5CoverTitle(s){
+  if (typeof _isStockReportTitle === 'function' && !_isStockReportTitle(s) && !/^\s*inspection\s+report\s*$/i.test(String(s || ''))) return s;
+  return (typeof _matchCase === 'function') ? _matchCase(s, 'Assessment Report') : 'ASSESSMENT REPORT';
+}
+/**
+ * The Type 5 pages, in print order, for THIS assessment. Nothing empty is padded in: the action
+ * schedule only when there are findings, the cost schedule only when it is enabled. The findings
+ * page always prints, because "no defects observed within scope" is itself the finding.
+ */
+function _t5PageIds(m){
+  var ids = ['t5sum', 't5assign', 't5scope', 't5cond', 't5find'];
+  if (m && t5LiveFindings(m).length) ids.push('t5act');
+  if (m && m.costs && m.costs.enabled) ids.push('t5cost');
+  ids.push('t5concl');
+  return ids;
+}
+function _t5TocMeta(id, m){
+  var doc = t5IsDocumentOnly(m);
+  return ({
+    t5sum:    { t:'Executive Summary',                 d:'Purpose, scope, overall conclusion, key findings and limitations' },
+    t5assign: { t:'Assignment and Property',           d:'Client, intended use, property identification, areas and their sources' },
+    t5scope:  { t:'Scope, Method and Access',          d:(doc ? 'Documents reviewed, method and exclusions' : 'What was inspected, how, and what could not be') },
+    t5cond:   { t:'Property Description and Condition', d:'The condition recorded for each component' },
+    t5find:   { t:'Detailed Findings',                 d:'Every finding with its reference, location, evidence and recommendation' },
+    t5act:    { t:'Recommended Action Schedule',       d:'Actions grouped by priority, with finding references' },
+    t5cost:   { t:'Indicative Remedial Cost Schedule', d:'Planning estimates only · basis, exclusions and completeness' },
+    t5concl:  { t:'Professional Assessment',           d:'Conclusion, rationale and scope-specific limitations' }
+  })[id] || { t:id, d:'' };
+}
+try { window._t5PageIds = _t5PageIds; window._t5CoverTitle = _t5CoverTitle; } catch(e){}
+
+// §T5-REPORT (v2.527) — the Contents page's Notes on this Report. The shared note (Settings ›
+//   Disclaimers) opens "This appraisal report has been prepared for … the named client and
+//   lender" and speaks of an inspection visit — wrong on an assessment, and false on a desktop
+//   review. Type 5 prints its own, which states nothing about a visit. PROPOSED WORDING (R5).
+function _t5ReportNotes(){
+  return 'This assessment report has been prepared for the named client and the intended use stated in it. Page numbers refer to the printed document. Finding references (F-001 and onwards) are permanent and are used throughout the report. Components shown as not inspected, not accessible or unknown are outside its conclusions.';
+}
+
 // One place decides the section set, so a new type is added once, not twice.
 function _secIdxsFor(t){
   // §T4-VISIBLE (v2.452) — coerce. The strict === meant a type arriving as the STRING
@@ -18772,7 +18813,7 @@ var REPORT_STRINGS = {
     typeStrip4:'Building Inspection — Condition & Safety',
     typeScope4:'Visual inspection of accessible areas · No value is stated',
     typeName5:'Type 5 · Assessment Report',
-    typeStrip5:'Assessment Report — Condition, Findings & Recommendations',
+    typeStrip5:'Assessment Report',
     typeScope5:'Condition assessment within the stated scope · No value is stated',
     secTitleRoi:'R.O.I.',
     secTitleFpOpinion:'Opinion of Floor Plan',
@@ -19216,7 +19257,7 @@ var REPORT_STRINGS = {
     typeStrip4:'Bouwkundige keuring — staat & veiligheid',
     typeScope4:'Visuele opname van bereikbare delen · geen waarde vermeld',
     typeName5:'Type 5 · beoordelingsrapport',
-    typeStrip5:'Beoordelingsrapport — staat, bevindingen & aanbevelingen',
+    typeStrip5:'Beoordelingsrapport',
     typeScope5:'Beoordeling van de staat binnen de vermelde reikwijdte · geen waarde vermeld',
     secTitleRoi:'R.O.I.',
     secTitleFpOpinion:'Beoordeling van de plattegrond',
@@ -50381,6 +50422,36 @@ function _rcBuildChecks(order, type) {
   //   The Valuation group is dropped for a Type 4: it has none, and a row reading
   //   "Market Value — Missing" on a document that states no value is worse than
   //   noise, it is wrong.
+  // §T5-PREFLIGHT (v2.527) — the Assessment Report's own checks, from the SAME t5Blockers the
+  //   form's review panel uses, so the pre-flight and the form cannot disagree. No valuation
+  //   group: a Type 5 has none.
+  if (Number(order.apprType) === 5) {
+    var s15p = inspData.s15 || {};
+    var m5p = t5Normalize(s15p._t5);
+    var es5p = t5EffectiveState(m5p);
+    var issueBlk = t5Blockers(m5p, order, 'issue');
+    var live5p = t5LiveFindings(m5p);
+    var ph5p = {}; try { var pz5p = (s10 && s10._photos) || {}; Object.keys(pz5p).forEach(function(z){ (pz5p[z] || []).forEach(function(p, i){ if (p) { ph5p[p.storagePath || (z + ':' + (p.name || i))] = p; } }); }); } catch(e){}
+    var missingEv = 0; live5p.forEach(function(f){ (f.evidence || []).forEach(function(e){ if (!ph5p[e.path] && !ph5p[e.key]) missingEv++; }); });
+    var cc5p = m5p.costs.enabled ? t5CostCalc(m5p.costs) : null;
+    var t5rows = [
+      { label:"Report type", detail:"Type 5 · Assessment Report", ok:true, okText:"Type 5" },
+      { label:"Revision " + m5p.revision,
+        detail: es5p.state === 'issued' ? "issued — prints signed, from its frozen content" : (es5p.invalidated ? "changed after approval — prints as DRAFT" : ("not issued (" + t5Label(T5_STATES, es5p.state).toLowerCase() + ") — prints as DRAFT, unsigned")),
+        ok: es5p.state === 'issued', optional:true, errText:"Draft", okText:"Issued" },
+      { label:"Ready to issue",
+        detail: issueBlk.length ? (issueBlk.slice(0, 2).map(function(b){ return b.msg; }).join(' · ') + (issueBlk.length > 2 ? (" +" + (issueBlk.length - 2) + " more") : "")) : "nothing blocks issuing",
+        ok: issueBlk.length === 0 || es5p.state === 'issued', optional: es5p.state !== 'issued', errText: issueBlk.length + " to complete", okText:"Ready" },
+      { label:"Findings", detail: live5p.length ? (live5p.length + " recorded, " + live5p.filter(function(f){ return f.priority === 'urgent'; }).length + " urgent") : "none recorded", ok:true, optional:true, okText: String(live5p.length) },
+      { label:"Evidence photographs found", detail: missingEv ? (missingEv + " linked photograph(s) are no longer on this order") : "all linked photographs are on the order", ok: missingEv === 0, errText: missingEv + " missing" },
+      { label:"Cost schedule", detail: !cc5p ? "not included" : (!cc5p.hasTotal ? "has unresolved items — no total will print" : (cc5p.incomplete ? "incomplete — prints as incomplete" : "complete")),
+        ok: !cc5p || (cc5p.hasTotal && !cc5p.incomplete), optional:true, errText: cc5p && !cc5p.hasTotal ? "Unresolved" : "Incomplete", okText: cc5p ? "Complete" : "Off" }
+    ];
+    return [
+      { label:"📋  Project Data",       items:proj },
+      { label:"🧾  Assessment Report",  items:t5rows },
+    ];
+  }
   if (Number(order.apprType) === 4) {
     var s14 = inspData.s14 || {};
     var t4f = (typeof _t4Realias === 'function') ? _t4Realias(s14._t4 || {}, s14._t4Scheme) : (s14._t4 || {});
@@ -51230,6 +51301,27 @@ async function generateReport(orderId) {
   //   OFF => _draftOn is false and EVERY DRAFT branch below collapses to a no-op / empty
   //          string, so the generated HTML is byte-identical to the pre-v2.322 output.
   var _draftOn = !!(order && order.draftMode === true);
+  // §T5-REPORT (v2.527) — the Assessment, read ONCE for the whole build. An issued revision
+  //   prints from its frozen snapshot, so the paper is exactly what was approved and issued.
+  //   Anything not issued is a DRAFT: watermark on every page and no signature, whatever the
+  //   order's own DRAFT switch says. Once issued, the order's DRAFT switch (and its payment
+  //   rule, §DRAFT-GATE) decides release exactly as for every other report.
+  var _isT5 = Number(order && order.apprType) === 5;
+  var _t5M = null, _t5Es = null, _t5Issued = false, _t5IssueEntry = null;
+  if (_isT5) {
+    try {
+      var _s15r = (order.inspData && order.inspData.s15) || {};
+      try { var _ls15r = localStorage.getItem('insp_' + order.id + '_15'); if (_ls15r) { var _p15r = JSON.parse(_ls15r); if (_p15r && _p15r._t5) _s15r = _p15r; } } catch(e){}
+      _t5M = t5Normalize(_s15r._t5);
+    } catch(e){ _t5M = t5Normalize(null); }
+    _t5Es = t5EffectiveState(_t5M);
+    _t5Issued = _t5Es.state === 'issued';
+    if (_t5Issued) {
+      _t5IssueEntry = t5IssuedSnapshot(_t5M, _t5M.revision);
+      if (_t5IssueEntry && _t5IssueEntry.snapshot) _t5M = t5Normalize(Object.assign({}, _t5IssueEntry.snapshot, { issued:_t5M.issued }));
+    }
+    if (!_t5Issued) _draftOn = true;
+  }
 
   // §REPORT-NL (v2.354) — the report language for THIS build. It is a TEMPLATE setting: the
   //   callers apply the order's template into RC_KEY before calling us, so the saved config is
@@ -51614,6 +51706,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   });
   var typeName  = typeNames[type]  || typeNames[2];
   var typeStripTxt = typeStrip[type] || typeStrip[2];
+  // §T5-REPORT (v2.527) — the cover says which revision this is, and whether it is issued.
+  if (_isT5 && _t5M) typeStripTxt += ' · Rev. ' + _t5M.revision + (_t5Issued ? (' · Issued ' + String((_t5IssueEntry && _t5IssueEntry.at) || '').slice(0, 10)) : ' · Not issued');
   var typeScopeTxt = typeScope[type] || typeScope[2];
   var typeIcon  = type===1 ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a7a6a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>' : type===3 ? '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12v6"/><path d="M8 12v6"/><path d="M16 12v6"/><path d="M2 12h20"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
 
@@ -52233,7 +52327,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   // §T4-ARRANGE (v2.479) — still null: a Type 4 has no p3-p6 pages, so an appraisal
   //   LAYOUT would emit sheets it has no slots for. Its own order lives in order.t4Order
   //   and is applied by _t4OrderFor, which is a different thing entirely.
-  if (_isT4) _soLay = null;
+  if (_isT4 || _isT5) _soLay = null;   // §T5-REPORT (v2.527) — a fixed page order, like Type 4
   // §SEC-ONE-LAYOUT (v2.29x) — _secCustom is the SAME object as _soLay, resolved once here at the
   //   very top. It used to be resolved a second time further down (after page 3 had already
   //   rendered), which is why the T1 page-3 block had no section-order hook at all. One call, one
@@ -52300,6 +52394,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   function _secPhysId(k){ if(_isExtraPageKey(k)) return _secExtraPhysId(k); if(_tplVariant==='T2'){ return ({p3:'pT2_3',p4:'pT2_4',p5:'p5',p6:'p6'})[k]||k; } return k; }
   function _pgSignoff(){ if(!_secMovedSignoff) return _pg('signoff'); var _kk=''; for(var _k in _soLay){ if(_soLay[_k] && _soLay[_k].indexOf('signoff')>=0){ _kk=_k; break; } } return _kk ? _pg(_secPhysId(_kk)) : _pg('signoff'); }
   var _pgList=[];
+  // §T5-REPORT (v2.527) — Type 5 page list: the SAME array the render and the Contents walk.
+  if (_isT5) { if(RC.rcPageCover!==false) _pgList.push('cover'); if(RC.rcPageTOC!==false) _pgList.push('toc'); _t5PageIds(_t5M).forEach(function(_id){ _pgList.push(_id); }); if(RC.rcPageSignoff!==false && !_secMovedSignoff) _pgList.push('signoff'); if(RC.rcPageDocs!==false) _pgList.push('p7'); if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false) _pgList.push('p8'); if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false && RC.rcPagePhotos2!==false){ for(var _csiT5=1; _csiT5<_csPagesPre; _csiT5++) _pgList.push(_csPageId(_csiT5)); } } else
   if (_isT4) {
     // Cover · Contents · Scope · Summary · Construction and Condition · Findings ·
     // Limitations · General · Sign-off · Documents · Photographs. No valuation, no
@@ -52559,6 +52655,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   does not recognise, so this correctly leaves it alone rather than forcing the
     //   English words onto a Dutch cover.
     tTxt = _t4CoverTitle(tTxt, _isT4);
+    if (_isT5) tTxt = _t5CoverTitle(tTxt);   // §T5-REPORT (v2.527) — ASSESSMENT REPORT
     // §COVER-TITLE-FONT (v2.118) — parse "Family Weight" (e.g. "Raleway Regular") into a REAL
     //   web font-family + numeric weight. Using the literal "Raleway Regular" as a font-family
     //   name only renders on machines that happen to have that exact font installed locally;
@@ -52681,6 +52778,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   separate free-typed field. Swapped by the same rule, so the cover and the pages
     //   behind it can never say different things about what the document is.
     try { if (typeof _isT4 !== 'undefined' && _isT4) _hdrRaw = _t4CoverTitle(_hdrRaw, true); } catch(e){}
+    try { if (_isT5) _hdrRaw = _t5CoverTitle(_hdrRaw); } catch(e){}
     if (_RLANG === 'nl' && _isStockReportTitle(_hdrRaw)) _hdrRaw = _matchCase(_hdrRaw, _rt('coverHeading'));
     var _hdrTxt = _hdrRaw ? esc(_hdrRaw) : '';
     // Appraisal number block (top-of-page) — location, font size, color all configurable
@@ -53196,7 +53294,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   '@media print{.print-bar{display:none!important;}body{margin-top:0!important;}}' +
   _sigmaTTScss() +
   '</style></head><body style="margin-top:56px"'
-  + (_isT4 ? ' data-t4="1"' : '') +   // §T4-COMPACT (v2.508) — the ONLY way the pass runs
+  + ((_isT4 || _isT5) ? ' data-t4="1"' : '') + (_isT5 ? ' data-t5="1"' : '') +   // §T4-COMPACT (v2.508) — the ONLY way the pass runs
   '>' +
   _sigmaTTSscript() +
 
@@ -53288,6 +53386,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     function _spDescT2(){ return _spPgCnt > 0 ? (_rt('descSitePlanT2') + _spPgCnt + _rfPages(_spPgCnt)) : _rt('noSitePlanUploaded'); }
     function _cadDescT2(){ return _cadPgCnt > 0 ? (_rt('descOfficialCadastral') + _cadPgCnt + _rfPages(_cadPgCnt)) : _rt('noCadasterUploaded'); }
     var _tocEntries;
+    // §T5-REPORT (v2.527) — Contents from the same page ids the render emits.
+    if (_isT5) { _tocEntries = _t5PageIds(_t5M).map(function(id, i){ var m = _t5TocMeta(id, _t5M); return { n:String(i + 1), id:id, title:m.t, pg:_pg(id), desc:m.d }; }); if (RC.rcPageSignoff!==false && !_secMovedSignoff) _tocEntries.push({n:String(_tocEntries.length+1), id:'signoff', title:'Declaration and Sign-Off', pg:_pg('signoff'), desc:'Declaration · limitations · signatory'}); if (RC.rcPageDocs!==false) _tocEntries.push({n:String(_tocEntries.length+1), id:'p7', title:_rt('attachedDocuments'), pg:_pg('p7'), desc:_attachedDocsDesc}); if (RC.rcPageDocs!==false && RC.rcPagePhotos1!==false) _tocEntries.push({n:String(_tocEntries.length+1), id:'p8', title:'__CS_TITLE__', pg:_pg('p8'), desc:'__CS_DESC__'}); } else
     if (_isT4) {
       // §T4-TOC-ORDER (v2.480) — the Contents is built from the SAME array as the pages.
       //   It used to be a hardcoded list in the default order, with only its page NUMBERS
@@ -53445,6 +53545,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   The stock title too, through the SAME helper the cover uses — so a cover title the
     //   owner typed themselves is left alone here exactly as it is left alone there.
     var _tocDocTitle = (typeof _t4CoverTitle === 'function') ? _t4CoverTitle(_rt('coverTitle'), _isT4) : _rt('coverTitle');
+    if (_isT5) _tocDocTitle = _t5CoverTitle(_tocDocTitle);   // §T5-REPORT (v2.527)
 
     html+='<div class="page"><div class="inner">'
       +pgHdr(_rt('tableOfContents'))
@@ -53495,7 +53596,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       +'<div style="font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a7a6a;">'+_rt('notesOnThisReport')+'</div>'
       +'</div>'
       +'<div style="padding:9px 12px;">'
-      +'<div style="font-family:EB Garamond,Georgia,serif;font-size:13px;color:#0f0d0a;line-height:1.7;">'+(_legalNL && REPORT_LEGAL_NL.notes ? REPORT_LEGAL_NL.notes : discGetNotes())+'</div>'
+      +'<div style="font-family:EB Garamond,Georgia,serif;font-size:13px;color:#0f0d0a;line-height:1.7;">'+(_isT5 ? _t5ReportNotes() : (_legalNL && REPORT_LEGAL_NL.notes ? REPORT_LEGAL_NL.notes : discGetNotes()))+'</div>'
       +'</div>'
       +'</div>'
 
@@ -53989,15 +54090,22 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   function _secSignoffBody(includeDecl, fillPage, omitSig){
     var _s12dSO=(order.inspData&&order.inspData.s12)||{};
     var _soN1=(_s12dSO.s12f2||'').trim(), _soN2=(_s12dSO.s12f3||'').trim(), _soN3=(_s12dSO.s12f4||'').trim();
-    var _head = '<div class="sec-h">'+_rt('appraiserSignOff')+'</div>'
-      +'<div class="sec-sub">'+_rt('subSignoff')+'</div>'
+    // §T5-REPORT (v2.527) — an Assessment Report is signed as a declaration, not an appraisal:
+    //   its own heading, its own declaration text, the reviewer's conclusion, and NO USPAP
+    //   appraiser declaration (_declBlockCache), which certifies analyses and a value.
+    var _head = '<div class="sec-h">'+(_isT5 ? 'Declaration and Sign-Off' : _rt('appraiserSignOff'))+'</div>'
+      +'<div class="sec-sub">'+(_isT5 ? 'Declaration and limitations · reviewer conclusion · signatory' : _rt('subSignoff'))+'</div>'
       // §CERT-MOVE (v1.939) — Certification & Limiting Conditions, relocated here from the
       //   Valuation page, immediately before the Appraiser Declaration.
-      +'<div class="disc"><div class="disc-title">'+_rt('certificationLimitingConditions')+'</div>'
+      +'<div class="disc"><div class="disc-title">'+(_isT5 ? 'Declaration and Limitations' : _rt('certificationLimitingConditions'))+'</div>'
       +'<div class="disc-text">' + (disc[type] || disc[2]) + '</div></div>'
+      +((_isT5 && _t5M && t5Str(_t5M.conclusion.reviewerConclusion))
+        ? '<div style="border:1px solid #d4c9b0;padding:12px 16px;margin-bottom:14px;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a7a6a;margin-bottom:8px;">Reviewer conclusion'
+          + (t5Str(_t5M.assignment.reviewer) ? ' · ' + esc(_t5M.assignment.reviewer) : '') + '</div><div style="font-size:10.5px;color:#0f0d0a;">' + _opFmt(_t5M.conclusion.reviewerConclusion) + '</div></div>'
+        : '')
       // §SEC-ADDPAGE (v2.252) — the Declaration is omitted here only when the user moved it onto
       //   its own page, in which case the driver renders _declBlockCache there instead.
-      +(includeDecl ? _declBlockCache : '')
+      +((includeDecl && !_isT5) ? _declBlockCache : '')
       +((_soN1||_soN2||_soN3)
         ?'<div style="border:1px solid #d4c9b0;padding:12px 16px;margin-bottom:14px;">'
          +'<div style="font-size:7.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a7a6a;margin-bottom:8px;">'+_rt('additionalNotes')+'</div>'
@@ -54024,25 +54132,40 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   function _sigTailHtml(){
     var _s12dSO=(order.inspData&&order.inspData.s12)||{};
     var _soNameB=(_s12dSO.inspName||order.appraiser||'').trim();
+    // §T5-REPORT (v2.527) — the signatory is the one named on the assessment, with the
+    //   credentials of THAT person from the roster, or none. Never the order's appraiser by
+    //   default, and never an appraisal stamp.
+    //   Separate names on purpose: a `var apprCert` in here would shadow the build's own
+    //   apprCert (hoisting) and blank the credentials on EVERY report type.
+    var _sgCert = apprCert, _sgLic = apprLicense, _sgExp = apprExpiry;
+    if (_isT5 && _t5M) {
+      _soNameB = t5Str(_t5M.lifecycle.signatory) || t5Str(_t5M.assignment.reviewer);
+      //   Not issued ⇒ not signed. A name under an empty line reads as a signature, so a
+      //   draft prints no name at all, only that it has not been signed.
+      if (!_t5Issued) _soNameB = '';
+      var _t5Rec = null;
+      try { for (var _j5 = 0; _j5 < APPRAISERS.length; _j5++) if (APPRAISERS[_j5].name === _soNameB) { _t5Rec = APPRAISERS[_j5]; break; } } catch(e){}
+      _sgCert = _t5Rec ? (_t5Rec.cert || '') : ''; _sgLic = _t5Rec ? (_t5Rec.license || '') : ''; _sgExp = _t5Rec ? (_t5Rec.expiry || '') : '';
+    }
     return ''
       // Signature block moved RIGHT (v1.852). Empty 1fr cell on the left pushes the signature
       // into the right 2/3; Date column removed (date is captured on cover + report metadata).
       +'<div style="border-top:1px solid #e8e0d4;padding-top:22px;">'
-      +'<div style="display:grid;grid-template-columns:1fr 2fr'+(RC.rcLastStamp?' 88px':'')+';gap:32px;align-items:start;">'
+      +'<div style="display:grid;grid-template-columns:1fr 2fr'+((RC.rcLastStamp && !_isT5)?' 88px':'')+';gap:32px;align-items:start;">'
       +'<div></div>'
       +'<div>'
       +_sigLineHtml()   // §SIG-LINE (v2.347) — the rule, with the signature floating a fixed gap above it
       +'<div style="font-size:12px;font-weight:600;color:#0f0d0a;margin-bottom:3px;">'+esc(_soNameB)+'</div>'
-      +(apprCert?'<div style="font-size:10px;color:#6a5a48;margin-bottom:2px;">'+esc(apprCert)+'</div>':'')
+      +(_sgCert?'<div style="font-size:10px;color:#6a5a48;margin-bottom:2px;">'+esc(_sgCert)+'</div>':'')
       // §SIG-ONE-BUILDER (v2.347) — NOTE the NON-BREAKING spaces around the middot and after
       //   "Exp." below. The two renderers disagreed even here: the inline §7 page used U+00A0
       //   so the licence line could not wrap mid-reference, the movable copy used ordinary
       //   spaces so it could. The inline page is the default every order takes, so its form is
       //   the one kept — which also makes a default Sign-Off page byte-identical to v2.330.
-      +(apprLicense?'<div style="font-family:DM Mono,monospace;font-size:8.5px;color:#8a7a6a;">Lic. '+esc(apprLicense)+(apprExpiry?' · Exp. '+esc(apprExpiry):'')+'</div>':'')
-      +'<div style="font-size:7.5px;color:#aaa;margin-top:6px;text-transform:uppercase;letter-spacing:.09em;">'+_rt('appraiserSignatureStamp')+'</div>'
+      +(_sgLic?'<div style="font-family:DM Mono,monospace;font-size:8.5px;color:#8a7a6a;">Lic. '+esc(_sgLic)+(_sgExp?' · Exp. '+esc(_sgExp):'')+'</div>':'')
+      +'<div style="font-size:7.5px;color:#aaa;margin-top:6px;text-transform:uppercase;letter-spacing:.09em;">'+(_isT5 ? (_t5Issued ? 'Signatory' : 'Signatory — not signed: this revision is not issued') : _rt('appraiserSignatureStamp'))+'</div>'
       +'</div>'
-      +(RC.rcLastStamp
+      +((RC.rcLastStamp && !_isT5)
         ?'<div style="display:flex;align-items:flex-start;justify-content:center;padding-top:4px;">'
          +'<div style="width:72px;height:72px;border:2.5px double '+RC.rcAccentColor+';border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;">'
          +'<div style="font-size:6.5px;font-weight:700;color:'+RC.rcAccentColor+';letter-spacing:.04em;line-height:1.35;">'+_rt('stampLine1')+'<br>'+_rt('stampLine2')+'<br>'+_rt('stampLine3')+'</div>'
@@ -55806,6 +55929,259 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     });
   }
 
+  // ╔══════════════════════════════════════════════════════════════════════════════╗
+  // ║  §T5-REPORT (v2.527) — the Assessment Report pages                            ║
+  // ║                                                                              ║
+  // ║  Emitted HERE, in _t5PageIds order — the same array _pgList and the Contents   ║
+  // ║  walked — before the Sign-Off, exactly where Type 4 emits its pages (§PGFTR).  ║
+  // ║  They carry data-no-inflow and ride the Type 4 reflow (body data-t4="1",      ║
+  // ║  page ids matched by ^page-t[45]), so a long finding continues on the next    ║
+  // ║  sheet instead of being clipped.                                              ║
+  // ║                                                                              ║
+  // ║  WORDING RULES, enforced by t5-report-check:                                  ║
+  // ║   · a desktop/document review never says the property was visited;           ║
+  // ║   · not inspected / not accessible / unknown are printed as what they are,    ║
+  // ║     never as a condition, never as good;                                       ║
+  // ║   · no value of any kind; costs are labelled indicative, incomplete when so;  ║
+  // ║   · a suspected cause is printed as suspected, apart from a confirmed one.    ║
+  // ╚══════════════════════════════════════════════════════════════════════════════╝
+  if (_isT5 && _t5M) {
+    var _t5 = _t5M, _t5Pg = {};
+    var _e5 = function(s){ return esc(String(s == null ? '' : s)); };
+    var _l5 = function(list, id){ return t5Label(list, id) || ''; };
+    var _txt5 = function(s){ return t5Str(s) ? _opFmt(String(s)) : ''; };
+    var _doc5 = t5IsDocumentOnly(_t5);
+    var _onSite5 = t5IsOnSite(_t5) && !_doc5;
+    var _dateOf5 = _t5.assignment.inspectionDate || '';
+    var _page5 = function(id, title, sub, body){
+      return '<div class="page" data-no-inflow><div class="inner">' + pgHdr(title)
+        + '<div class="page-body"><div class="sec-h">' + _e5(title) + '</div>'
+        + (sub ? '<div class="sec-sub">' + sub + '</div>' : '')
+        + body + '</div>' + pgFtr(id) + '</div></div>';
+    };
+    var _kv5 = function(rows){
+      return '<table><tbody>' + rows.filter(function(r){ return r && t5Str(r[1]); }).map(function(r){
+        return '<tr><td style="width:44mm;color:#6a5a48;">' + _e5(r[0]) + '</td><td>' + (r[2] ? r[1] : _e5(r[1])) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    };
+    var _pill5 = function(text, tone){
+      return '<span style="display:inline-block;padding:1px 7px;border-radius:2px;font-size:8.5px;font-weight:700;letter-spacing:.06em;'
+        + 'text-transform:uppercase;border:1px solid ' + tone + ';color:' + tone + ';white-space:nowrap;">' + _e5(text) + '</span>';
+    };
+    var _prTone5 = { urgent:'#a32b25', short:'#b25c17', planned:'#2c5d86', monitor:'#6d6a63' };
+    var _methodSentence5 = function(){
+      var d = _dateOf5 ? (' on ' + _e5(_dateOf5)) : '';
+      if (_doc5) return 'This assessment is a <b>desktop review of documents</b>' + d + '. The property was not visited, nothing was observed on site, and no area in this report was measured on site.';
+      var acc = _l5(T5_ACCESS, _t5.scope.access).toLowerCase();
+      return 'The property was assessed by <b>' + _e5(_l5(T5_METHODS, _t5.scope.method).toLowerCase() || 'inspection') + '</b>' + d
+        + (acc ? (', with ' + _e5(acc)) : '') + '. Only what was observable within that scope and access is reported.';
+    };
+    var _live5 = t5LiveFindings(_t5);
+    var _key5 = t5KeyFindings(_t5);
+    var _notInsp5 = T5_COMPONENTS.filter(function(c){ var r = _t5.components[c.code] || {}; return r.applicability === 'applicable' && r.observation && r.observation !== 'inspected'; });
+    var _cc5 = _t5.costs.enabled ? t5CostCalc(_t5.costs) : null;
+    var _money5 = function(c){ return t5Money(c, _cc5 ? _cc5.currency : ''); };
+
+    // Photographs: resolved from the order's own photo section by storage path, after the
+    //   report's photo prefetch has filled the bytes in. A photograph that cannot be shown
+    //   says so, by name — it is never silently dropped from a finding.
+    var _ph5 = {};
+    try {
+      var _s10r5 = (order.inspData && order.inspData.s10) || {};
+      try { var _ls10r5 = localStorage.getItem('insp_' + order.id + '_10'); if (_ls10r5) _s10r5 = Object.assign({}, _s10r5, JSON.parse(_ls10r5)); } catch(e){}
+      var _pz5 = _s10r5._photos || {};
+      Object.keys(_pz5).forEach(function(z){ (_pz5[z] || []).forEach(function(p, i){ if (!p) return; var k = p.storagePath || (z + ':' + (p.name || i)); if (!_ph5[k] || (p.data && !_ph5[k].data)) _ph5[k] = p; }); });
+    } catch(e){}
+    var _evid5 = function(f){
+      var ev = f.evidence || [];
+      if (!ev.length) return t5Str(f.evidenceLimitation) ? '<div class="rep-note" style="margin-top:4px;"><b>No photograph:</b> ' + _e5(f.evidenceLimitation) + '</div>' : '';
+      return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">' + ev.map(function(e){
+        var p = _ph5[e.path] || _ph5[e.key];
+        var img = (p && p.data)
+          ? '<img src="' + _e5(p.data) + '" alt="" style="width:100%;max-height:62mm;object-fit:contain;background:#f2ede2;border:1px solid #d4c9b0;display:block;">'
+          : '<div style="border:1px dashed #b25c17;padding:14px 8px;font-size:9px;color:#b25c17;text-align:center;">Photograph not available in this report: ' + _e5(e.name || e.path || e.key) + '</div>';
+        return '<div style="break-inside:avoid;">' + img + '<div style="font-size:8.5px;color:#6a5a48;margin-top:2px;">' + _e5(t5Str(e.caption) || e.name || '') + '</div></div>';
+      }).join('') + '</div>';
+    };
+
+    // ── Executive summary ─────────────────────────────────────────────────────
+    var _cnt5 = {}; _live5.forEach(function(f){ _cnt5[f.priority || ''] = (_cnt5[f.priority || ''] || 0) + 1; });
+    _t5Pg['t5sum'] = _page5('t5sum', 'Executive Summary', 'Purpose, scope, overall conclusion, key findings and limitations',
+      _kv5([
+        ['Purpose', _l5(T5_PURPOSES, _t5.assignment.purpose) + (_t5.assignment.purpose === 'other' && t5Str(_t5.assignment.purposeOther) ? ': ' + _t5.assignment.purposeOther : '')],
+        ['Intended use', _t5.assignment.intendedUse],
+        ['Overall condition', _l5(T5_CONDITIONS, _t5.conclusion.overall)]
+      ])
+      + '<div class="rep-op" style="margin-top:8px;">' + _methodSentence5() + '</div>'
+      + (t5Str(_t5.conclusion.summary) ? '<div class="rep-op">' + _txt5(_t5.conclusion.summary) + '</div>' : '')
+      + (t5Str(_t5.conclusion.rationale) ? '<div class="rep-op"><b>Basis of the conclusion.</b> ' + _txt5(_t5.conclusion.rationale) + '</div>' : '')
+      + '<div class="sec-h" style="margin-top:10px;">Key findings</div>'
+      + (_key5.length
+          ? '<table><thead><tr><th style="width:15mm;">Ref.</th><th style="width:26mm;">Priority</th><th>Observation</th><th style="width:34mm;">Location</th></tr></thead><tbody>'
+            + _key5.map(function(f){
+                return '<tr><td style="font-family:var(--font-mono),monospace;white-space:nowrap;">' + _e5(f.ref) + '</td><td>' + _pill5(_l5(T5_PRIORITY, f.priority) || 'Not set', _prTone5[f.priority] || '#6d6a63') + '</td>'
+                  + '<td>' + _e5(f.observation) + '</td><td>' + _e5(f.location || (_t5.locations.filter(function(l){ return l.id === f.locationId; })[0] || {}).label || '') + '</td></tr>';
+              }).join('') + '</tbody></table>'
+          : '<div class="rep-op">' + (_live5.length ? 'No finding is urgent or of high or critical severity.' : (_doc5 ? 'No defects were identified from the documents reviewed.' : 'No defects were observed within the scope and access stated in this report.')) + '</div>')
+      + (_live5.length ? '<div class="rep-note">' + _live5.length + ' finding' + (_live5.length === 1 ? '' : 's') + ' in total: '
+          + T5_PRIORITY.map(function(p){ return (_cnt5[p.id] || 0) + ' ' + p.label.toLowerCase(); }).join(' · ') + '.</div>' : '')
+      + (_notInsp5.length || t5Str(_t5.scope.accessRestrictions)
+          ? '<div class="sec-h" style="margin-top:10px;">Limitations</div><div class="rep-op">'
+            + (t5Str(_t5.scope.accessRestrictions) ? _e5(_t5.scope.accessRestrictions) + ' ' : '')
+            + (_notInsp5.length ? 'Not covered by this assessment: ' + _notInsp5.map(function(c){ return _e5(c.label.toLowerCase()) + ' (' + _e5(_l5(T5_OBSERVATION, _t5.components[c.code].observation).toLowerCase()) + ')'; }).join('; ') + '.' : '')
+            + '</div>'
+          : '')
+      + (_cc5 ? '<div class="sec-h" style="margin-top:10px;">Indicative remedial costs</div><div class="rep-op">'
+          + (_cc5.hasTotal ? ('Indicative total ' + _e5(_money5(_cc5.total)) + (_cc5.incomplete ? ' — <b>incomplete</b>: at least one item is not estimated and is not included in this figure.' : '.')) : 'No total can be stated: the cost schedule has unresolved items.')
+          + ' These are planning estimates, not a quotation or a valuation.</div>' : ''));
+
+    // ── Assignment and property ───────────────────────────────────────────────
+    var _areas5 = (_t5.scope.areas || []).filter(function(a){ return t5Str(a.label) || t5Str(a.value); });
+    _t5Pg['t5assign'] = _page5('t5assign', 'Assignment and Property', 'Who the report is for, what it is for, and the property it describes',
+      _kv5([
+        ['Client', order.client || ''],
+        ['Intended recipients', _t5.assignment.recipients],
+        ['Intended use', _t5.assignment.intendedUse],
+        ['Purpose', _l5(T5_PURPOSES, _t5.assignment.purpose) + (_t5.assignment.purpose === 'other' && t5Str(_t5.assignment.purposeOther) ? ': ' + _t5.assignment.purposeOther : '')],
+        ['Property', [order.address, order.city].filter(Boolean).join(', ')],
+        ['Legal description', order.legal || ''],
+        ['Parcel / APN', order.apn || ''],
+        ['Responsible inspector', _t5.assignment.inspector],
+        ['Reviewer', _t5.assignment.reviewer],
+        [_doc5 ? 'Document review date' : 'Inspection date', _t5.assignment.inspectionDate],
+        ['Assessment effective date', _t5.assignment.effectiveDate],
+        ['Issue date', _t5.assignment.issueDate || (_t5Issued && _t5IssueEntry ? String(_t5IssueEntry.at).slice(0, 10) : '')],
+        ['Report reference', order.id + ' · revision ' + _t5.revision + (_t5Issued ? '' : ' (not issued)')]
+      ])
+      + (_areas5.length
+          ? '<div class="sec-h" style="margin-top:10px;">Areas</div><table><thead><tr><th>Area</th><th style="width:30mm;">m²</th><th style="width:44mm;">Source</th></tr></thead><tbody>'
+            + _areas5.map(function(a){ return '<tr><td>' + _e5(a.label) + '</td><td>' + _e5(a.value) + '</td><td>' + _e5(_l5(T5_AREA_SOURCES, a.source) || 'Source not stated') + '</td></tr>'; }).join('')
+            + '</tbody></table><div class="rep-note">An area is a field measurement only where its source says “Measured on site”.</div>'
+          : ''));
+
+    // ── Scope, method and access ──────────────────────────────────────────────
+    _t5Pg['t5scope'] = _page5('t5scope', 'Scope, Method and Access', _doc5 ? 'Documents reviewed, method and exclusions' : 'What was inspected, how, and what could not be',
+      '<div class="rep-op">' + _methodSentence5() + '</div>'
+      + _kv5([
+        ['Method', _l5(T5_METHODS, _t5.scope.method)],
+        ['Access', _l5(T5_ACCESS, _t5.scope.access)],
+        [_doc5 ? 'Scope of the review' : 'Areas inspected', _t5.scope.areasInspected],
+        ['Areas excluded', _t5.scope.areasExcluded],
+        ['Access restrictions', _t5.scope.accessRestrictions],
+        ['Occupancy', _onSite5 ? _t5.scope.occupancy : ''],
+        ['Weather', _onSite5 ? _t5.scope.weather : ''],
+        ['Documents consulted', _t5.scope.documents],
+        ['Equipment and tests used', _onSite5 ? _t5.scope.equipment : '']
+      ])
+      + '<div class="rep-note" style="margin-top:8px;">' + (_doc5
+          ? 'Because this is a document review, the condition of the property as it actually is may differ from what the documents show.'
+          : 'The assessment is limited to what was observable and accessible at the time. Concealed parts, and anything requiring opening up, testing or specialist investigation, are outside its scope unless stated above.')
+      + '</div>');
+
+    // ── Property description and condition matrix ────────────────────────────
+    var _cond5 = T5_COMPONENTS.map(function(c){
+      var r = _t5.components[c.code] || {};
+      var status = r.applicability === 'not_applicable' ? 'Not applicable'
+                 : !r.applicability ? 'Not recorded'
+                 : (r.observation === 'inspected' ? (_l5(T5_CONDITIONS, r.condition) || 'Inspected — no condition given') : (_l5(T5_OBSERVATION, r.observation) || 'Not recorded'));
+      var tone = (r.observation === 'inspected' && r.condition) ? '#2f6f52' : '#6d6a63';
+      return '<tr><td style="font-family:var(--font-mono),monospace;white-space:nowrap;">' + c.code + '</td><td><b>' + _e5(c.label) + '</b></td>'
+        + '<td>' + _pill5(status, tone) + '</td><td>' + _e5(r.notes || '') + '</td></tr>';
+    }).join('');
+    _t5Pg['t5cond'] = _page5('t5cond', 'Property Description and Condition', 'The condition recorded for each component. “Not inspected”, “Not accessible” and “Unknown” are not condition ratings.',
+      _kv5([
+        ['Property type', order.propType || ''],
+        ['Building type', order.buildType || ''],
+        ['Year built', order.year || order.yearBuilt || ''],
+        ['Locations assessed', (_t5.locations || []).map(function(l){ return l.id + ' ' + (l.label || ''); }).join(' · ')]
+      ])
+      + '<table style="margin-top:8px;"><thead><tr><th style="width:12mm;">Code</th><th style="width:62mm;">Component</th><th style="width:36mm;">Condition / status</th><th>Notes</th></tr></thead><tbody>' + _cond5 + '</tbody></table>');
+
+    // ── Detailed findings ─────────────────────────────────────────────────────
+    var _locLabel5 = function(f){ var l = (_t5.locations || []).filter(function(x){ return x.id === f.locationId; })[0]; return [l ? (l.id + ' ' + (l.label || '')) : '', f.location].filter(function(x){ return t5Str(x); }).join(' · '); };
+    var _findHtml5 = _live5.map(function(f){
+      var comp = (T5_COMPONENTS.filter(function(c){ return c.code === f.component; })[0] || {}).label || '';
+      return '<div style="border:1px solid #d4c9b0;border-left:3px solid ' + (_prTone5[f.priority] || '#d4c9b0') + ';padding:8px 10px;margin:0 0 8px;">'
+        + '<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px;">'
+        + '<b style="font-family:var(--font-mono),monospace;">' + _e5(f.ref) + '</b>'
+        + (f.priority ? _pill5(_l5(T5_PRIORITY, f.priority), _prTone5[f.priority]) : '')
+        + (f.severity ? _pill5('Severity: ' + _l5(T5_SEVERITY, f.severity), '#6d6a63') : '')
+        + (f.imported && f.reviewStatus !== 'reviewed' ? _pill5('Imported — not yet confirmed', '#7c3aed') : '')
+        + '<span style="font-size:9px;color:#6a5a48;">' + _e5([_locLabel5(f), comp, f.material].filter(function(x){ return t5Str(x); }).join(' · ')) + '</span></div>'
+        + '<div class="rep-op" style="margin:2px 0;"><b>Observation.</b> ' + _e5(f.observation) + '</div>'
+        + _kv5([
+            ['Extent', [f.extent, (t5Str(f.quantity) ? f.quantity + ' ' + (f.unit || '') : '')].filter(function(x){ return t5Str(x); }).join(' · ')],
+            ['Condition', _l5(T5_CONDITIONS, f.condition)],
+            ['Suspected cause (not confirmed)', f.causeSuspected],
+            ['Confirmed cause', t5Str(f.causeConfirmed) ? (f.causeConfirmed + (t5Str(f.causeSource) ? ' — confirmed by ' + f.causeSource : '')) : ''],
+            ['Confidence', _l5(T5_CONFIDENCE, f.confidence)],
+            ['Recommendation', [_l5(T5_ACTION_TYPES, f.actionType), f.action, f.monitoringNote].filter(function(x){ return t5Str(x); }).join(' — ')],
+            ['Timeframe', f.timeframe]
+          ])
+        + _evid5(f) + '</div>';
+    }).join('');
+    _t5Pg['t5find'] = _page5('t5find', 'Detailed Findings', 'Each finding keeps its reference in every part of this report',
+      _findHtml5 || ('<div class="rep-op">' + (_doc5 ? 'No defects were identified from the documents reviewed.' : 'No defects were observed within the scope and access stated in this report.')
+        + ' This is not a statement that the property is free of defects; see the scope and limitations.</div>'));
+
+    // ── Recommended action schedule ───────────────────────────────────────────
+    if (_live5.length) {
+      _t5Pg['t5act'] = _page5('t5act', 'Recommended Action Schedule', 'Actions grouped by priority; the reference leads back to the finding',
+        t5ActionSchedule(_t5).map(function(g){
+          return '<div class="sec-h" style="margin-top:8px;">' + _e5(g.label) + '</div><table><thead><tr><th style="width:15mm;">Ref.</th><th>Recommended action</th><th style="width:34mm;">Timeframe</th><th style="width:30mm;">Location</th></tr></thead><tbody>'
+            + g.rows.map(function(f){
+                return '<tr><td style="font-family:var(--font-mono),monospace;">' + _e5(f.ref) + '</td><td>' + _e5([_l5(T5_ACTION_TYPES, f.actionType), f.action, f.monitoringNote].filter(function(x){ return t5Str(x); }).join(' — ') || '—') + '</td>'
+                  + '<td>' + _e5(f.timeframe || '') + '</td><td>' + _e5(_locLabel5(f)) + '</td></tr>';
+              }).join('') + '</tbody></table>';
+        }).join(''));
+    }
+
+    // ── Indicative remedial cost schedule (only when enabled) ─────────────────
+    if (_cc5) {
+      var _refsOf5 = function(ids){ return (ids || []).map(function(u){ var f = _t5.findings.filter(function(x){ return x.uid === u; })[0]; return f ? f.ref : ''; }).filter(Boolean).join(', '); };
+      var _rows5 = _t5.costs.lines.map(function(l, i){
+        var r = _cc5.lines[i] || {};
+        var calc = l.mode === 'qty' ? (_e5(l.qty) + ' ' + _e5(l.unit || '') + ' × (' + _e5(l.mat || '0') + ' + ' + _e5(l.lab || '0') + ')') : (l.mode === 'lump' ? 'Lump sum' : '');
+        var amt = r.status === 'priced' ? _e5(_money5(r.amount)) + (r.currency !== _cc5.currency ? '<br><span style="font-size:8px;color:#6a5a48;">from ' + _e5(t5Money(r.original, r.currency)) + '</span>' : '')
+                : r.status === 'unpriced' ? '<i>Not estimated</i>' : r.status === 'excluded' ? '<i>Excluded</i>' : '<i>Unresolved</i>';
+        return '<tr' + (r.status === 'excluded' ? ' style="color:#8a7a6a;"' : '') + '><td>' + _e5(l.desc || '') + '</td><td>' + _e5(_refsOf5(l.findings)) + '</td><td>' + calc + '</td><td style="text-align:right;white-space:nowrap;">' + amt + '</td></tr>';
+      }).join('');
+      var _fx5 = _t5.costs.fx || {};
+      _t5Pg['t5cost'] = _page5('t5cost', 'Indicative Remedial Cost Schedule', 'Planning estimates only — not a quotation, a valuation, an insurance determination or a tax assessment',
+        '<table><thead><tr><th>Item</th><th style="width:22mm;">Findings</th><th style="width:40mm;">Calculation</th><th style="width:30mm;text-align:right;">Amount</th></tr></thead><tbody>' + _rows5 + '</tbody></table>'
+        + '<table style="margin-top:6px;"><tbody>'
+        + '<tr><td>Subtotal (included, estimated items)</td><td style="text-align:right;width:36mm;">' + _e5(_money5(_cc5.subtotal)) + '</td></tr>'
+        + (_cc5.contingencyApplied ? '<tr><td>Contingency ' + _e5(_t5.costs.contingencyPct) + '%</td><td style="text-align:right;">' + _e5(_money5(_cc5.contingency)) + '</td></tr>' : '')
+        + (_cc5.taxApplied ? '<tr><td>Tax ' + _e5(_t5.costs.taxPct) + '% on ' + (_t5.costs.taxBase === 'subtotal_contingency' ? 'subtotal and contingency' : 'subtotal') + '</td><td style="text-align:right;">' + _e5(_money5(_cc5.tax)) + '</td></tr>' : '')
+        + '<tr><td><b>' + (_cc5.incomplete ? 'Indicative total — INCOMPLETE' : 'Indicative total') + '</b></td><td style="text-align:right;"><b>' + (_cc5.hasTotal ? _e5(_money5(_cc5.total)) : 'Not stated') + '</b></td></tr>'
+        + '</tbody></table>'
+        + (_cc5.incomplete ? '<div class="rep-note"><b>Incomplete.</b> One or more items are not estimated and are not included in the total.</div>' : '')
+        + (!_cc5.hasTotal ? '<div class="rep-note"><b>No total is stated</b> because the schedule has unresolved items.</div>' : '')
+        + _kv5([
+            ['Basis of the estimates', _t5.costs.basis],
+            ['Estimate date', _t5.costs.estimateDate],
+            ['Exclusions', _t5.costs.exclusions],
+            ['Exchange rate', (t5Str(_fx5.rate) && _fx5.from && _fx5.to) ? ('1 ' + _fx5.from + ' = ' + _fx5.rate + ' ' + _fx5.to + (t5Str(_fx5.date) ? ' · ' + _fx5.date : '') + (t5Str(_fx5.source) ? ' · ' + _fx5.source : '')) : '']
+          ])
+        + '<div class="rep-note" style="margin-top:6px;">These figures are indicative assessment estimates for planning, subject to the stated scope, basis and exclusions and to verification. Actual costs depend on detailed investigation, specification and tendering.</div>');
+    }
+
+    // ── Professional assessment and limitations ───────────────────────────────
+    _t5Pg['t5concl'] = _page5('t5concl', 'Professional Assessment', 'Conclusion, rationale and scope-specific limitations',
+      _kv5([['Overall condition', _l5(T5_CONDITIONS, _t5.conclusion.overall)]])
+      + (t5Str(_t5.conclusion.rationale) ? '<div class="rep-op"><b>Rationale.</b> ' + _txt5(_t5.conclusion.rationale) + '</div>' : '')
+      + '<div class="sec-h" style="margin-top:10px;">Limitations</div>'
+      + (t5Str(_t5.conclusion.limitations) ? '<div class="rep-op">' + _txt5(_t5.conclusion.limitations) + '</div>' : '')
+      + (_notInsp5.length
+          ? '<table><thead><tr><th style="width:62mm;">Not covered</th><th style="width:30mm;">Status</th><th>Reason</th></tr></thead><tbody>'
+            + _notInsp5.map(function(c){ var r = _t5.components[c.code]; return '<tr><td>' + _e5(c.label) + '</td><td>' + _e5(_l5(T5_OBSERVATION, r.observation)) + '</td><td>' + _e5(r.notes || '—') + '</td></tr>'; }).join('')
+            + '</tbody></table>'
+          : '')
+      + '<div class="rep-note" style="margin-top:8px;">This report does not certify structural safety, compliance with any building code or regulation, insurability, or fitness for occupation. Any such question requires investigation by an appropriately qualified specialist.</div>');
+
+    _t5PageIds(_t5).forEach(function(_id){ if (_t5Pg[_id]) html += _t5Pg[_id]; });
+  }
+
   // §SEC-ADDPAGE (v2.252) — placeholder for user-added overflow pages. They physically sit
   //   between Valuation (p6) and Sign-Off, matching their _pgList position (so §TOC-ANCHORS
   //   numbers them correctly). Resolved right after §7 once every section cache is built.
@@ -56660,7 +57036,7 @@ try {
   //   the page columns (§T4-NO-COLUMNS), page 6 (§T4-NO-P6) and which pages print
   //   (§T4-PAGE-SHOW): the appraisal's section machinery governs appraisals. What a
   //   Building Inspection prints is decided in the Building Inspection page list.
-  var _secDisIds = _isT4 ? [] : Object.keys(_secTitleById);
+  var _secDisIds = (_isT4 || _isT5) ? [] : Object.keys(_secTitleById);   // §T5-REPORT (v2.527)
   var _disT=[]; _secDisIds.forEach(function(_id){ try{ if(!_orderSecEnabled(order,_id)) _disT.push(_secTitleById[_id]); }catch(e){} });
   if(_disT.length){
     var _disScript='<scr'+'ipt>(function(){try{'
@@ -57403,7 +57779,7 @@ try {
         //   the photographs had settled and every row was about to grow.
         var all  = [].slice.call(doc.querySelectorAll('.page'));
         var srcs = all.filter(function(p){
-          return (p.id && /^page-t4/.test(p.id)) || p.hasAttribute('data-t4-sheet');
+          return (p.id && /^page-t[45]/.test(p.id)) || p.hasAttribute('data-t4-sheet');
         });
         if (!srcs.length) return 0;
 
@@ -57456,7 +57832,7 @@ try {
         var titles = {};
         try{ titles = window.__t4Titles || (window.__t4Titles = {}); }catch(e){ titles = {}; }
         srcs.forEach(function(pg){
-          if (pg.id && /^page-t4/.test(pg.id) && !titles[pg.id]) titles[pg.id] = titleOf(pg);
+          if (pg.id && /^page-t[45]/.test(pg.id) && !titles[pg.id]) titles[pg.id] = titleOf(pg);
         });
 
         var stream = [], running = titleOf(srcs[0]);
@@ -57467,8 +57843,8 @@ try {
           while (bd.firstElementChild){
             var el = bd.firstElementChild;
             bd.removeChild(el);
-            var sec = (el.id && /^page-t4/.test(el.id)) ? el.id
-                    : ((first && pg.id && /^page-t4/.test(pg.id)) ? pg.id : '');
+            var sec = (el.id && /^page-t[45]/.test(el.id)) ? el.id
+                    : ((first && pg.id && /^page-t[45]/.test(pg.id)) ? pg.id : '');
             if (sec) running = titles[sec] || titleOf(pg) || running;
             stream.push({ el: el, id: sec, title: running, starts: !!sec });
             first = false;
@@ -57814,7 +58190,7 @@ try {
         // A section page still waiting to be placed.
         function movable(pg){
           return !!(pg && pg.classList && pg.classList.contains('page')
-                    && pg.id && /^page-t4/.test(pg.id));
+                    && pg.id && /^page-t[45]/.test(pg.id));
         }
         // §T4-FLOW (v2.509) — where a section may be PUT. A section sheet, yes; and also
         //   a continuation sheet, which is the half-empty tail of the section before it and
@@ -57825,7 +58201,7 @@ try {
         //   Documents or the photograph sheets — those own their page by convention.
         function hostOk(pg){
           if (!pg || !pg.classList || !pg.classList.contains('page')) return false;
-          if (pg.id) return /^page-t4/.test(pg.id);
+          if (pg.id) return /^page-t[45]/.test(pg.id);
           return !!bodyOf(pg);                 // a continuation sheet of a t4 section
         }
         function nextSheet(pg){
