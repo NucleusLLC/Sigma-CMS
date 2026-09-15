@@ -18159,7 +18159,7 @@ function _t5HtmlReview(m){
   var hist = (m.audit || []).slice(-12).reverse().map(function(x){
     return '<li><span class="t5-dim">' + _t5Esc(String(x.at).slice(0, 16).replace('T', ' ')) + '</span> ' + _t5Esc(x.ev) + (x.by ? ' · ' + _t5Esc(x.by) : '') + (x.detail ? ' · ' + _t5Esc(x.detail) : '') + '</li>';
   }).join('');
-  var issued = (m.issued || []).map(function(x){ return '<li>Revision ' + x.rev + ' · issued ' + _t5Esc(String(x.at).slice(0, 10)) + ' · ' + _t5Esc(x.signatory || '') + (x.reason ? ' · ' + _t5Esc(x.reason) : '') + '</li>'; }).join('');
+  var issued = (m.issued || []).map(function(x){ return '<li>Revision ' + x.rev + ' · issued ' + _t5Esc(String(x.at).slice(0, 10)) + ' · ' + _t5Esc(x.signatory || '') + (x.reason ? ' · ' + _t5Esc(x.reason) : '') + (x.pdfPath ? (' · <a href="' + _t5Esc((typeof SB_URL !== 'undefined' ? SB_URL : '') + '/storage/v1/object/public/' + (typeof REPORTS_BUCKET !== 'undefined' ? REPORTS_BUCKET : 'reports') + '/' + x.pdfPath) + '" target="_blank" rel="noopener">PDF of this revision</a>') : ' · <span class="t5-dim">PDF kept when it is published with DRAFT off</span>') + '</li>'; }).join('');
   return _t5Card('review', 'Review and issue', 'Draft → In review → Approved → Issued. An approval belongs to exactly the content that was approved. Issuing does not release the report: that still goes through the DRAFT switch and its payment rule.',
     fields + '<div class="t5-actions">' + btns + '</div>'
     + (issued ? '<div class="t5-subh">Issued revisions</div><ul class="t5-list">' + issued + '</ul>' : '')
@@ -18422,6 +18422,41 @@ try { window._t5PageIds = _t5PageIds; window._t5CoverTitle = _t5CoverTitle; } ca
 function _t5ReportNotes(){
   return 'This assessment report has been prepared for the named client and the intended use stated in it. Page numbers refer to the printed document. Finding references (F-001 and onwards) are permanent and are used throughout the report. Components shown as not inspected, not accessible or unknown are outside its conclusions.';
 }
+
+// ── §T5-REVISION-PDF (v2.527) — an issued revision keeps its own PDF ─────────────────────
+//   The published report lives at ONE path per order and is overwritten on every publish, so
+//   a correction would silently replace the PDF a client was given. When the report being
+//   published is an ISSUED and RELEASED Type 5 revision (the build stamps data-t5-issued with
+//   rev:hash only then), the same PDF is also stored at <stem>-r<N>.pdf, WITHOUT overwrite, and
+//   that path is recorded on the issued revision. The stamp is re-checked against the order's
+//   assessment at publish time: if the revision was reopened in between, nothing is kept.
+async function _t5KeepRevisionPdf(orderId, reportHtml, blob, info){
+  var m = /<body[^>]*\sdata-t5-issued="(\d+):([0-9a-f]+)"/.exec(String(reportHtml || ''));
+  if (!m) return null;
+  var rev = Number(m[1]), hash = m[2];
+  var idx = ORDERS.findIndex(function(o){ return String(o.id) === String(orderId); });
+  if (idx === -1) return null;
+  var o = ORDERS[idx];
+  var s15 = (o.inspData && o.inspData.s15) || {};
+  try { var raw = localStorage.getItem('insp_' + o.id + '_15'); if (raw){ var p = JSON.parse(raw); if (p && p._t5) s15 = p; } } catch(e){}
+  var model = t5Normalize(s15._t5);
+  var entry = t5IssuedSnapshot(model, rev);
+  if (!entry || entry.hash !== hash) return null;           // not this revision any more
+  if (entry.pdfPath) return entry.pdfPath;                  // already kept: never replaced
+  var path = String(info.path || '').replace(/\.pdf$/i, '') + '-r' + rev + '.pdf';
+  var up = await _sb.storage.from(REPORTS_BUCKET).upload(path, blob, { upsert:false, contentType:'application/pdf', cacheControl:'3600' });
+  if (up && up.error && !/exist|duplicate/i.test(String(up.error.message || ''))) throw up.error;
+  // Record it on the issued revision, in memory and in the section blob, then persist.
+  var live = (o.inspData && o.inspData.s15 && o.inspData.s15._t5) ? o.inspData.s15._t5 : null;
+  var mark = function(t5){ (t5 && t5.issued || []).forEach(function(x){ if (x.rev === rev && x.hash === hash) { x.pdfPath = path; x.pdfAt = new Date().toISOString(); } }); };
+  mark(live); mark(model);
+  try { var raw2 = localStorage.getItem('insp_' + o.id + '_15'); if (raw2){ var p2 = JSON.parse(raw2); if (p2 && p2._t5){ mark(p2._t5); localStorage.setItem('insp_' + o.id + '_15', JSON.stringify(p2)); } } } catch(e){}
+  if (!live){ o.inspData = o.inspData || {}; o.inspData.s15 = Object.assign({}, s15, { _t5: model }); }
+  try { if (typeof _t5Live !== 'undefined' && _t5Live && _t5LiveOrder === String(o.id)) mark(_t5Live); } catch(e){}
+  try { await persistOrders(o.id); } catch(e){}
+  return path;
+}
+try { window._t5KeepRevisionPdf = _t5KeepRevisionPdf; } catch(e){}
 
 // One place decides the section set, so a new type is added once, not twice.
 function _secIdxsFor(t){
@@ -50219,6 +50254,8 @@ async function _sigmaPublishReportPDF_raster(orderId, reportHtml, _seq){
     // §PDF-LATEST (v2.524) — superseded while uploading: the newer run uploads after this
     //   one and records itself, so this one must not write its link over it.
     if (_stale()) return 'superseded';
+    // §T5-REVISION-PDF (v2.527) — keep this revision's PDF under its own name as well.
+    try { await _t5KeepRevisionPdf(orderId, reportHtml, blob, info); } catch(e){ try{ console.warn('[report pdf] revision copy', e); }catch(_){} }
     var _pubTs = Date.now();   // unique per publish → cache-bust token for the button
     var idx = ORDERS.findIndex(function(o){ return o.id === orderId; });
     if (idx !== -1){
@@ -53294,7 +53331,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   '@media print{.print-bar{display:none!important;}body{margin-top:0!important;}}' +
   _sigmaTTScss() +
   '</style></head><body style="margin-top:56px"'
-  + ((_isT4 || _isT5) ? ' data-t4="1"' : '') + (_isT5 ? ' data-t5="1"' : '') +   // §T4-COMPACT (v2.508) — the ONLY way the pass runs
+  + ((_isT4 || _isT5) ? ' data-t4="1"' : '') + (_isT5 ? ' data-t5="1"' : '') + ((_isT5 && _t5Issued && !(order && order.draftMode === true)) ? (' data-t5-issued="' + _t5M.revision + ':' + t5Hash(_t5M) + '"') : '') +   // §T4-COMPACT (v2.508) — the ONLY way the pass runs
   '>' +
   _sigmaTTSscript() +
 
