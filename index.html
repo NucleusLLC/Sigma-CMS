@@ -16492,6 +16492,61 @@ var SECS_T1=[0,1,8,10,11,12,13];var SECS_ALL_IDX=[0,1,2,3,4,5,6,7,8,9,10,11,12,1
 //   else. It was last only because 14 was appended when the section was added.
 //   Nothing here is index-sensitive: `done` is keyed by SECTION index and every
 //   navigation helper works in TAB positions, so the two never have to agree.
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §TYPE-REGISTRY (v2.527) — what a report type IS, in one place                ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+//   A type is order.apprType (a number) plus the label stored in orders.property_type.
+//   Until now that pairing was written out as TEN separate literals — the new-order badge,
+//   the order builder, the database loader, the Change Type modal, the report cover and
+//   Contents, the demo order — and every one of them fell back to Type 2 when a key was
+//   missing. That fallback is the trap that hit Type 4 five times (§T4-COVERSTRIP,
+//   §T4-CERT, §T4-MAPS …): nothing errors, the wrong document type simply prints.
+//   Every such site now reads this table. The strings for Types 1–4 are exactly the
+//   strings those literals held, variants included, so nothing a user sees changes.
+//
+//   family 'appraisal' — Types 1–3, which carry a valuation.
+//   family 'condition' — Types 4 and 5, which state no value anywhere. "Is there a
+//   valuation?" is asked through sigmaNoValuation(), never through a type number, so a
+//   new condition report inherits every valuation gate instead of reopening each one.
+//
+//   Stored labels are FROZEN: they are what orders.property_type holds for every order
+//   ever saved, and sigmaTypeFromLabel reads them back. Never reword `label`.
+var SIGMA_TYPES = {
+  1: { key:'parcel',     label:'Parcel Only',         family:'appraisal', badgeCls:'t1', long:'Parcel Only',              previewLabel:'Parcel Only' },
+  2: { key:'building',   label:'Parcel + Building',   family:'appraisal', badgeCls:'t2', long:'Parcel + Building',        previewLabel:'Parcel + Building' },
+  3: { key:'newbuild',   label:'New Construction',    family:'appraisal', badgeCls:'t3', long:'New Construction',         previewLabel:'Parcel + New Construction' },
+  4: { key:'inspection', label:'Building Inspection', family:'condition', badgeCls:'t4', long:'Building Inspection',      previewLabel:'Building Inspection',
+       reportNoun:'Building Report', coverTitle:'Inspection Report' },
+  5: { key:'assessment', label:'Assessment Report',   family:'condition', badgeCls:'t5', long:'Assessment Report',        previewLabel:'Assessment Report',
+       reportNoun:'Assessment Report', coverTitle:'Assessment Report' }
+};
+var SIGMA_TYPE_IDS = [1, 2, 3, 4, 5];
+/** The registry row for a type number (or a string "4"), or null. Never falls back. */
+function sigmaType(t){ var n = Number(t); return SIGMA_TYPES[n] || null; }
+/** The stored label for a type, falling back to `fallback` (default Type 2's), as every old literal did. */
+function sigmaTypeLabel(t, fallback){ var r = sigmaType(t); return r ? r.label : (fallback !== undefined ? fallback : SIGMA_TYPES[2].label); }
+/** "Type 5 · Assessment Report" / "Type 5 — Assessment Report", built from the registry. */
+function sigmaTypeTitle(t, sep){ var r = sigmaType(t); return r ? ('Type ' + Number(t) + (sep == null ? ' · ' : sep) + r.long) : ''; }
+/** A stored property_type label back to its number, or 0 when it is not a known label. */
+function sigmaTypeFromLabel(s){
+  var k = String(s == null ? '' : s);
+  for (var i = 0; i < SIGMA_TYPE_IDS.length; i++){ if (SIGMA_TYPES[SIGMA_TYPE_IDS[i]].label === k) return SIGMA_TYPE_IDS[i]; }
+  return 0;
+}
+/** True for a report that states no value (Types 4 and 5). Accepts an order or a type number. */
+function sigmaNoValuation(o){
+  var t = (o && typeof o === 'object') ? o.apprType : o;
+  var r = sigmaType(t);
+  return !!(r && r.family === 'condition');
+}
+try {
+  window.SIGMA_TYPES = SIGMA_TYPES; window.sigmaType = sigmaType; window.sigmaTypeLabel = sigmaTypeLabel;
+  window.sigmaTypeTitle = sigmaTypeTitle; window.sigmaTypeFromLabel = sigmaTypeFromLabel; window.sigmaNoValuation = sigmaNoValuation;
+} catch(e){}
+
+// §TYPE5 (v2.527) — Assessment Report: Classification, Photos, Documents, Sign-Off. The
+//   Assessment section itself (index 15) is added to this list when its form exists.
+var SECS_T5=[0,10,11,13];
 var SECS_T4=[0,1,2,3,4,5,6,7,8,9,10,11,14,13]   /* §T4-TABORDER (v2.458) — the checklist sits between Documents (11) and Sign-Off (13), i.e. last thing before signing. Order here is TAB order only; it does not touch the report. */;   // 0 Classification · 14 the checklist · then the rest
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -17204,7 +17259,7 @@ function _secIdxsFor(t){
   //   simply was not there and nothing said why. Everything else that decides Type 4
   //   already coerces (Number(order.apprType) === 4); this was the one place that did not.
   var n = Number(t);
-  return (n===1) ? SECS_T1.slice() : (n===4) ? SECS_T4.slice() : SECS_ALL_IDX.slice();
+  return (n===1) ? SECS_T1.slice() : (n===4) ? SECS_T4.slice() : (n===5) ? SECS_T5.slice() : SECS_ALL_IDX.slice();
 }
 var _secIdxs=SECS_ALL_IDX.slice();var SECS=SECS_ALL.slice();
 
@@ -19261,7 +19316,7 @@ try { window._t4SectionOrderNote = _t4SectionOrderNote; } catch(e){}
 //   already uses when a page is removed by hand. Nothing a job order carries is lost, and
 //   setting the order back to an appraisal type brings the page back with its contents.
 function _secPageBlockedForOrder(p, order){
-  try{ return String(p) === 'p6' && Number(order && order.apprType) === 4; }
+  try{ return String(p) === 'p6' && sigmaNoValuation(order); }   // §TYPE-REGISTRY (v2.527)
   catch(e){ return false; }
 }
 // The last page a given order actually has — where a homeless section goes.
@@ -19270,7 +19325,7 @@ window._secPageBlockedForOrder=_secPageBlockedForOrder;
 
 function _secBlockedForOrder(id, order){
   try{
-    if(Number(order && order.apprType) !== 4) return false;
+    if(!sigmaNoValuation(order)) return false;   // §TYPE-REGISTRY (v2.527)
     for(var i=0;i<_SECTION_REGISTRY.length;i++)
       if(_SECTION_REGISTRY[i].id === id) return !!_SECTION_REGISTRY[i].t4Never;
     return false;
@@ -19544,6 +19599,9 @@ function openSectionOrder(orderId){
             //   a Building Inspection, so this has to say WHERE the working control is
             //   rather than describe the columns underneath it.
             ? 'This is a <b>Building Inspection</b>: it is arranged by whole PAGES, in the gold panel below — use the ↑ ↓ there. The page columns further down belong to an appraisal and do not change this report.'
+            // §TYPE5 (v2.527) — an Assessment Report prints its parts in a fixed order.
+            : sigmaNoValuation(order)
+            ? 'This is an <b>Assessment Report</b>: its pages print in a fixed order, from the executive summary to the photographs. The page columns below belong to an appraisal and do not change this report.'
             : 'Assign each section to a page and order it with ↑ ↓. Cover = page 1 and Index = page 2 are fixed. The report’s Index follows this order automatically. Use the small ↕ line between two sections to set the space between exactly those two, in millimetres.')
         + '</div></div>'
         +'<button onclick="document.getElementById(\'secOrderOverlay\').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted,#888);line-height:1;">✕</button></div>'
@@ -20207,8 +20265,8 @@ function _orderControlDropdown(o){
     +b(dis,  'openInsp(_byId(\''+sid+'\'))',     '&#128247; Inspect Data')
     // §T4-NOVAL (v2.462) — greyed for a Building Inspection with the same class the
     //   locked state uses, and its action removed so the row cannot open it either.
-    +b(dis + (Number(o.apprType)===4?' oci-dis':''),
-       (Number(o.apprType)===4 ? "alert('This is a Type 4 \u2014 Building Inspection, which states no market value. It has no valuation.');" : 'openValModal(_byId(\''+sid+'\'))'),
+    +b(dis + (sigmaNoValuation(o)?' oci-dis':''),   // \u00a7TYPE-REGISTRY (v2.527)
+       (sigmaNoValuation(o) ? 'alert(_valBlockedFor(_byId(\''+sid+'\')));' : 'openValModal(_byId(\''+sid+'\'))'),
        '&#128200; Valuation')
     +b(dis,  'reportCheckRun(_byId(\''+sid+'\'))','&#128196; Report')
     // §PDF-CLEAR (v2.407) — in the dropdown it reads as a worded item, not a bare ×;
@@ -20242,7 +20300,7 @@ function _orderControlCell(o){
   return '<td style="padding:10px 8px;min-width:130px;">'
     +btn('PROJECT DATA','openEdit(_byId(\''+sid+'\'))')
     +btn('INSPECT DATA','openInsp(_byId(\''+sid+'\'))')
-    +(Number(o.apprType)===4
+    +(sigmaNoValuation(o)   // §TYPE-REGISTRY (v2.527)
         // §T4-NOVAL (v2.462) — this builder greys with an inline style rather than a
         //   class; matched here so the two row menus look the same.
         ? '<button style="display:block;width:100%;margin-bottom:4px;padding:5px 8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:5px;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;opacity:.35;cursor:not-allowed;" title="A Building Inspection states no market value and has no valuation." onclick="event.stopPropagation();">VALUATION</button>'
@@ -26734,7 +26792,7 @@ function _openOrderForm(type) {
   // §TYPE4 (v2.398) — Type 4 has no price list of its own yet, and it is drawn
   //   inside the Type 2 panel, whose rows container is moCostRows2. Render the
   //   Type 2 list so the form totals correctly instead of showing nothing.
-  _renderMoCost(type===4 ? 2 : type);
+  _renderMoCost(sigmaNoValuation(type) ? 2 : type);   // §TYPE-REGISTRY (v2.527) — Types 4 and 5 draw in the Type 2 panel
 
   // ── Type 3 banner ───────────────────────────────────────────────────────
   var note = document.getElementById('moType3Note');
@@ -26742,12 +26800,9 @@ function _openOrderForm(type) {
 
   // ── Type badge ──────────────────────────────────────────────────────────
   var badge = document.getElementById('moTypeBadge');
-  var BADGES = {
-    1: { cls:'t1', txt:'Type 1 \u00b7 Parcel Only' },
-    2: { cls:'t2', txt:'Type 2 \u00b7 Parcel + Building' },
-    3: { cls:'t3', txt:'Type 3 \u00b7 New Construction' },
-    4: { cls:'t4', txt:'Type 4 \u00b7 Building Inspection' }
-  };
+  // \u00a7TYPE-REGISTRY (v2.527) \u2014 built from SIGMA_TYPES, so a new type has a badge.
+  var BADGES = {};
+  SIGMA_TYPE_IDS.forEach(function(n){ BADGES[n] = { cls: SIGMA_TYPES[n].badgeCls, txt: sigmaTypeTitle(n) }; });
   if (badge && BADGES[type]) {
     badge.className = 'mo-type-badge ' + BADGES[type].cls;
     badge.textContent = BADGES[type].txt +
@@ -27058,7 +27113,7 @@ async function _submitOrderImpl() {
   }
 
   /* ── Build order ── */
-  var typeLabels={1:'Parcel Only',2:'Parcel + Building',3:'New Construction',4:'Building Inspection'};
+  var typeLabels={}; SIGMA_TYPE_IDS.forEach(function(n){ typeLabels[n]=SIGMA_TYPES[n].label; });   // §TYPE-REGISTRY (v2.527)
   var _dp=dpParse(due);
   var dueDisplay=_dp ? dpFormat(_dp) : due;
   // §ORDER-NO (v2.270) — allocated by the database, not by this browser.
@@ -45499,8 +45554,9 @@ function _valRestoreP2(pd){
 //   the disappearing-button rule of v2.294: grey it and explain it, never hide it.
 function _valBlockedFor(order){
   if (!order) return '';
-  if (Number(order.apprType) !== 4) return '';
-  return 'This is a Type 4 \u2014 Building Inspection, which states no market value. '
+  // \u00a7TYPE-REGISTRY (v2.527) \u2014 every condition report, named by the registry.
+  if (!sigmaNoValuation(order)) return '';
+  return 'This is a ' + sigmaTypeTitle(order.apprType, ' \u2014 ') + ', which states no market value. '
        + 'It has no valuation, and its report cannot print one.';
 }
 try { window._valBlockedFor = _valBlockedFor; } catch(e){}
@@ -46892,7 +46948,7 @@ function qvUpdateTracker(order) {
   var hasV1 = !!(order.valData && order.valData.v1 && order.valData.v1 !== '\u2014' && order.valData.v1 !== '');
   var hasV2 = !!(order.valData && order.valData.v2 && order.valData.v2 !== '\u2014' && order.valData.v2 !== '');
   var hasV3 = !!(order.valData && order.valData.v3 && order.valData.v3 !== '\u2014' && order.valData.v3 !== '');
-  if (Number(order.apprType) === 4) {
+  if (sigmaNoValuation(order)) {   // §TYPE-REGISTRY (v2.527)
     // §T4-NOVAL (v2.462) — a stage that can never be completed must not be reported as
     //   incomplete. A Building Inspection has no valuation, so the tracker says so
     //   rather than showing a permanent "Not Completed" nobody can ever clear.
@@ -46915,7 +46971,7 @@ function qvUpdateTracker(order) {
   var steps = [
     { idx:0, st:editSt, txt:editTxt, lbl:'Edit'       },
     { idx:1, st:inspSt, txt:inspTxt, lbl:'Inspection' },
-    { idx:2, st:valSt,  txt:valTxt,  lbl:(Number(order.apprType) === 4 ? 'Valuation \u2014 n/a' : 'Valuation')  },
+    { idx:2, st:valSt,  txt:valTxt,  lbl:(sigmaNoValuation(order) ? 'Valuation \u2014 n/a' : 'Valuation')  },
     { idx:3, st:rptSt,  txt:rptTxt,  lbl:'Report'     },
   ];
 
@@ -47010,6 +47066,9 @@ function openQV(order) {
     //   difference between a blank that looks unfinished and one that is correct.
     valBox.innerHTML = (Number(order.apprType) === 4)
       ? '<div class="qv-no-val">No valuation \u2014 this is a Building Inspection.<br><span style="font-size:11px;opacity:.6;">A Type 4 states no market value. Findings are recorded under Inspect Data \u203a Building Inspection.</span></div>'
+      // \u00a7TYPE5 (v2.527)
+      : sigmaNoValuation(order)
+      ? '<div class="qv-no-val">No valuation \u2014 this is an Assessment Report.<br><span style="font-size:11px;opacity:.6;">A Type 5 states no market value. Findings are recorded under Inspect Data \u203a Assessment.</span></div>'
       : '<div class="qv-no-val">No valuation data yet.<br><span style="font-size:11px;opacity:.6;">Open Valuation to enter values.</span></div>';
   }
 
@@ -47691,8 +47750,7 @@ function qvSetType(typeNum) {
   var order = _qvLastOrder;
 
   // ── 1. Update the order object (mutate directly in ORDERS array) ────────────
-  var TYPE_LABELS = {1:'Parcel Only', 2:'Parcel + Building', 3:'New Construction', 4:'Building Inspection'};
-  var _newType = TYPE_LABELS[typeNum] || 'Parcel + Building';
+  var _newType = sigmaTypeLabel(typeNum);   // §TYPE-REGISTRY (v2.527)
   order.apprType = typeNum;
   order.type     = _newType;
   // Belt-and-suspenders: also update by index in ORDERS array
@@ -50287,7 +50345,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   list does not consult them for its own pages, so nothing of the Building
   //   Inspection is affected; cover, contents, sign-off, documents and photographs keep
   //   their own flags and are untouched.
-  if (Number(order && order.apprType) === 4) {
+  if (sigmaNoValuation(order)) {   // §TYPE-REGISTRY (v2.527) — every condition report
     RC.rcPageValuation  = false;   // p6 — Valuation
     RC.rcPageProjInsp1  = false;   // p3 / pT2_3 — Project Info + Intro + Floorplan Info
     RC.rcPageInsp2      = false;   // p4 / pT2_4 — Condition Matrix + Building Opinion
@@ -50399,9 +50457,12 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   "Three-value report" on a document that states no value. typeName4 has existed
   //   since v2.443 but was never reachable, because this map stopped at 3 — the string
   //   was added and nothing ever read it. Same shape as the DISC_DEFAULTS[4] trap.
-  var typeNames = {1:_rt('typeName1'), 2:_rt('typeName2'), 3:_rt('typeName3'), 4:_rt('typeName4')};
-  var typeStrip = {1:_rt('typeStrip1'), 2:_rt('typeStrip2'), 3:_rt('typeStrip3'), 4:_rt('typeStrip4')};
-  var typeScope = {1:_rt('typeScope1'), 2:_rt('typeScope2'), 3:_rt('typeScope3'), 4:_rt('typeScope4')};
+  // §TYPE-REGISTRY (v2.527) — one entry per registered type, so a new type cannot be the
+  //   fifth map in this file to stop one short.
+  var typeNames = {}, typeStrip = {}, typeScope = {};
+  SIGMA_TYPE_IDS.forEach(function(n){
+    typeNames[n] = _rt('typeName' + n); typeStrip[n] = _rt('typeStrip' + n); typeScope[n] = _rt('typeScope' + n);
+  });
   var typeName  = typeNames[type]  || typeNames[2];
   var typeStripTxt = typeStrip[type] || typeStrip[2];
   var typeScopeTxt = typeScope[type] || typeScope[2];
@@ -52228,7 +52289,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   in v2.449 and the CONTENTS page beside it still read "Appraisal Report 2026-112 ·
     //   Type 2 · Parcel + Building", and printed "Type 2 · Parcel + Building" again in its
     //   Report Type cell, on a document whose own cover says Building Inspection.
-    var _typeLabel = ({1:_rt('typeLabel1'),2:_rt('typeLabel2'),3:_rt('typeLabel3'),4:_rt('typeLabel4')}[Number(type)]||_rt('typeLabel2'));
+    var _typeLabel = (sigmaType(type) ? _rt('typeLabel' + Number(type)) : _rt('typeLabel2'));   // §TYPE-REGISTRY (v2.527)
     //   The stock title too, through the SAME helper the cover uses — so a cover title the
     //   owner typed themselves is left alone here exactly as it is left alone there.
     var _tocDocTitle = (typeof _t4CoverTitle === 'function') ? _t4CoverTitle(_rt('coverTitle'), _isT4) : _rt('coverTitle');
@@ -61455,10 +61516,12 @@ function _sigmaReportEmailHref(o){
   var addr = String((o && o.address) || '').trim();
   // §T4-EMAIL (v2.525) — a Type 4 Building Inspection is not an appraisal; the client email
   //   must not call it one. Types 1–3 keep the exact wording they had.
-  var isT4 = Number(o && o.apprType) === 4;
-  var subj = (isT4 ? 'Building Report' : 'Appraisal Report') + ' — Job ' + (o&&o.id||'') + (addr ? (' — ' + addr) : '');
+  // §TYPE-REGISTRY (v2.527) — the noun comes from the registry: Building Report (4),
+  //   Assessment Report (5), Appraisal Report for everything that carries a valuation.
+  var _noun = (sigmaNoValuation(o) && sigmaType(o.apprType).reportNoun) || 'Appraisal Report';
+  var subj = _noun + ' — Job ' + (o&&o.id||'') + (addr ? (' — ' + addr) : '');
   var body = 'Dear ' + who + ',\n\n'
-    + 'Please find the ' + (isT4 ? 'building report' : 'appraisal report') + ' for Job ' + (o&&o.id||'')
+    + 'Please find the ' + _noun.toLowerCase() + ' for Job ' + (o&&o.id||'')
     + (addr ? (' (' + addr + ((o&&o.city)?(', ' + o.city):'') + ')') : '') + ' at the link below:\n\n'
     + info.publicUrl + '\n\n'
     + 'Kind regards,\n' + String((o && o.appraiser) || '');
@@ -62643,8 +62706,9 @@ function _fromRow(row, order) {
     order.type = row.property_type;
     // Derive apprType integer from type string if not already set
     if (!order.apprType) {
-      var _tmap = {'Parcel Only':1,'Parcel + Building':2,'New Construction':3,'Building Inspection':4};
-      order.apprType = _tmap[row.property_type] || 2;
+      // §TYPE-REGISTRY (v2.527) — every stored label, from the registry. An unknown label
+      //   still loads as Type 2, exactly as before.
+      order.apprType = sigmaTypeFromLabel(row.property_type) || 2;
     }
   }
   if (row.appraiser)         order.appraiser       = row.appraiser;
@@ -64183,7 +64247,7 @@ async function genAiInspSummary() {
       noteEl.textContent = '✓ Generated ' + new Date().toLocaleTimeString()
         // §T4-MAPS (v2.457) — with no key 4 this read literally "· undefined — edit as
         //   needed before submitting" on a Building Inspection.
-        + ' · ' + ({1:'Type 1 — Parcel Only', 2:'Type 2 — Parcel + Building', 3:'Type 3 — New Construction', 4:'Type 4 — Building Inspection'}[Number(apprType)] || 'Type ' + apprType)
+        + ' · ' + (sigmaTypeTitle(apprType, ' — ') || 'Type ' + apprType)   // §TYPE-REGISTRY (v2.527)
         + ' — edit as needed before submitting.';
     }
 
@@ -64638,7 +64702,7 @@ function rcPreviewType(n){
     // §T4-MAPS (v2.457) — the || fallback below meant a Type 4 template preview built
     //   itself a sample order labelled "Parcel + Building", so the owner was shown the
     //   wrong document type while editing their Building Inspection template.
-    var _tn={1:'Parcel Only',2:'Parcel + Building',3:'Parcel + New Construction',4:'Building Inspection'};
+    var _tn={}; SIGMA_TYPE_IDS.forEach(function(k){ _tn[k]=SIGMA_TYPES[k].previewLabel; });   // §TYPE-REGISTRY (v2.527)
     var _raw=null;
     try{_raw=localStorage.getItem(rcTypeKey(n));}catch(e){}
     var _tpl=_raw
@@ -71651,6 +71715,9 @@ function _calIsBuildingInsp(o){
     var n = Number(o && o.apprType);
     if (n === 4) return true;
     if (n === 1 || n === 2 || n === 3) return false;
+    // §TYPE5 (v2.527) — an Assessment Report visit is a condition visit, not an appraisal
+    //   inspection: the same kit and the same time on site as a Building Inspection.
+    if (sigmaNoValuation(n)) return true;
     var t = String((o && o.type) || '').toLowerCase();
     if (!t) return null;
     if (t.indexOf('inspection') >= 0 && t.indexOf('appraisal') < 0) return true;
@@ -72163,10 +72230,10 @@ function calEditInspection(oid){
   var asg = '<option value="">\u2014 Unassigned \u2014</option>' + names.map(function(n){
     return '<option value="' + _e(n) + '"' + (n === who ? ' selected' : '') + '>' + _e(n) + '</option>'; }).join('');
 
-  var TYPES = {1:'Type 1 \u2014 Parcel Only', 2:'Type 2 \u2014 Parcel + Building',
-               3:'Type 3 \u2014 New Construction', 4:'Type 4 \u2014 Building Inspection'};
+  // \u00a7TYPE-REGISTRY (v2.527) \u2014 every registered type, in order.
+  var TYPES = {}; SIGMA_TYPE_IDS.forEach(function(n){ TYPES[n] = sigmaTypeTitle(n, ' \u2014 '); });
   var curT = Number(o.apprType) || 2;
-  var typeOpts = [1,2,3,4].map(function(n){
+  var typeOpts = SIGMA_TYPE_IDS.map(function(n){
     return '<option value="' + n + '"' + (n === curT ? ' selected' : '') + '>' + TYPES[n] + '</option>'; }).join('');
 
   // Every OTHER order, so the appointment can be moved to the one it belongs to.
@@ -72298,14 +72365,13 @@ function calEditInspection(oid){
     var ph = g('calEdPhone');
     if(ph !== String(o.clientCell || o.clientWork || '')) o.clientCell = ph;
 
-    var TL = {1:'Parcel Only', 2:'Parcel + Building', 3:'New Construction', 4:'Building Inspection'};
     var nt = Number(g('calEdType')) || curT;
     if(nt !== curT){
       // Same two writes qvSetType makes. Not a call to it: qvSetType drives Quick-View's
       //   own hero and rebuilds the inspection tab strip from _qvLastOrder, which is not
       //   this order and may not be open at all.
       o.apprType = nt;
-      o.type = TL[nt] || o.type;
+      o.type = sigmaTypeLabel(nt, o.type);   // §TYPE-REGISTRY (v2.527)
     }
 
     // §INSP-PURPOSE-ALL (v2.493) — the purpose belongs to the job order being edited,
