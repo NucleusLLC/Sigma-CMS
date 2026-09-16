@@ -1,7 +1,10 @@
 # Type 5 — Assessment Report: implementation notes
 
 Branch `feat/type5-assessment`. Not pushed, not deployed.
-The code tags read `v2.527`. Production used v2.527 for an unrelated hotfix on 15 Sep 2026, so renumber the tags at release.
+The code tags read `v2.528`. They were written as `v2.527` while the work was in progress; production took v2.527 for an
+unrelated Type 4 hotfix on 15 Sep 2026, so the 62 Type 5 / registry tags were renumbered to `v2.528` and `APP_VERSION`,
+the `<meta name="version">` and the changelog were set to `v2.528`. The two `v2.527` tags left in `index.html` are the
+hotfix's own (`§T4-NO-BLEED`) and belong to main.
 
 ## What was built
 

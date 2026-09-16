@@ -88,3 +88,17 @@ Samples (not in the repository): `AppraisalSuite/output/type5-samples/t5-sample-
 - Real photograph bytes from the `Storage` bucket in the report. Fixtures used inline data.
 - iPad/tablet layout of the form. Checked at desktop width only.
 - Dutch-language Type 5 report output. Strings exist but were not rendered.
+
+## Re-run after the v2.528 renumber (15 Sep 2026)
+
+The 62 Type 5 / registry section tags were renumbered from `(v2.527)` to `(v2.528)`, `APP_VERSION`, the `<meta
+name="version">` and a changelog entry were set to `v2.528`, and two tools that pinned a version inside a source anchor
+were made version-agnostic (`t5-model-check` on the `§T5-MODEL` banner, `type4-check` on the `§TYPE-REGISTRY` opening of
+the page-suppression block — both now match `\(v[0-9.]+\)`).
+
+The whole suite above was run again against the renumbered file. Every check returned the same exit code and 0 FAIL.
+The `ok` counts were re-counted for the six Type 5 checks and for `type-baseline` and `type4-check`, and each matched
+its row above exactly (42 / 21 / 83 / 30 / 63 / 11, 16, 92); the remaining regressions were checked on exit code and
+FAIL count only. `spill-check` still exits 1 on the same pre-existing
+`_t4ReflowRuntime` ReferenceError it throws on `main`. `print-check`, `opinion-check` and `report-pdf-check` were again
+not run, for the reasons given above.
