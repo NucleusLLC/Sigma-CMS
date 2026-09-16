@@ -18209,6 +18209,10 @@ var _T5_CSS = '<style id="t5Css">'
   + '.t5-status{border:1px solid var(--t5b);border-radius:8px;padding:10px 14px;margin:0 0 14px;} .t5-val ul{margin:6px 0 0 18px;padding:0;} .t5-val li{margin:2px 0;} .t5-val a{color:inherit;}'
   + '.t5-msg{font-size:12px;margin:6px 0;} .t5-msg-ok{color:#15803d;} .t5-msg-err{color:#dc2626;} .t5-list{margin:4px 0 0 18px;padding:0;font-size:12px;} .t5-actions{display:flex;flex-wrap:wrap;align-items:center;gap:0;}'
   + '.t5-lock{background:rgba(200,146,42,.12);border:1px solid #c8922a;border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:12.5px;}'
+  // §T5-TOUCH (v2.528) — on a tablet the assessment is filled in with a finger. The remove and
+  //   evidence controls are 18–23px tall, which is fine for a mouse and not for a thumb. Only
+  //   coarse pointers get the bigger boxes, so the desktop form is unchanged.
+  + '@media (pointer:coarse){.t5-x{min-height:32px;min-width:32px;font-size:20px;} .t5-evb{min-height:32px;padding:6px 12px;font-size:12px;} .t5-val li{margin:8px 0;} .t5-val a{display:inline-block;padding:7px 0;}}'
   + '</style>';
 
 function t5Render(){

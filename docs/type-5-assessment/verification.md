@@ -26,6 +26,8 @@ Columns: exit code · `ok` lines · `FAIL` lines.
 | `t5-form-check` | Assessment form in Chrome: fields and rules; not accessible clears condition; refs never reused; evidence = path + caption; live cost totals; autosave writes one `_t5`, no flat keys; **no bleed between orders**; reopen; full lifecycle through the buttons; issued read-only; revision 2; desktop label; import | 0 | 30 | 0 |
 | `t5-report-check` | Three rendered reports read sheet by sheet (below) plus pre-flight | 0 | 63 | 0 |
 | `t5-revision-pdf-check` | Issued + released revision kept at `-r<N>.pdf` without overwrite, recorded, never re-uploaded; drafts, unreleased and revision-2 drafts keep nothing | 0 | 11 | 0 |
+| `t5-tablet-check` | The form at iPad portrait and landscape (added 16 Sep — see "Closed since") | 0 | 18 | 0 |
+| `t5-photo-check` | Real JPEG bytes, including one over HTTP, through the evidence chain (added 16 Sep) | 0 | 26 | 0 |
 
 ### Existing checks (regression)
 
@@ -84,10 +86,32 @@ Samples (not in the repository): `AppraisalSuite/output/type5-samples/t5-sample-
 
 ## Not verified
 
-- Anything against production data, storage or the database. Production reads were blocked in this session, and the spec forbids it.
-- Real photograph bytes from the `Storage` bucket in the report. Fixtures used inline data.
-- iPad/tablet layout of the form. Checked at desktop width only.
-- Dutch-language Type 5 report output. Strings exist but were not rendered.
+- Anything against production data, storage or the database. Production reads were blocked in this session, and the spec forbids it. This is the only remaining item that needs production access; the tablet-layout and photograph-bytes items were closed on 16 Sep 2026 (see "Closed since").
+- Dutch-language Type 5 report output. Strings exist but were not rendered. Checked against Type 4 first: the Type 4 report body is English too (7 `_rt()` calls in 278 lines, against 24 in Type 5's 1105), so this is the house standard for a condition report, not a Type 5 regression. Only the picker and the type labels are translated.
+
+## Closed since (16 Sep 2026)
+
+Two "not verified" items were closed with two new checks. Both boot the shipped `index.html` in real Chrome, as the
+rest of the suite does.
+
+| Check | What it proves | exit | ok | fail |
+|---|---|---|---|---|
+| `t5-tablet-check` | The Assessment form at iPad portrait 768×1024 and landscape 1024×768, in its widest state (2 findings with evidence, 2 cost lines, every component rated): the page never scrolls sideways, nothing inside the card sticks out past it, all 138 bound controls are drawn and on screen, all 99 labels survive the narrower column, every action control is ≥ 28px tall on a coarse pointer, and no page error is thrown at either width | 0 | 18 | 0 |
+| `t5-photo-check` | Real photograph bytes through the evidence chain: a 1600×900 landscape JPEG, a 900×1600 portrait JPEG and a 1200×800 JPEG **fetched over HTTP** (the shape a Storage public URL has) all decode at their true size in the rendered report, each prints at the source aspect ratio, none breaks the 62mm evidence box or its column, each caption stays with its image, and an absent photograph is named rather than dropped | 0 | 26 | 0 |
+
+`t5-photo-check` also settles the spec's §8 rule on orientation with measured geometry: a portrait photograph is
+limited by the 62mm height and letterboxed sideways (picture 132×234 inside a 314×234 box), a landscape one is
+limited by the column width instead (314×177 in a 314×177 box). Both keep the source ratio to within 0.3%.
+
+**One change was needed to make `t5-tablet-check` pass.** At tablet width the geometry was already correct, but the
+remove (`.t5-x`, 18px), evidence (`.t5-evb`, 20–23px) and validation-link (15px) controls were too small to hit with
+a thumb. **§T5-TOUCH (v2.528)** raises them to 32px inside `@media (pointer:coarse)` only, so the desktop form is
+byte-identical — `type-baseline`, `type4-check`, `t4-render-check` and the six Type 5 checks were re-run after it and
+all still pass with the same counts.
+
+What remains unverified about photographs is only the part that needs production: the app hydrating `data` from a
+real `storagePath` against the live Storage bucket. That path is shared with Types 1–4 and has been live for
+versions; Type 5 adds nothing to it. Everything downstream of it is now measured.
 
 ## Re-run after the v2.528 renumber (15 Sep 2026)
 

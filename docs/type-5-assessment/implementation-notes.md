@@ -17,6 +17,7 @@ hotfix's own (`§T4-NO-BLEED`) and belong to main.
 | Report | `§T5-REPORT` (inside `generateReport`), `_t5PageIds`, `_t5CoverTitle`, `_t5ReportNotes` |
 | Pre-flight | `§T5-PREFLIGHT` in `_rcBuildChecks` |
 | Issued revision PDFs | `§T5-REVISION-PDF`: `_t5KeepRevisionPdf` |
+| Touch sizing | `§T5-TOUCH`: a `@media (pointer:coarse)` block; desktop unchanged |
 
 Data lives in `orders.insp_data.s15._t5`, and photographs are referenced by storage path. No database migration was needed. The 15 Sep 2026 schema dump has no CHECK constraint on `orders.property_type`, and `'Assessment Report'` reads back as 5 through the registry.
 
@@ -41,13 +42,13 @@ Data lives in `orders.insp_data.s15._t5`, and photographs are referenced by stor
    - The PDF of an issued revision is kept at `<stem>-r<N>.pdf` only when it is published with DRAFT off.
 9. **Report page order follows the spec, with one deviation:** Contents is page 2 and the Executive Summary page 3. The spec puts the summary before the Contents, but the report engine emits the Contents before any type's pages, and changing that would affect Types 1–4.
 10. **The shared compaction pass** (§T4-COMPACT) places short sections on the same sheet. The Contents numbers are verified against the sheets the links land on.
-11. **Wording that must go to the bureau and its insurer (plan risk R5):**
+11. **Wording that must go to the bureau and its insurer (plan risk R5)** — all four texts are set out for signature in `wording-for-approval.md`, checked character for character against `index.html`:
     - the `DISC_DEFAULTS[5]` declaration;
     - the Contents note (`_t5ReportNotes`);
     - the cost disclaimer;
     - the "does not certify structural safety…" line.
 
-    All of these are proposed wording and editable, except `_t5ReportNotes`, which is in code.
+    All four are proposed wording. The declaration (and the structural-safety clause inside it) is editable in Settings › Disclaimers; `_t5ReportNotes` and the cost disclaimer are in code and need a release to change.
 
 ## Deviations from the spec, and why
 
