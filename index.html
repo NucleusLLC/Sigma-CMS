@@ -9223,6 +9223,21 @@ body.glass:not([class*="theme-dark"]) .syn-pay.over{ color:#b3261e; }
 /* part paid AND past due: it keeps the truer word and takes the late edge. */
 .syn-pay.part.is-late{ border-color:rgba(239,68,68,.6); }
 
+/* §DASH-PAY (v2.532) — the whole LINE, on all three dashboard lists: fully paid
+   light green, partially paid light yellow. Not paid keeps its own background and
+   says it in red on the pill. On the dark grounds a solid pastel would put white
+   text on light green, so there it is a tint of the same hue; Paper Glass gets the
+   literal light green / light yellow. Declared after .is-sel and :hover so the
+   money wins the fill, and hover only deepens it. */
+.apq-row.pay-full      { background:rgba(34,197,94,.13); }
+.apq-row.pay-full:hover{ background:rgba(34,197,94,.20); }
+.apq-row.pay-part      { background:rgba(250,204,21,.12); }
+.apq-row.pay-part:hover{ background:rgba(250,204,21,.19); }
+body.glass:not([class*="theme-dark"]) .apq-row.pay-full      { background:#e3f7e9; }
+body.glass:not([class*="theme-dark"]) .apq-row.pay-full:hover{ background:#d2f1dc; }
+body.glass:not([class*="theme-dark"]) .apq-row.pay-part      { background:#fdf6cf; }
+body.glass:not([class*="theme-dark"]) .apq-row.pay-part:hover{ background:#fbefb3; }
+
 /* ── §INSPECTION-QUEUE rows ─────────────────────────────────────────────── */
 .uis-when{ display:inline-flex; align-items:center; gap:6px; flex-shrink:0;
            min-width:132px; font-family:var(--apq-mono); font-size:12.5px;
@@ -20432,7 +20447,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
-  {v:'v2.532',type:'feat',date:'09-22-2026',ts:'09-22-2026 10:00',_static:true,title:'SYNAPTIC payment status in colour: unpaid red, part paid orange, paid green',desc:'On the SYNAPTIC Documents Needed box, the invoice status on each job order now reads in colour. UNPAID is red (it used to be grey), PART PAID is orange (it used to be gold) and PAID stays green. OVERDUE was already red and still is. DRAFT INVOICE and NOT INVOICED stay grey on purpose: nothing is owed on either yet, so red there would send someone chasing a client who has never been billed. Colours only; no figure, status or rule behind them changed.'},
+  {v:'v2.532',type:'feat',date:'09-22-2026',ts:'09-22-2026 10:00',_static:true,title:'Invoice status on every dashboard list: Not Paid red, Partially Paid yellow row, Fully Paid green row',desc:'All three job-order lists on the Dashboard (Ready to Deliver, SYNAPTIC Documents Needed and Scheduled Inspections) now show each job order\'s invoice status, in the words NOT PAID, PARTIALLY PAID and FULLY PAID. A fully paid job order lights its whole line light green; a partially paid one lights its line light yellow; a job order that is not paid says NOT PAID in red (an overdue one says NOT PAID · OVERDUE, also red). The status pill is orange for partially paid and green for fully paid. Ready to Deliver and Scheduled Inspections did not show payment at all before; SYNAPTIC did, in grey and gold. All three lists read the same answer, so a job order is never green in one box and yellow in another. A job order whose invoices have not been read yet shows no status and no colour, rather than a guess. DRAFT INVOICE and NOT INVOICED stay grey on purpose: nothing is owed on either yet, so red there would send someone chasing a client who has never been billed. Colours only; no figure, status or rule behind them changed.'},
   {v:'v2.531',type:'fix',date:'09-21-2026',ts:'09-21-2026 01:30',_static:true,title:'Zoning text no longer prints through the footer, and the three values stay with their heading',desc:'TWO FAULTS ON ONE REPORT, BOTH IN THE PAGE-FLOW PASS. THE R.O.P.V. TEXT RAN OVER THE FOOTER. When Text Formatting is on, several consecutive lines of an opinion are printed as ONE paragraph with line breaks inside it. The pass that moves overrunning text onto the next sheet could not see text held that way: it looked for a block of plain text, found a paragraph with line breaks in it instead, and went looking INSIDE it, where the only things it can take hold of are the line breaks themselves. Moving a line break moves no words. So the zoning paragraph stayed exactly where it was and printed through the footer and off the bottom of the sheet, while the next page opened with the empty bordered box the text was supposed to have moved into. Both of those were the same fault. Such a paragraph is now treated as one piece of prose: the words that do not fit are carried onto the next sheet with their line breaks and any bold or italic intact, cut at a word, never mid-word. Measured before the fix on the shipped code: 231 pixels of text below the footer line and one empty box; after it, none, with every character accounted for. THE VALUATION SUMMARY WAS TAKEN APART. The Valuation Summary is one card — the banner reading VALUATION SUMMARY, THREE-VALUE APPROACH over the three columns holding the Free Market, Execution and Re-Construction values. When it landed across a page boundary the same pass split it, moving the three values to the next page and leaving the banner stranded above white paper. The card is now marked as one figure and travels whole, so the heading and the three values are always on the same sheet. Nothing else about pagination changed, no page is created or removed by either fix, and every page number and Index row is untouched. Verified in real Chrome against the shipped code, including a rebuilt copy of the old behaviour to prove each case actually catches the fault.'},
   {v:'v2.530',type:'feature',date:'09-20-2026',ts:'09-20-2026 23:59',_static:true,title:'A general message from the website can now be turned into a Job Order, and any open enquiry can be ordered straight from the Dashboard',desc:'Until now only a structured appraisal request carried a Create Job Order button. A client who wrote through the general contact form — asking for a valuation in their own words, adding details the form never asks for — arrived as a message, and the only thing the office could do with it was reply by email. That work still has to be ordered and invoiced, so the button now appears on a general message too. Nothing about the order itself changed: the client is written into the Contact Book first, the normal type picker opens, every required field is still validated, and the order is raised through the usual submit. What differs is how much arrives pre-filled. A general message carries no property address, no purpose, no property type and no size, so those are typed in as usual, and the panel above the form says so instead of the usual confirm-these-three line. Everything the client actually wrote — the subject they chose and the full text of their message — is now carried into the order Notes; before this, the message text was not copied anywhere, so converting one would have dropped the only thing they said. The Dashboard card also gained a small Order button on each open enquiry, of either kind, so a request seen on the Dashboard no longer has to be opened in Email Requests first.'},
   {v:'v2.529',type:'fix',date:'09-20-2026',ts:'09-20-2026 10:00',_static:true,title:'Photographs are no longer lost when an order is reopened, the cover photo you chose is the one that prints, and a Floorplan Info page stops vanishing',desc:'THREE FIXES, ALL ABOUT PHOTOGRAPHS AND THE REPORT. PHOTOS WERE BEING LOST, PERMANENTLY. Opening an order lays this computer’s local draft of the Photos section over the copy held on the server. Once a photograph has been moved into the photo bucket, the copy the order carries is only a reference — a name and a path, with no picture attached until it is fetched back. The merge only accepted a slot that already had a picture in it, so every photograph past the end of a shorter local draft was left as a GAP in the list. A gap paints nothing, so the zone came back short — five photographs in, two out — and the next photograph added to that zone saved the shortened list back over the good one, on the server as well. The merge now keeps a reference exactly as it keeps a picture, is always as long as the longer of the two lists, can no longer leave a gap at all, and carries the bucket path onto whichever copy wins so the same image is never uploaded twice. THE WRONG PHOTOGRAPH ON THE COVER. The cover chose the photograph the appraiser picked only when its picture was already in the browser. On a modern order the cover is a bucket reference until it has been fetched, and a report generated in that window said nothing, skipped the chosen cover and printed the first Front Exterior photograph instead — a different photograph, on the cover of a signed document. The chosen cover’s picture is now fetched and waited for before the cover is built, from the local copy or the bucket, whichever has it. If it genuinely cannot be fetched the old fallback still applies, and now says so in the console rather than silently. FLOORPLAN INFO VANISHED ON SOME TYPE 3 REPORTS. An order with no Documents section at all made the Floorplan Info block read the appraiser’s observations off nothing, which threw, and took the whole Project & Inspection sheet down with it. Two live orders (2026-100 and 2026-110) are in that state. The text is read safely now and an empty one simply prints the usual “no appraiser observations” line. Verified in real Chrome: 47/47 checks in tools/photo-keep-check.mjs, each one mutation-tested.'},
@@ -37014,7 +37029,10 @@ function _apqRow(it, now){
   // the live data carries a trailing ", na" province on nearly every city
   var city  = String(o.city || '').replace(/,\s*na\s*$/i, '').trim();
 
-  var l2 = '<span class="apq-date">Date ' + _apqEsc(_apqStamp(o.approvedAt)) + '</span>';
+  // §DASH-PAY (v2.532) — the money leads line 2, as it does on SYNAPTIC.
+  var l2 = _synPayPill(_synPay(o));
+  if(l2) l2 += '<span class="apq-sep">·</span>';
+  l2 += '<span class="apq-date">Date ' + _apqEsc(_apqStamp(o.approvedAt)) + '</span>';
   if(city)  l2 += '<span class="apq-meta">· ' + _apqEsc(city) + '</span>';
   if(age)   l2 += '<span class="apq-age ' + age.c + '">· ' + age.t + '</span>';
   // who did what, quietly, once there is something to say
@@ -37035,7 +37053,7 @@ function _apqRow(it, now){
                 + ' · ' + _apqEsc(_apqStamp(o.digitalAt)) + '</span>';
 
   return '<div class="apq-row' + (isNew ? ' is-new' : '')
-    + (_apqFlash === o.id ? ' is-flash' : '') + '"'
+    + (_apqFlash === o.id ? ' is-flash' : '') + _dashPayRowCls(o) + '"'
     + ' data-oid="' + _apqEsc(o.id) + '" title="' + _apqEsc(_apqPlain(o)) + '">'
     + _apqShield(17, 'apq-tick')
     + '<div class="apq-txt" data-apq-open="1">'
@@ -37708,7 +37726,7 @@ function _synRow(it){
   var sel = !!_synSel[String(o.id)];
 
   return '<div class="apq-row' + (_synFlash === o.id ? ' is-flash' : '')
-    + (committed ? ' is-committed' : '') + (sel ? ' is-sel' : '') + (it.appr ? ' is-appr' : '') + '"'
+    + (committed ? ' is-committed' : '') + _dashPayRowCls(o) + (sel ? ' is-sel' : '') + (it.appr ? ' is-appr' : '') + '"'
     + ' data-oid="' + _apqEsc(o.id) + '" title="' + _apqEsc(_synPlain(it)) + '">'
     + '<button type="button" class="syn-sel" role="checkbox" data-syn-act="sel"'
     +   ' aria-checked="' + (sel ? 'true' : 'false') + '"'
@@ -38372,11 +38390,13 @@ function _synPay(o){
   return _SYN_PAY[id] || null;
 }
 
+// §DASH-PAY (v2.532) — the owner's three words: NOT PAID, PARTIALLY PAID, FULLY PAID.
+//   Overdue is still not paid, so it says so first and keeps the lateness after it.
 var _SYN_PAY_LBL = {
-  paid:     'PAID',
-  part:     'PART PAID',
-  unpaid:   'UNPAID',
-  over:     'OVERDUE',
+  paid:     'FULLY PAID',
+  part:     'PARTIALLY PAID',
+  unpaid:   'NOT PAID',
+  over:     'NOT PAID · OVERDUE',
   draft:    'DRAFT INVOICE',
   credited: 'CREDITED',
   none:     'NOT INVOICED'
@@ -38407,6 +38427,21 @@ function _synPayPill(p){
   else if(p.st === 'paid') amt = '<b>' + _apqEsc(_synMoney(p.total, p.cur)) + '</b>';
   return '<span class="syn-pay ' + p.st + (p.late ? ' is-late' : '') + '" title="' + _apqEsc(_synPayText(p)) + '">'
        + _apqEsc(lbl) + amt + '</span>';
+}
+
+// §DASH-PAY (v2.532) — ASKED FOR: "under DASHBOARD show INVOICE status. If Fully
+//   PAID, light up the full background of that LINE to light green; if Partially
+//   Paid, light yellow; if NOT PAID, colour the text of NOT PAID red."
+//   One answer for all three dashboard lists (Ready to Deliver, SYNAPTIC, Scheduled
+//   Inspections), read from the same §SYN-PAY cache, so a job order can never be
+//   green in one box and yellow in the next. A row whose money has not been read
+//   gets no class and no pill — the §SYN-PAY honesty rule, unchanged.
+function _dashPayRowCls(o){
+  var p = _synPay(o);
+  if(!p) return '';
+  if(p.st === 'paid') return ' pay-full';
+  if(p.st === 'part') return ' pay-part';
+  return '';
 }
 
 // The read. One query, open orders only, six columns, void excluded.
@@ -38451,6 +38486,9 @@ function _synPayProbe(force){
 // repaints whatever happens to be on screen instead of one hard-coded box.
 function _synPayRepaint(){
   try{ synRender(); }catch(e){}
+  // §DASH-PAY (v2.532) — the other two dashboard boxes show the same answer now.
+  try{ if(typeof apqRender === 'function') apqRender(); }catch(e){}
+  try{ if(typeof uisRender === 'function') uisRender(); }catch(e){}
   try{ if(typeof _ovlOn !== 'undefined' && _ovlOn && typeof ovlRender === 'function') ovlRender(); }catch(e){}
   // §CLIENT-PAID (v2.497) — the Consultants tab now shows the client’s side too, so it
   //   is a third screen waiting on this answer. Without this the row would sit on
@@ -38706,7 +38744,10 @@ function _uisRow(it){
     badge = '<span class="uis-badge due-soon">IN ' + it.diff + ' DAYS</span>';
   }
 
-  var l2 = '<span class="uis-who">Inspector: '
+  // §DASH-PAY (v2.532) — the money leads line 2, as it does on SYNAPTIC.
+  var l2 = _synPayPill(_synPay(o));
+  if(l2) l2 += '<span class="apq-sep">·</span>';
+  l2 += '<span class="uis-who">Inspector: '
          + (who ? '<b>' + _apqEsc(who) + '</b>' : '<b>Unassigned</b>') + '</span>';
   if(city) l2 += '<span class="apq-meta">· ' + _apqEsc(city) + '</span>';
   if(o.status) l2 += '<span class="apq-meta">· ' + _apqEsc(o.status) + '</span>';
@@ -38809,7 +38850,7 @@ function _uisRow(it){
           + (cwdone ? '💬 Client opened' : '💬 Client') + '</button>';
   }
 
-  return '<div class="apq-row' + rowCls + '" data-oid="' + _apqEsc(o.id) + '"'
+  return '<div class="apq-row' + rowCls + _dashPayRowCls(o) + '" data-oid="' + _apqEsc(o.id) + '"'
     + ' title="' + _apqEsc(String(o.id) + ' - ' + (o.address||'no address') + ': inspection '
         + _uisDay(it.d) + (t ? ' at ' + t : ' (no time set)')
         + ' — ' + (who || 'unassigned')) + '">'
