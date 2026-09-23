@@ -12637,6 +12637,8 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
         <span class="doc-status missing" id="req-2" style="margin:0">Site Plan</span>
         <span class="doc-status missing" id="req-3" style="margin:0">Floor Plan</span>
       </div>
+      <!-- §SPACA-ATTACH (v2.553) — the SP&SCA contracts made for this job; filled by _spContractsPaint() -->
+      <div id="spacaContracts" style="display:none;"></div>
     </div>
 
     <!-- ⑬  Valuation -->
@@ -20659,7 +20661,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
-  {v:'v2.553',type:'feat',date:'09-23-2026',ts:'09-23-2026 20:00',_static:true,title:'Create Contract: a Close button that is always in reach',desc:'The Create Contract (SP&SCA) dialog now has a round ✕ Close button in its top-right corner, next to Sync Data. The dialog is long, so its title bar — with the title, Sync Data and Close — now stays pinned at the top while you scroll through the fields, and Close is always one click away. It closes the same way Cancel and the Escape key do: the dialog shrinks back into the button that opened it. Closing while a contract is being prepared does not stop it; the contract still appears in its own window when it is ready.'},
+  {v:'v2.553',type:'feat',date:'09-23-2026',ts:'09-23-2026 20:00',_static:true,title:'Create Contract: attached to Documents automatically, bold key facts, a payment schedule table, a Close button',desc:'ATTACHED AUTOMATICALLY. Every contract made with Create Contract is now linked at the end of Inspect Data › Documents, in a new Contract card: the newest first, marked LATEST, with who made it and when, and Open, Print / PDF and Remove link beside each (up to ten are kept). What is attached is the contract document itself, typeset exactly as it was made — logo header, footer and page numbers on every page — and Print / PDF turns it into a PDF in one click. Corrections typed into an attached contract are saved back to it a few seconds after you stop typing, so the attachment is always the corrected version. Remove link takes it off the list but keeps the file. EASIER TO READ. In the contract the facts people look for are now in bold: the buyer’s and the developer’s names, the project name, the lot, every amount in AWG or US$, percentages, phase numbers, dates and areas in m². Article headings are heavier. THE PAYMENT PHASES ARE A TABLE. The instalments now print as a proper table inside the payment article — Phase, Instalment (what triggers it, in the contract’s own words), %, AWG and US$ in aligned columns, with a total row and the exchange rate under it. When the phases were entered in the dialog, the figures in the table are exactly those; otherwise they are the ones in the contract. Rows never split across a page, and the column headings repeat if the table continues on the next page. CLOSE BUTTON. The Create Contract (SP&SCA) dialog now has a round ✕ Close button in its top-right corner, next to Sync Data. The dialog is long, so its title bar — with the title, Sync Data and Close — now stays pinned at the top while you scroll through the fields, and Close is always one click away. It closes the same way Cancel and the Escape key do: the dialog shrinks back into the button that opened it. Closing while a contract is being prepared does not stop it; the contract still appears in its own window when it is ready.'},
   {v:'v2.552',type:'feat',date:'09-23-2026',ts:'09-23-2026 18:00',_static:true,title:'Create Contract: a payment schedule in phases (AWG and US$), and a progress percentage',desc:'PAYMENT PHASES. Under the sale amount the dialog now has a payment schedule of up to six phases. Type the percentage of each phase and the amounts are worked out for you as you type, in AWG and in US$, with the total underneath — green with a tick at exactly 100%, red otherwise. The US$ figures use the exchange rate in the box beside it (1 US$ = 1.79 AWG, the fixed peg, unless you change it). Amounts are rounded to the cent and the last phase takes the rounding difference, so the phases always add up to the sale amount exactly. The percentages and the rate are saved to the project, so every lot of the development starts with the same schedule. The AI puts them into the contract’s own instalments in order — Phase 1 into the first instalment, and so on — keeping each instalment’s own wording, and says so if the contract has a different number of instalments. A schedule is optional; one that does not add up to 100% is refused before anything is sent. SALE AMOUNT FROM THE VALUATION PAGE. The sale amount is taken from the Sales Price box on the Valuation page — when the dialog opens and again on Sync Data — and a line under it says where it came from. That box is free text, so it is read exactly the way the report reads it: “AWG 350,000”, “350,000” and “350000.50” are understood; “350.000” could be three hundred and fifty or three hundred and fifty thousand, so instead of guessing the dialog shows what the Valuation page says and asks for the number. Before this, a Sales Price written with “AWG” in front of it did not come across at all. PROGRESS. Preparing an SP&SCA can take a minute or two, and until now the only sign of life was a line of text. A progress bar with a percentage now shows in the Create Contract dialog, on the Create button itself and in the “Preparing…” window that opens with it, together with what is happening: reading the contract, sending it to the AI, the AI reading the contract, writing the contract, typesetting the pages. The AI does not report its own progress, so the number is built from what can be measured — the real download of the contract, the text of the contract as it arrives against an estimate from the number of pages in the draft, and the moment the signatures start (by then every article is written). It never goes backwards and only reaches 100% when the contract window is ready. If something goes wrong the bar stops where it was, turns red and says why.'},
   {v:'v2.551',type:'feat',date:'09-23-2026',ts:'09-23-2026 14:00',_static:true,title:'Create Contract: an AI-prepared SP&SCA for housing-project jobs',desc:'For jobs that belong to a housing project, Inspect Data › Documents has a new button, Create Contract (SP&SCA). Attach the Sales Purchase Agreement & Construction Agreement the developer uses in one of the Documents slots, press the button, and check the details it has filled in for you: the buyer\'s first and last name, the Lot / Unit #, the sale amount (taken from the Presumable Sales Price) and every size from Project Data — parcel, building, backyard, roof top, roof terrace, staircase, pool, jacuzzi, fencing, flooring and parking. A Contract setup box at the top keeps three things on the project, so every lot of the development reuses them: the developer’s name (the seller / builder in the contract), a PNG logo made for a white background (used on the contract instead of the project logo), and the Draft SP&SCA PDF — press Upload Draft SP&SCA PDF once and it is offered as the contract to base every lot on. The dialog also carries the rest of Project Data the contract can use — the buyer’s address, phone and email; the parcel’s street address, type, ROPV zone, legal description, APN and registered owners; the building type, year, bedrooms, bathrooms, expected completion, builder and any further parcels or buildings — and a Sync Data button reads all of it fresh from the saved job on the server and refills the dialog, outlining in green every field it changed. Sync only reads: it writes nothing, and it never empties a field the job has no value for, so a sale amount typed into the dialog survives it. The AI reads the attached contract itself and prepares this buyer\'s version: it keeps the contract\'s own language, wording and obligations and changes only the buyer, lot, price (in figures and in words) and sizes, leaving any detail it was not given as a blank line. Every page carries the project logo in its header and, in the footer, “SP&SCA Sales Purchase & Contract Agreement” on the left and “Page N of M” on the right; the contract text flows from page to page inside the space between them and can never run into the header or footer. A Print / Preview button in the dialog reopens the last contract made for the job — including any corrections typed into it — and goes straight to the print preview, where Save as PDF keeps a copy. The result opens as a compact A4 document with the project\'s logo and balanced fonts, and you can edit any word directly on the page before saving it as a PDF. A yellow review box — not printed — lists every value the AI filled in and anything it was unsure of. The dialog grows out of the button that opened it and returns there when closed (Cancel or Escape, even halfway through opening), buttons react the moment they are pressed, and the contract window opens straight away with a “Preparing the contract…” page that fills in when the AI is done — so the browser’s pop-up blocker cannot stop it. With Reduce Motion or Reduce Transparency switched on in the system settings, it fades instead of moving and uses solid panels instead of glass. It uses the Anthropic API key in Settings › API Keys. Always read the contract before it is signed.'},
   {v:'v2.550',type:'fix',date:'09-23-2026',ts:'09-23-2026 12:00',_static:true,title:'Quick View shows a completed Presumable valuation in green',desc:'When a valuation was set to Presumable and fully filled in, Quick View still showed the Valuation step as Not Completed and the value boxes as "No valuation data yet", because it only ever looked at the Current values. It now follows the chosen valuation type, on every appraisal type: a Presumable valuation turns green once its three values (Free Market, Execution and Re-Construction) are filled — including the manual Presumable figures of a New Construction — a valuation set to Both turns green once Current and Presumable are both complete, and a Current valuation works as before. The value boxes in Quick View show the Presumable figures, marked PRESUMABLE, when that is the valuation there is.'},
@@ -45825,6 +45827,7 @@ function _spEsc(s){ return (typeof _erEsc === 'function') ? _erEsc(s) : String(s
 
 // The bar at the top of Inspect Data › Documents — project jobs only.
 function spacaBar(order){
+  try{ _spContractsPaint(order); }catch(_c){}   // §SPACA-ATTACH (v2.553)
   var bar = document.getElementById('spacaBar'); if(!bar) return;
   if(!order || !order.housingProjectId){ bar.innerHTML = ''; bar.style.display = 'none'; return; }
   var p = (typeof hpById === 'function') ? hpById(order.housingProjectId) : null;
@@ -46454,7 +46457,7 @@ async function _spacaPdfBase64(o, idx){
 
 var SPACA_SCHEMA = {
   type:'object', additionalProperties:false,
-  required:['language','title','subtitle','parties','recitals','articles','signatures','changes','check'],
+  required:['language','title','subtitle','parties','recitals','articles','schedule','schedule_article','signatures','changes','check'],
   properties:{
     language:{ type:'string', description:'Language of the contract, e.g. English, Dutch, Spanish, Papiamento' },
     title:{ type:'string' }, subtitle:{ type:'string' },
@@ -46462,6 +46465,12 @@ var SPACA_SCHEMA = {
     recitals:{ type:'array', items:{ type:'string' } },
     articles:{ type:'array', items:{ type:'object', additionalProperties:false, required:['number','heading','paragraphs'],
       properties:{ number:{ type:'string' }, heading:{ type:'string' }, paragraphs:{ type:'array', items:{ type:'string' } } } } },
+    // §SPACA-EMPH (v2.553) — the payment instalments, one row each, for the schedule TABLE
+    schedule:{ type:'array', description:'The payment instalments in order, one row each; empty if the contract has none',
+      items:{ type:'object', additionalProperties:false, required:['phase','description','percent','amount_awg','amount_usd'],
+        properties:{ phase:{ type:'string' }, description:{ type:'string', description:'What triggers this instalment, in the contract’s own words, short' },
+                     percent:{ type:'string' }, amount_awg:{ type:'string' }, amount_usd:{ type:'string' } } } },
+    schedule_article:{ type:'string', description:'The number of the article the payment schedule belongs to, exactly as in "number"; empty if none' },
     signatures:{ type:'array', items:{ type:'object', additionalProperties:false, required:['role','name'], properties:{ role:{ type:'string' }, name:{ type:'string' } } } },
     changes:{ type:'array', items:{ type:'string' }, description:'Every value you inserted or replaced, as "<what>: <old> → <new>"' },
     check:{ type:'array', items:{ type:'string' }, description:'Anything you could not fill or were unsure of, for the reviewer' }
@@ -46546,6 +46555,7 @@ async function spacaGenerate(){
       + '- If a payment schedule is given below, it replaces the contract’s own instalments: Phase 1 is the contract’s first instalment, Phase 2 the second, and so on. Keep each instalment’s own description and trigger (signing, foundation, roof, delivery…) from the contract, and put in the percentage and the amounts given — AWG always, and US$ wherever the contract states US$ amounts or an exchange rate. Write amounts in words too where the contract does. If the contract has a different number of instalments than the phases given, say so under "check".\n'
       + '- Where the contract has a blank or placeholder for something not given below (ID number, date of birth, signing date and place, etc.), keep a blank line "__________".\n'
       + '- Keep it as short as the contract allows: no repeated headers, no page furniture, no line-by-line tables of contents. Put each article’s text in its paragraphs, one paragraph per numbered sub-clause.\n'
+      + '- Return the payment instalments separately in "schedule" (one row per instalment, in order: phase number, a short description of what triggers it in the contract’s own words, percentage, AWG amount, US$ amount — empty strings where the contract has none) and the number of the article they belong to in "schedule_article". They are printed as a table inside that article, so do not also list the instalments line by line in its paragraphs; keep the article’s other text and refer to "the payment schedule below" where the list used to be.\n'
       + '- List every value you inserted or replaced under "changes", and anything unclear under "check".\n\n'
       + 'Buyer details:\n' + details;
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -46587,8 +46597,17 @@ async function spacaGenerate(){
     _spProgSet('show', 0);
     try{ appLog('ACTION','DEVELOPMENTS','SP&SCA prepared by AI for ' + (o.projectNumber || o.id) + ' (' + first + ' ' + last + ', lot ' + lot + ')'); }catch(e){}
     _spMsg('Done — the contract has opened in a new window. Review it, adjust anything, then Save as PDF.');
-    _spKeep(o.id, { c:c, lot:lot, sale:sale, bodyHtml:'' });   // §SPACA-PRINT — kept for Print / Preview
-    await spacaShow(c, o, p, { lot:lot, sale:sale }, { win: win });
+    // §SPACA-EMPH (v2.553) — names, lot and the exact phase figures travel with the contract
+    var xx = { lot:lot, sale:sale, first:first, last:last, dev:dev,
+               ph: ph.any ? { rows: ph.rows.filter(function(r){ return r.raw !== ''; }), rate: ph.rate, saleC: ph.saleC, usdTotC: ph.usdTotC } : null };
+    _spKeep(o.id, { c:c, lot:lot, sale:sale, x:xx, bodyHtml:'' });   // §SPACA-PRINT — kept for Print / Preview
+    var shown = await spacaShow(c, o, p, xx, { win: win });
+    // §SPACA-ATTACH (v2.553) — link it in Documents; a failure here never loses the contract window
+    if(shown){
+      try{ SPACA.pg && (SPACA.pg.stage = 'show'); await _spAttach(o, shown, { lot: lot, buyer: [first, last].filter(Boolean).join(' ') }); _spKeep(o.id, { path: shown._spPath });
+           _spMsg('Done — the contract has opened in a new window and is attached at the end of Documents. Edits you make in it are saved to the attachment.'); }
+      catch(ae){ _spMsg('The contract was created, but it could not be attached to Documents — ' + ((ae && ae.message) || ae) + '. Use Save as PDF in its window to keep a copy.', 'err'); }
+    }
     _spProgEnd(true);
   }catch(e){
     _spProgEnd(false, (e && e.message) || e);
@@ -46635,23 +46654,87 @@ function _spHeaderLogo(src){
   });
 }
 // The contract body (what the reader edits) from the AI's structured answer.
+// §SPACA-EMPH (v2.553) — the facts a reader looks for are set in bold: the buyer's and the
+//   developer's names, the project (residence) name, the lot, money (AWG / Afl. / US$ amounts),
+//   percentages, phase numbers, dates and areas. One pass over the ESCAPED text with one
+//   alternation, so a match is never wrapped twice and nothing inside an entity is touched.
+//   Names come from the dialog (exact strings); the rest are patterns in English, Dutch and
+//   Spanish. A bare lot number is only bolded with its word ("Lot 5"), never on its own —
+//   a lone "5" is everywhere in a contract.
+var SP_MONTHS = 'January|February|March|April|May|June|July|August|September|October|November|December|januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre';
+function _spRx(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function _spEmphRe(x, p){
+  var e = _spEsc, terms = [];
+  var add = function(s){ s = String(s || '').trim(); if(s.length >= 3) terms.push(_spRx(e(s))); };
+  if(x){ add([x.first, x.last].filter(Boolean).join(' ')); add(x.last); add(x.first); add(x.dev); }
+  if(p) add(p.name);
+  terms.sort(function(a, b){ return b.length - a.length; });
+  var num = '\\d[\\d.,]*\\d|\\d';
+  var pats = [
+    '(?:AWG|Afl\\.?|ANG|US\\$|USD|ƒ)\\s?(?:' + num + ')(?:\\s?(?:AWG|florins?|guilders?))?',
+    '(?:' + num + ')\\s?(?:AWG|florins?|guilders?|US dollars?|dollars?)\\b',
+    '(?:' + num + ')\\s?(?:m²|m2|sq\\.?\\s?m|square met(?:er|re)s?|vierkante meters?|metros cuadrados)',
+    '\\d+(?:[.,]\\d+)?\\s?%',
+    '\\b(?:Phase|Fase|Termijn|Instalment|Installment)\\s\\d+\\b',
+    '\\b(?:Lot|Kavel|Lote|Unit)\\s?(?:no\\.?|nr\\.?|#)?\\s?(?:' + _spRx(e(String((x && x.lot) || ''))) + '|\\d+[A-Za-z]?)\\b',
+    '\\b\\d{1,2}(?:st|nd|rd|th)?\\s(?:de\\s)?(?:' + SP_MONTHS + ')(?:\\s(?:de\\s)?\\d{4})?\\b',
+    '\\b(?:' + SP_MONTHS + ')\\s\\d{1,2}(?:st|nd|rd|th)?,?\\s\\d{4}\\b',
+    '\\b\\d{1,2}[-/.]\\d{1,2}[-/.]\\d{2,4}\\b'
+  ];
+  return new RegExp('(' + terms.concat(pats).join('|') + ')', 'gi');
+}
+function _spEmph(t, re){ var s = _spEsc(t); return re ? s.replace(re, '<b class="em">$1</b>') : s; }
+// The payment schedule as a table. Amounts come from the dialog's own exact figures when a
+//   schedule was entered there (x.ph); the instalment descriptions come from the contract.
+function _spSchedHtml(c, x){
+  var e = _spEsc, ai = Array.isArray(c.schedule) ? c.schedule : [];
+  var rows = [], ph = x && x.ph;
+  if(ph && ph.rows && ph.rows.length){
+    rows = ph.rows.map(function(r, i){
+      var m = ai.filter(function(s){ return parseInt(s.phase, 10) === r.n; })[0] || ai[i] || {};
+      return { n: String(r.n), d: m.description || '', pct: (Math.round(r.pct * 100) / 100) + '%', awg: _spMoney(r.awgC), usd: ph.rate > 0 ? _spMoney(r.usdC) : '' };
+    });
+  } else {
+    rows = ai.map(function(s, i){ return { n: String(s.phase || (i + 1)), d: s.description || '', pct: s.percent || '', awg: s.amount_awg || '', usd: s.amount_usd || '' }; });
+  }
+  if(!rows.length) return '';
+  var hasUsd = rows.some(function(r){ return r.usd; });
+  var tot = (ph && ph.rows && ph.rows.length)
+    ? '<tr class="tot"><td>Total</td><td></td><td class="n">100%</td><td class="n">AWG ' + _spMoney(ph.saleC) + '</td>' + (hasUsd ? '<td class="n">US$ ' + _spMoney(ph.usdTotC) + '</td>' : '') + '</tr>' : '';
+  return '<table class="sched"><thead><tr><th>Phase</th><th>Instalment</th><th class="n">%</th><th class="n">AWG</th>' + (hasUsd ? '<th class="n">US$</th>' : '') + '</tr></thead><tbody>'
+    + rows.map(function(r){
+        return '<tr><td class="ph">' + e(r.n) + '</td><td>' + e(r.d) + '</td><td class="n pc">' + e(r.pct) + '</td><td class="n am">' + e(r.awg) + '</td>' + (hasUsd ? '<td class="n am">' + e(r.usd) + '</td>' : '') + '</tr>';
+      }).join('')
+    + tot + '</tbody></table>'
+    + ((ph && ph.rate > 0 && hasUsd) ? '<div class="rate">Exchange rate: 1 US$ = AWG ' + e(String(ph.rate)) + '</div>' : '');
+}
 function _spBodyHtml(c, p, x){
-  var e = _spEsc, para = function(t){ return '<p>' + e(t).replace(/_{4,}/g, '<span class="blank">$&</span>') + '</p>'; };
-  var arts = (c.articles || []).map(function(a){
+  var re = _spEmphRe(x, p);
+  var e = _spEsc, para = function(t){ return '<p>' + _spEmph(t, re).replace(/_{4,}/g, '<span class="blank">$&</span>') + '</p>'; };
+  // where the schedule table goes: the article the AI named, else the first payment-like article,
+  //   else its own section before the signatures
+  var sched = _spSchedHtml(c, x), arts0 = c.articles || [], at = -1;
+  if(sched){
+    var want = String(c.schedule_article || '').replace(/\D+/g, '');
+    arts0.forEach(function(a, i){ if(at < 0 && want && String(a.number || '').replace(/\D+/g, '') === want) at = i; });
+    if(at < 0) arts0.forEach(function(a, i){ if(at < 0 && /pay|betal|termijn|pago|plazo|price|prijs|koopsom|precio/i.test(a.heading || '')) at = i; });
+  }
+  var arts = arts0.map(function(a, i){
     var ps = (a.paragraphs || []).map(para);
     // keep-with-next: the heading travels with its opening paragraph — only when that paragraph
     //   is short (a long one may split between lines instead of evicting the page)
     var first = (a.paragraphs || [])[0] || '';
     var head = '<h3><span>' + e(a.number || '') + '</span> ' + e(a.heading || '') + '</h3>';
     var lead = (ps.length && String(first).length <= 420) ? '<div class="kw">' + head + ps.shift() + '</div>' : head;
-    return '<section class="art">' + lead + ps.join('') + '</section>';
-  }).join('');
+    return '<section class="art">' + lead + ps.join('') + (sched && i === at ? sched : '') + '</section>';
+  }).join('')
+  + (sched && at < 0 ? '<section class="art"><h3>Payment schedule</h3>' + sched + '</section>' : '');
   var sigs = (c.signatures || []).map(function(s){ return '<div class="sig"><div class="line"></div><b>' + e(s.name || '') + '</b><span>' + e(s.role || '') + '</span></div>'; }).join('');
   return '<header class="title"><h1>' + e(c.title || 'Sales Purchase Agreement & Construction Agreement') + '</h1>'
-    + (c.subtitle ? '<div class="sub">' + e(c.subtitle) + '</div>' : '')
+    + (c.subtitle ? '<div class="sub">' + _spEmph(c.subtitle, re) + '</div>' : '')
     + ((c.subtitle && String(c.subtitle).indexOf(String(x.lot)) >= 0) ? '' : '<div class="meta">' + e((p ? p.name + ' · ' : '') + 'Lot ' + x.lot) + '</div>')
     + '</header>'
-    + '<div class="parties">' + (c.parties || []).map(function(pt){ return '<div class="party"><b>' + e(pt.role) + '</b>' + e(pt.text) + '</div>'; }).join('') + '</div>'
+    + '<div class="parties">' + (c.parties || []).map(function(pt){ return '<div class="party"><b class="role">' + e(pt.role) + '</b>' + _spEmph(pt.text, re) + '</div>'; }).join('') + '</div>'
     + ((c.recitals || []).length ? '<div class="recitals">' + c.recitals.map(para).join('') + '</div>' : '')
     + arts
     + '<div class="sigs">' + sigs + '</div>';
@@ -46681,10 +46764,21 @@ function _spDocCss(headLogo, headRight){
     + 'header.title{text-align:center;border-bottom:1.2px solid #1f1b16;padding:1.5mm 0 7px;margin-bottom:10px;}'   // top pad: the 14.5pt caps' font box rose 0.6mm above the content edge (measured)
     + 'h1{font:700 14.5pt/1.2 ' + sans + ';letter-spacing:.01em;margin:0;text-transform:uppercase;}'   // caps want a little air, less than before
     + '.sub{font:500 8.8pt ' + sans + ';color:#5c554b;margin-top:2px;}.meta{font:600 8.5pt ' + sans + ';color:#5c554b;margin-top:3px;}'
-    + '.parties{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin:8px 0 6px;}.party{break-inside:avoid;}.party b{display:block;font:700 7.8pt ' + sans + ';letter-spacing:.1em;text-transform:uppercase;color:#6b6257;}'
+    + '.parties{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin:8px 0 6px;}.party{break-inside:avoid;}.party b.role{display:block;font:700 7.8pt ' + sans + ';letter-spacing:.1em;text-transform:uppercase;color:#6b6257;}'
     + '.recitals{margin:6px 0 8px;}.recitals p{margin:0 0 3px;}p{margin:0 0 3.5px;text-align:justify;hyphens:auto;orphans:3;widows:3;}'
     // break rules OUTSIDE @media print (the house rule): a heading is bound to a short opening paragraph
-    + '.art{margin-top:6px;}.kw{break-inside:avoid;}h3{font:700 9.2pt/1.25 ' + sans + ';margin:7px 0 2.5px;break-after:avoid;}h3 span{color:#7c3aed;margin-right:4px;}'
+    + '.art{margin-top:6px;}.kw{break-inside:avoid;}h3{font:800 9.4pt/1.25 ' + sans + ';letter-spacing:.01em;margin:8px 0 2.5px;break-after:avoid;color:#14110d;}h3 span{color:#7c3aed;margin-right:4px;}'
+    // §SPACA-EMPH (v2.553) — bold facts in the serif's semibold, dark, so they read at a glance
+    + 'b.em{font-weight:700;color:#14110d;}'
+    // the payment schedule table: rows never split, head repeats on a continuation page, banding on cells
+    + '.sched{width:100%;border-collapse:collapse;margin:6px 0 4px;font:8.6pt/1.35 ' + sans + ';font-variant-numeric:tabular-nums;break-inside:auto;}'
+    + '.sched thead{display:table-header-group;}.sched tr,.sched td,.sched th{break-inside:avoid;}'
+    + '.sched th{font:700 7pt ' + sans + ';letter-spacing:.08em;text-transform:uppercase;color:#5c554b;text-align:left;padding:4px 7px;background:#f3efe7;border-top:1.2px solid #1f1b16;border-bottom:1px solid #1f1b16;}'
+    + '.sched td{padding:4px 7px;border-bottom:.6px solid #ddd6c9;vertical-align:top;}'
+    + '.sched tbody tr:nth-child(even) td{background:#faf8f3;}'
+    + '.sched .n{text-align:right;white-space:nowrap;}.sched .ph{font-weight:800;width:13mm;}.sched .pc{font-weight:800;width:15mm;}.sched .am{font-weight:700;width:30mm;}'
+    + '.sched tr.tot td{font-weight:800;border-top:1.2px solid #1f1b16;border-bottom:1.2px solid #1f1b16;background:#f3efe7;}'
+    + '.rate{font:500 7.8pt ' + sans + ';color:#6b6257;text-align:right;margin:0 0 6px;}'
     + '.blank{background:#fff3c4;}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;margin-top:16px;break-inside:avoid;}'
     + '.sig{break-inside:avoid;}.sig .line{border-bottom:1px solid #1f1b16;height:14mm;margin-bottom:3px;}.sig b{display:block;font:600 9pt ' + sans + ';}.sig span{font-size:8.5pt;color:#5c554b;}'
     + '.review{width:' + g.paperW + 'mm;max-width:100%;margin:0 auto 30px;background:#fffbea;border:1px solid #e3cf87;border-radius:8px;padding:12px 16px;font:12px/1.5 ' + sans + ';}'
@@ -46710,7 +46804,7 @@ async function spacaShow(c, o, p, x, opt){
   var html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>SP&amp;SCA — ' + e(headRight) + '</title>'
     + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">'
     + '<style>' + _spDocCss(headLogo, headRight) + '</style></head><body>'
-    + '<div class="bar"><button id="spPrint">Print / Save as PDF</button><span>Click anywhere in the contract to edit it. Edits are kept for Print / Preview in the Create Contract dialog. The yellow box is for your review and is not printed.</span></div>'
+    + '<div class="bar"><button id="spPrint" onclick="window.print()">Print / Save as PDF</button><span>Click anywhere in the contract to edit it. Edits are kept for Print / Preview in the Create Contract dialog. The yellow box is for your review and is not printed.</span></div>'
     + '<div class="sheet"><div class="shead">' + (headLogo ? '<img src="' + headLogo + '" alt="">' : '<span></span>') + '<span>' + e(headRight) + '</span></div>'
     + '<div class="doc" contenteditable="true" spellcheck="true">' + body + '</div>'
     + '<div class="sfoot"><span>' + e(SPACA_FOOT) + '</span><span>Page 1 of …</span></div></div>' + review
@@ -46720,6 +46814,7 @@ async function spacaShow(c, o, p, x, opt){
   try{
     var doc = w.document.querySelector('.doc'), t = null;
     doc.addEventListener('input', function(){ clearTimeout(t); t = setTimeout(function(){ _spKeep(key, { bodyHtml: doc.innerHTML }); }, 400); });
+    _spAutoSave(w, opt.path || '');   // §SPACA-ATTACH — and to the attached copy, once it has a path
   }catch(_i){}
   var settle = function(){
     var imgs = Array.prototype.slice.call(w.document.images || []).filter(function(i){ return !i.complete; });
@@ -46732,6 +46827,112 @@ async function spacaShow(c, o, p, x, opt){
   if(opt.autoPrint) settle().then(function(){ try{ w.focus(); w.print(); }catch(_p){} });
   return w;
 }
+// §SPACA-ATTACH (v2.553) — "after Create Contract, link the contract as an attachment at the end
+//   of Inspect Data › Documents". WHAT is attached is the contract DOCUMENT itself (a
+//   self-contained HTML file: its own styles, the logo inline, the @page header and footer), not a
+//   PDF. The one PDF maker in the app photographs the screen and slices the picture into strips
+//   (_finRenderPdfBlob): it would drop the running logo header, the footer and the page numbers,
+//   and cut lines in half at the strip edges — exactly what §SPACA-PRINT exists to prevent. A true
+//   paginated PDF only comes out of the browser's print engine, so the attachment opens in one
+//   click, typeset exactly as made, with Print / Save as PDF on it.
+//   · Files: Storage 'Storage', contracts/<order>/SPSCA-Lot<lot>-<stamp>.html (never a DB row).
+//   · Links: order.spacaContracts [{path,name,at,by,lot,buyer}], newest first, at most 10,
+//     in extra_data and written only when set. Removing a link keeps the file.
+//   · Edits typed into an attached contract's window are saved back to ITS file (3s after the
+//     last keystroke), so the attachment is always the corrected contract.
+function _spStamp(d){ d = d || new Date(); var z = function(n){ return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds()); }
+function _spDocFile(w){ return '<!doctype html>\n' + w.document.documentElement.outerHTML; }
+async function _spUploadHtml(path, html, upsert){
+  var blob = new Blob([html], { type:'text/html;charset=utf-8' });
+  var r = await _sb.storage.from('Storage').upload(path, blob, { upsert: !!upsert, contentType:'text/html;charset=utf-8', cacheControl:'0' });
+  if(r && r.error) throw new Error(r.error.message || 'upload failed');
+}
+async function _spAttach(o, w, info){
+  var safe = function(s){ return String(s || '').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'x'; };
+  var path = 'contracts/' + safe(o.id) + '/SPSCA-Lot' + safe(info.lot) + '-' + _spStamp() + '.html';
+  await _spUploadHtml(path, _spDocFile(w), false);
+  var rec = { path: path, name: 'SP&SCA — ' + (info.buyer || 'buyer') + ' · Lot ' + info.lot, at: new Date().toISOString(),
+              by: (typeof _authUser !== 'undefined' && _authUser && _authUser.email) || '', lot: String(info.lot || ''), buyer: info.buyer || '' };
+  o.spacaContracts = [rec].concat((Array.isArray(o.spacaContracts) ? o.spacaContracts : []).filter(function(c){ return c && c.path !== path; })).slice(0, 10);
+  try{ await persistOrders(o.id); }catch(e){ throw new Error('the file was stored but the link could not be saved: ' + ((e && e.message) || e)); }
+  try{ appLog('ACTION','DEVELOPMENTS','SP&SCA contract attached to ' + (o.projectNumber || o.id) + ': ' + path); }catch(e){}
+  w._spPath = path;
+  _spContractsPaint(o);
+  return rec;
+}
+// Saves a contract window's current document back to its file, 3s after the last edit.
+function _spAutoSave(w, path){
+  if(path) w._spPath = path;
+  var doc = w.document.querySelector('.doc'); if(!doc) return;
+  var t = null, st = w.document.querySelector('.bar span');
+  doc.addEventListener('input', function(){
+    if(!w._spPath) return;
+    clearTimeout(t);
+    t = setTimeout(async function(){
+      try{ await _spUploadHtml(w._spPath, _spDocFile(w), true); if(st) st.textContent = 'Your changes are saved to the attached contract in Documents (' + new Date().toLocaleTimeString() + ').'; }
+      catch(e){ if(st) st.textContent = 'Your changes could NOT be saved to the attachment — ' + ((e && e.message) || e) + '. Print / Save as PDF still works.'; }
+    }, 3000);
+  });
+}
+// Opens an attached contract: the window opens inside the click, then the file fills it.
+async function spacaOpenStored(i, print){
+  var o = (typeof _inspOrderId !== 'undefined' && _inspOrderId) ? _byId(_inspOrderId) : null;
+  var rec = o && Array.isArray(o.spacaContracts) ? o.spacaContracts[i] : null; if(!rec) return;
+  var w = window.open('', '_blank');
+  if(!w){ alert('Your browser blocked the contract window. Allow pop-ups for this site and try again.'); return; }
+  w.document.write('<!doctype html><title>Opening…</title><body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#e9e6e0;font:600 15px Inter,system-ui,sans-serif;color:#5c554b;">Opening the contract…</body>'); w.document.close();
+  try{
+    var r = await _sb.storage.from('Storage').createSignedUrl(rec.path, 600);
+    if(!r || r.error || !r.data || !r.data.signedUrl) throw new Error('the contract could not be found in storage');
+    var resp = await fetch(r.data.signedUrl);
+    if(!resp.ok) throw new Error('the contract could not be downloaded (' + resp.status + ')');
+    var html = await resp.text();
+    if(!/class="doc"/.test(html)) throw new Error('the stored file is not a contract');
+    w.document.open(); w.document.write(html); w.document.close();
+    _spAutoSave(w, rec.path);
+    if(print) setTimeout(function(){ try{ w.focus(); w.print(); }catch(_p){} }, 900);
+  }catch(e){
+    try{ w.document.body.textContent = 'The contract could not be opened — ' + ((e && e.message) || e); }catch(_w){}
+  }
+}
+async function spacaUnlink(i){
+  var o = (typeof _inspOrderId !== 'undefined' && _inspOrderId) ? _byId(_inspOrderId) : null;
+  var rec = o && Array.isArray(o.spacaContracts) ? o.spacaContracts[i] : null; if(!rec) return;
+  if(!confirm('Remove the link to "' + rec.name + '" from this job?\n\nThe file itself is kept in storage; only the link in Documents is removed.')) return;
+  o.spacaContracts = o.spacaContracts.filter(function(c, k){ return k !== i; });
+  try{ await persistOrders(o.id); }catch(e){}
+  _spContractsPaint(o);
+}
+// The Contract card at the end of Documents — project jobs, or any job that has contracts.
+function _spContractsPaint(o){
+  var box = document.getElementById('spacaContracts'); if(!box) return;
+  var list = (o && Array.isArray(o.spacaContracts)) ? o.spacaContracts : [];
+  if(!o || (!o.housingProjectId && !list.length)){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  var e = _spEsc, when = function(s){ try{ return new Date(s).toLocaleString(undefined, { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }); }catch(_d){ return s; } };
+  var btn = 'style="padding:6px 12px;font-size:12px;border-radius:7px;cursor:pointer;';
+  var row = function(c, i, latest){
+    return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:' + (latest ? '12px 14px' : '8px 14px') + ';' + (latest ? 'background:rgba(139,92,246,.08);border-radius:8px;' : 'border-top:1px solid rgba(255,255,255,.06);') + '">'
+      + '<span style="font-size:' + (latest ? '20px' : '15px') + ';">📜</span>'
+      + '<div style="flex:1;min-width:200px;"><div style="font-weight:' + (latest ? 800 : 600) + ';font-size:' + (latest ? '13.5px' : '12.5px') + ';color:#f5f5f4;">' + e(c.name) + (latest ? ' <span style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#c4b5fd;margin-left:6px;">LATEST</span>' : '') + '</div>'
+      +   '<div style="font-size:11.5px;color:#a8a29e;margin-top:2px;">Created ' + e(when(c.at)) + (c.by ? ' · ' + e(c.by) : '') + '</div></div>'
+      + '<button type="button" class="btn-sec" ' + btn + '" onclick="spacaOpenStored(' + i + ')">Open</button>'
+      + '<button type="button" class="btn-sec" ' + btn + 'border-color:#8b5cf6;color:#ddd6fe;" onclick="spacaOpenStored(' + i + ',true)">🖨 Print / PDF</button>'
+      + '<button type="button" class="btn-sec" ' + btn + 'color:#fca5a5;" onclick="spacaUnlink(' + i + ')" title="Remove this link (the file is kept)">Remove link</button>'
+      + '</div>';
+  };
+  box.style.display = '';
+  box.innerHTML = '<div style="margin-top:1.25rem;border:1px solid rgba(139,92,246,.4);border-radius:10px;overflow:hidden;">'
+    + '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(139,92,246,.1);border-bottom:1px solid rgba(139,92,246,.25);">'
+    +   '<span style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;">Contract</span>'
+    +   '<span style="font-size:12px;color:#a8a29e;flex:1;">' + (list.length ? 'SP&amp;SCA made with Create Contract — attached automatically.' : 'No contract yet. Press ✦ Create Contract (SP&amp;SCA) above; it is attached here automatically.') + '</span>'
+    +   (list.length ? '<span style="font-size:11px;font-weight:800;padding:1px 9px;border-radius:999px;background:rgba(139,92,246,.25);color:#ddd6fe;">' + list.length + '</span>' : '')
+    + '</div>'
+    + (list.length ? '<div style="padding:8px;">' + list.map(function(c, i){ return row(c, i, i === 0); }).join('') + '</div>' : '')
+    + '</div>';
+}
+try{ window.spacaOpenStored = spacaOpenStored; window.spacaUnlink = spacaUnlink; }catch(e){}
+
 // The last contract made for a job — the AI answer plus any edits — for Print / Preview.
 //   Kept in memory and in this browser only (a convenience, like an unsent draft); nothing
 //   goes to the database.
@@ -46760,7 +46961,7 @@ async function spacaPreview(){
   var last = _spLoad(o.id);
   if(!last){ _spMsg('Nothing to preview yet — press Create Contract first.', 'err'); return; }
   var p = (typeof hpById === 'function') ? hpById(o.housingProjectId) : null;
-  var w = await spacaShow(last.c, o, p, { lot: last.lot, sale: last.sale }, { bodyHtml: last.bodyHtml || '', autoPrint: true });
+  var w = await spacaShow(last.c, o, p, last.x || { lot: last.lot, sale: last.sale }, { bodyHtml: last.bodyHtml || '', autoPrint: true, path: last.path || '' });
   if(w) _spMsg('The print preview has opened. Choose "Save as PDF" as the printer to keep a PDF copy.');
 }
 try{ window.spacaOpen = spacaOpen; window.spacaGenerate = spacaGenerate; window.spacaBar = spacaBar;
@@ -66325,6 +66526,8 @@ function _toRow(o) {
       projectNumber:(o.projectNumber||undefined),
       projectImportedAt:(o.projectNumber ? (o.projectImportedAt||'') : undefined),
       lotUnit:(o.lotUnit||undefined),   // §HP-LOT (v2.539) — the Lot/Unit this job is for
+      // §SPACA-ATTACH (v2.553) — links to the SP&SCA contracts made for this job (files in Storage)
+      spacaContracts:((Array.isArray(o.spacaContracts) && o.spacaContracts.length) ? o.spacaContracts.slice(0, 10) : undefined),
       // §DELINQUENT (v2.535) — marked a delinquent account in Finance. Only when set.
       delinquentAt:(o.delinquentAt||undefined),
       delinquentBy:(o.delinquentAt ? (o.delinquentBy||'') : undefined),
@@ -66589,6 +66792,7 @@ function _fromRow(row, order) {
       order.projectNumber = x.projectNumber ? String(x.projectNumber) : '';          // §HP-IMPORT (v2.536)
       order.projectImportedAt = x.projectNumber ? String(x.projectImportedAt || '') : '';
       order.lotUnit = x.lotUnit ? String(x.lotUnit) : '';                              // §HP-LOT (v2.539)
+      order.spacaContracts = Array.isArray(x.spacaContracts) ? x.spacaContracts.filter(function(c){ return c && c.path; }).slice(0, 10) : [];   // §SPACA-ATTACH (v2.553)
       // §DELINQUENT (v2.535) — unconditional: clearing the mark stops writing the key.
       order.delinquentAt = x.delinquentAt ? String(x.delinquentAt) : '';
       order.delinquentBy = x.delinquentAt ? String(x.delinquentBy || '') : '';
