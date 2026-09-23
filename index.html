@@ -21634,7 +21634,7 @@ function _orderControlDropdown(o){
     +b(dis,  'openInsp(_byId(\''+sid+'\'))',     '&#128247; Inspect Data')
     // §T4-NOVAL (v2.462) — greyed for a Building Inspection with the same class the
     //   locked state uses, and its action removed so the row cannot open it either.
-    +b(dis + (sigmaNoValuation(o)?' oci-dis':''),   // \u00a7TYPE-REGISTRY (v2.528)
+    +b(dis + (sigmaNoValuation(o)?' oci-dis':''),   // \u00a7TYPE-REGISTRY (v2.551)
        (sigmaNoValuation(o) ? 'alert(_valBlockedFor(_byId(\''+sid+'\')));' : 'openValModal(_byId(\''+sid+'\'))'),
        '&#128200; Valuation')
     +b(dis,  'reportCheckRun(_byId(\''+sid+'\'))','&#128196; Report')
@@ -28389,7 +28389,7 @@ function _openOrderForm(type) {
 
   // ── Type badge ──────────────────────────────────────────────────────────
   var badge = document.getElementById('moTypeBadge');
-  // \u00a7TYPE-REGISTRY (v2.528) \u2014 built from SIGMA_TYPES, so a new type has a badge.
+  // \u00a7TYPE-REGISTRY (v2.551) \u2014 built from SIGMA_TYPES, so a new type has a badge.
   var BADGES = {};
   SIGMA_TYPE_IDS.forEach(function(n){ BADGES[n] = { cls: SIGMA_TYPES[n].badgeCls, txt: sigmaTypeTitle(n) }; });
   if (badge && BADGES[type]) {
@@ -49065,7 +49065,7 @@ function _valRestoreP2(pd){
 //   the disappearing-button rule of v2.294: grey it and explain it, never hide it.
 function _valBlockedFor(order){
   if (!order) return '';
-  // \u00a7TYPE-REGISTRY (v2.528) \u2014 every condition report, named by the registry.
+  // \u00a7TYPE-REGISTRY (v2.551) \u2014 every condition report, named by the registry.
   if (!sigmaNoValuation(order)) return '';
   return 'This is a ' + sigmaTypeTitle(order.apprType, ' \u2014 ') + ', which states no market value. '
        + 'It has no valuation, and its report cannot print one.';
@@ -50910,7 +50910,7 @@ function openQV(order) {
     //   difference between a blank that looks unfinished and one that is correct.
     valBox.innerHTML = (Number(order.apprType) === 4)
       ? '<div class="qv-no-val">No valuation \u2014 this is a Building Inspection.<br><span style="font-size:11px;opacity:.6;">A Type 4 states no market value. Findings are recorded under Inspect Data \u203a Building Inspection.</span></div>'
-      // \u00a7TYPE5 (v2.528)
+      // \u00a7TYPE5 (v2.551)
       : sigmaNoValuation(order)
       ? '<div class="qv-no-val">No valuation \u2014 this is an Assessment Report.<br><span style="font-size:11px;opacity:.6;">A Type 5 states no market value. Findings are recorded under Inspect Data \u203a Assessment.</span></div>'
       : '<div class="qv-no-val">No valuation data yet.<br><span style="font-size:11px;opacity:.6;">Open Valuation to enter values.</span></div>';
@@ -76724,7 +76724,7 @@ function calEditInspection(oid){
   var asg = '<option value="">\u2014 Unassigned \u2014</option>' + names.map(function(n){
     return '<option value="' + _e(n) + '"' + (n === who ? ' selected' : '') + '>' + _e(n) + '</option>'; }).join('');
 
-  // \u00a7TYPE-REGISTRY (v2.528) \u2014 every registered type, in order.
+  // \u00a7TYPE-REGISTRY (v2.551) \u2014 every registered type, in order.
   var TYPES = {}; SIGMA_TYPE_IDS.forEach(function(n){ TYPES[n] = sigmaTypeTitle(n, ' \u2014 '); });
   var curT = Number(o.apprType) || 2;
   var typeOpts = SIGMA_TYPE_IDS.map(function(n){
