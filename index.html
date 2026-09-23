@@ -9275,7 +9275,10 @@ body.glass:not([class*="theme-dark"]) .apq-row.pay-not:hover{ background:#fbd3cf
 .vl-hint{ font-size:11.5px; color:var(--slate-lt,#6b6257); flex:1 1 260px; }
 tr.vl-row .vl-locked{ background:rgba(45,138,82,.07) !important; border-color:rgba(45,138,82,.35) !important; color:inherit; cursor:not-allowed; }
 tr.vl-row td:first-child{ position:relative; }
-tr.vl-row td:first-child::before{ content:'🔒'; position:absolute; left:-2px; top:50%; transform:translate(-100%,-50%); font-size:10px; opacity:.6; }
+.vl-unlock{ position:absolute; left:-2px; top:50%; transform:translate(-100%,-50%); border:0; background:transparent; font-size:11px; line-height:1;
+  padding:4px; cursor:pointer; opacity:.65; border-radius:5px; }
+.vl-unlock:hover{ opacity:1; background:rgba(45,138,82,.14); }
+.vl-unlock:focus-visible{ outline:2px solid #2d8a52; opacity:1; }
 
 /* §ORD-STATUS (v2.535) — Orders list STATUS column. Text inherits the table's own ink so
    it reads on every theme; colour lives only in the dot, the bar and the owed/late words. */
@@ -20632,7 +20635,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
-  {v:'v2.544',type:'feat',date:'09-23-2026',ts:'09-23-2026 06:00',_static:true,title:'Valuation rows linked to Project Data (or Manual), for Current and Presumable; Building Info tab moved; Pool and Jacuzzi sizes',desc:'LINKED TO PROJECT DATA. The Valuation window now has a switch above the tables, for the Current and the Presumable valuation separately: Linked to Project Data, or Manual. When Linked, the rows are filled in from Project Data and their descriptions and areas are locked: Parcel 1 with its parcel type and size, Parcel 2 and further parcels, the building (its Building Type and Building Size) and any further buildings, then Backyard, Roof Top, Roof Terrace and Staircase, and Fencing Shared, Fencing Owned, Flooring and Parking — each only when it has a value. You still enter the rate and the percentage for every row, and those are kept whenever the areas are refreshed. Change an area in Project Data and the valuation picks it up the next time it is opened. Rows you add yourself stay editable underneath. When Manual, every row is typed by hand, as before. A valuation that already has figures opens as Manual, so nothing already saved — or already printed on a report — changes by itself; a new, empty valuation opens Linked. Switching an existing valuation to Linked keeps the rate of every row that is the same item (same name, such as Fencing Shared), adds the other Project Data items without a rate, and leaves your other rows as they are — check them for anything now counted twice. PROJECT DATA TABS. Building Info now comes right after Parcel Info and before Financial Info. POOL AND JACUZZI. Building Info has two new fields, Pool (m²) and Jacuzzi (m²), saved with the job; when the valuation is Linked they appear as their own rows too.'},
+  {v:'v2.544',type:'feat',date:'09-23-2026',ts:'09-23-2026 06:00',_static:true,title:'Valuation rows linked to Project Data (or Manual), for Current and Presumable; Building Info tab moved; Pool and Jacuzzi sizes',desc:'LINKED TO PROJECT DATA. The Valuation window now has a switch above the tables, for the Current and the Presumable valuation separately: Linked to Project Data, or Manual. When Linked, the rows are filled in from Project Data and their descriptions and areas are locked: Parcel 1 with its parcel type and size, Parcel 2 and further parcels, the building (its Building Type and Building Size) and any further buildings, then Backyard, Roof Top, Roof Terrace and Staircase, and Fencing Shared, Fencing Owned, Flooring and Parking — each only when it has a value. You still enter the rate and the percentage for every row, and those are kept whenever the areas are refreshed. Click the 🔒 on a row to unlock just that row: it becomes your own row, which you can change or delete with ✕, and it stays that way until the valuation is switched to Linked again. Change an area in Project Data and the valuation picks it up the next time it is opened. Rows you add yourself stay editable underneath. When Manual, every row is typed by hand, as before. A valuation that already has figures opens as Manual, so nothing already saved — or already printed on a report — changes by itself; a new, empty valuation opens Linked. Switching an existing valuation to Linked keeps the rate of every row that is the same item (same name, such as Fencing Shared), adds the other Project Data items without a rate, and leaves your other rows as they are — check them for anything now counted twice. PROJECT DATA TABS. Building Info now comes right after Parcel Info and before Financial Info. POOL AND JACUZZI. Building Info has two new fields, Pool (m²) and Jacuzzi (m²), saved with the job; when the valuation is Linked they appear as their own rows too.'},
   {v:'v2.543',type:'feat',date:'09-23-2026',ts:'09-23-2026 05:00',_static:true,title:'The report prints Backyard, Roof Top, Roof Terrace and Staircase next to Parcel Size',desc:'The four areas recorded in Project Data now print on the report, in the Project Information section directly after Parcel Size and in the same style: Backyard, Roof Top, Roof Terrace and Staircase, each in m². Only the areas that are filled in are printed, so a report without them looks exactly as before. They print on every type of report, including jobs with several parcels, and in Dutch as Achtertuin, Dak, Dakterras and Trappenhuis.'},
   {v:'v2.542',type:'feat',date:'09-23-2026',ts:'09-23-2026 04:00',_static:true,title:'Project Data: Backyard, Roof Top, Roof Terrace and Staircase (m²); Townhouse as a Building Type',desc:'TOWNHOUSE. Building Type in Inspect Data now offers Townhouse (after Condo). It was added to Building Type in Project Data and in the New Appraisal Order form as well, so a townhouse chosen in one place shows in the others. AREAS. Every appraisal now has four more area fields in Project Data, on the Parcel tab under Parcel Size: Backyard, Roof Top, Roof Terrace and Staircase, each in m². They are on the Parcel tab so they are there for every type of appraisal, including parcel-only jobs. They are saved with the job and show again when you reopen it on any computer. Emptying a box clears that area. For now they are recorded in Project Data only, like Parking and Flooring — they are not yet printed on the report.'},
   {v:'v2.541',type:'fix',date:'09-23-2026',ts:'09-23-2026 03:00',_static:true,title:'Lot/Unit report numbers now read 2026-1WMV; project jobs can be edited right in Developments',desc:'REPORT NUMBER FORMAT. A housing-project job\'s report number now follows the project\'s own series: the year, the Lot/Unit, then the project code — Lot 1 gives 2026-1WMV, Lot 5 gives 2026-5WMV, Lot 3B gives 2026-3BWMV. It was wrongly filling in WMV-LOT1. Leading zeros are dropped (Lot 01 → 2026-1WMV), and a "Lot" or "#" typed in front is ignored. This applies to # Lot/Unit, to Copy to another Lot/Unit and to Import. The number can still be typed by hand, and a number another job already uses is still refused. EDIT IN DEVELOPMENTS. Each job in a housing project now has its full controls right on its line in Developments: PDF, Email and the Control menu with Project Data, Inspect Data, Valuation, Report, Approve and Unlock — the same controls as the Job Orders list, so an edit made in either place is the same edit. # Lot/Unit, Copy and a Job Orders link sit underneath.'},
@@ -47194,6 +47197,7 @@ function _valCapture() {
     //   v2.300 have no marker and keep the old, defaults-friendly behaviour.
     _rowsExplicit: true,
     link:     (_VL.cur === true),   // §VAL-LINK (v2.544) — true = rows linked to Project Data
+    linkSkip: (_VL_SKIP.cur || []).slice(),   // §VAL-LINK-UNLOCK — rows unlocked by hand
     parcel:   captureBody('vmParcelBody'),
     build:    captureBody('vmBuildBody'),
     custom:   captureBody('vmCustomBody'),
@@ -47594,7 +47598,7 @@ function _valCaptureP2(){
   var ck=function(id){ var e=document.getElementById(id); return e?!!e.checked:true; };
   var t=function(id){return (document.getElementById(id)||{}).textContent||'—';};
   // §VAL-ROW-DELETE (v2.300) — same explicit-rows marker for the Presumable tables.
-  return { _rowsExplicit:true, link:(_VL.p2 === true),   // §VAL-LINK (v2.544)
+  return { _rowsExplicit:true, link:(_VL.p2 === true), linkSkip:(_VL_SKIP.p2 || []).slice(),   // §VAL-LINK (v2.544) / §VAL-LINK-UNLOCK
     parcel:cap('vmP2ParcelBody'), build:cap('vmP2BuildBody'), custom:cap('vmP2CustomBody'),
     awgRate:g('vmP2AwgRate'), execRate:g('vmP2ExecRate'), devCost:g('vmP2DevCost'),
     projectSalePrice:g('vmP2SalePrice'),   // §NP-SALES-PRICE (v2.355) — same key BLU seeds; capturing it is what stops a save wiping BLU's figure
@@ -47625,6 +47629,7 @@ function _valRestoreP2(pd){
   fill('vmP2ParcelBody', pd.parcel, 'Parcel'); fill('vmP2BuildBody', pd.build, 'Floor'); fill('vmP2CustomBody', pd.custom, 'Custom');
   _valLinkKeys('vmP2ParcelBody', pd.parcel); _valLinkKeys('vmP2BuildBody', pd.build); _valLinkKeys('vmP2CustomBody', pd.custom);   // §VAL-LINK (v2.544)
   if(typeof pd.link === 'boolean') _VL.p2 = pd.link;
+  if(Array.isArray(pd.linkSkip)) _VL_SKIP.p2 = pd.linkSkip.slice();
   var ar=document.getElementById('vmP2AwgRate'); if(ar&&pd.awgRate) ar.value=pd.awgRate;
   var er=document.getElementById('vmP2ExecRate'); if(er&&pd.execRate) er.value=pd.execRate;
   var dc=document.getElementById('vmP2DevCost'); if(dc&&pd.devCost!=null) dc.value=pd.devCost;
@@ -47668,7 +47673,7 @@ function openValModal(order) {
   //   firing mid-open would capture empty tables and blank the order.
   clearTimeout(_valSaveTimer); clearTimeout(_valSrvTimer);
   valModalOrder = order;
-  _VL.cur = null; _VL.p2 = null;   // §VAL-LINK (v2.544) — decided by the restored data, else by content
+  _VL.cur = null; _VL.p2 = null; _VL_SKIP = { cur:[], p2:[] };   // §VAL-LINK (v2.544) — decided by the restored data, else by content
   document.getElementById('valModalBadge').textContent = order.id;
   document.getElementById('valModalAddr').textContent  = order.address + ', ' + order.city;
   document.getElementById('valModalMeta').textContent  = 'Appraiser: ' + order.appraiser + '  ·  Type: ' + order.type;
@@ -47928,6 +47933,11 @@ function delVMRow(btn) { btn.closest('tr').remove(); calcValModal(); _valDirty=t
 // ║  key on each linked row. The report reads rows exactly as before.             ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 var _VL = { cur:null, p2:null };
+// §VAL-LINK-UNLOCK (v2.544) — ASKED FOR: "once you unlock, the user can delete the row." A linked row
+//   can be unlocked on its own (click its 🔒): it becomes the appraiser's own row — editable, with
+//   its ✕ — and its key goes on this list so the next refresh from Project Data does not bring it
+//   back. Switching the valuation to Linked again clears the list (everything is re-linked).
+var _VL_SKIP = { cur:[], p2:[] };
 var _VL_SIDES = {
   cur: { bodies:['vmParcelBody','vmBuildBody','vmCustomBody'], add:function(b, l){ addVMRow(b, l); }, calc:function(){ calcValModal(); }, bar:'vmLinkBarCur' },
   p2:  { bodies:['vmP2ParcelBody','vmP2BuildBody','vmP2CustomBody'], add:function(b, l){ addP2Row(b, l); }, calc:function(){ calcValP2(); }, bar:'vmLinkBarP2' }
@@ -47965,6 +47975,25 @@ function _valLinkLock(tr, on){
   if(nums[0]){ nums[0].readOnly = on; nums[0].title = on ? 'From Project Data — switch to Manual to change it' : ''; nums[0].classList.toggle('vl-locked', on); }
   if(del) del.style.visibility = on ? 'hidden' : '';
   tr.classList.toggle('vl-row', on);
+  var cell = tr.querySelector('td'), btn = cell && cell.querySelector('.vl-unlock');
+  if(on && cell && !btn){
+    btn = document.createElement('button'); btn.type = 'button'; btn.className = 'vl-unlock'; btn.textContent = '🔒';
+    btn.title = 'Linked to Project Data — click to unlock this row (then you can edit or delete it)';
+    btn.setAttribute('aria-label', 'Unlock this row'); btn.onclick = function(){ valLinkRowUnlock(btn); };
+    cell.insertBefore(btn, cell.firstChild);
+  } else if(!on && btn){ btn.remove(); }
+}
+function valLinkRowUnlock(btn){
+  var tr = btn && btn.closest('tr'); if(!tr || !tr.dataset.link) return;
+  var body = tr.closest('tbody'), side = (body && /^vmP2/.test(body.id)) ? 'p2' : 'cur';
+  var name = (tr.querySelector('.val-label-input') || {}).value || 'this row';
+  if(!confirm('Unlock "' + name + '"?\n\nIt becomes your own row: you can change its description and area, or delete it with ✕. '
+      + 'It will no longer follow Project Data. Switch the valuation to Linked again to re-link every row.')) return;
+  var key = tr.dataset.link;
+  if((_VL_SKIP[side] || (_VL_SKIP[side] = [])).indexOf(key) < 0) _VL_SKIP[side].push(key);
+  delete tr.dataset.link;
+  _valLinkLock(tr, false);
+  _valDirty = true; try{ _valLocalSave(); }catch(e){}
 }
 
 // Bring one side's tables in line with Project Data. `adopt` = the switch was just set
@@ -47974,7 +48003,8 @@ function _valLinkSync(side, adopt){
   var src = _valLinkSource(o), changed = false;
   S.bodies.forEach(function(id, t){
     var body = document.getElementById(id); if(!body) return;
-    var want = src[t];
+    var skip = _VL_SKIP[side] || [];
+    var want = src[t].filter(function(w){ return skip.indexOf(w.key) < 0; });
     var rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
     var byKey = {};
     rows.forEach(function(tr){ if(tr.dataset.link) byKey[tr.dataset.link] = tr; });
@@ -48044,7 +48074,7 @@ function _valLinkBar(side){
     + '<button type="button" class="' + (on ? 'on' : '') + '" aria-pressed="' + on + '" onclick="valLinkSet(\'' + side + '\',true)">🔒 Linked to Project Data</button>'
     + '<button type="button" class="' + (!on ? 'on' : '') + '" aria-pressed="' + (!on) + '" onclick="valLinkSet(\'' + side + '\',false)">✎ Manual</button></div>'
     + '<span class="vl-hint">' + (on
-        ? 'Descriptions and areas come from Project Data and are locked. Enter the rate and %. Rows you add yourself stay editable.'
+        ? 'Descriptions and areas come from Project Data and are locked. Enter the rate and %. Click a row\u2019s 🔒 to unlock it — then you can edit or delete it.'
         : 'Every row is typed by hand. Switch to Linked to take the parcels, buildings and areas from Project Data.') + '</span>';
 }
 
@@ -48060,6 +48090,7 @@ function valLinkSet(side, on){
         + '• Items not yet in the table are added without a rate — enter one.\n'
         + '• Your other rows stay as they are. Check that none of them now counts the same area twice.')) return;
     _VL[side] = true;
+    _VL_SKIP[side] = [];   // §VAL-LINK-UNLOCK — re-link every row
     _valLinkSync(side, true);
   } else {
     _VL[side] = false;
@@ -48206,6 +48237,7 @@ function restoreVMData(data) {
   // §VAL-LINK (v2.544) — which rows are linked, and whether this valuation is Linked or Manual.
   _valLinkKeys('vmParcelBody', data.parcel); _valLinkKeys('vmBuildBody', data.build); _valLinkKeys('vmCustomBody', data.custom);
   if(typeof data.link === 'boolean') _VL.cur = data.link;
+  if(Array.isArray(data.linkSkip)) _VL_SKIP.cur = data.linkSkip.slice();
   var n  = document.getElementById('vmNotes');    if(n  && data.notes)    n.value    = data.notes;
   var er = document.getElementById('vmExecRate'); if(er && data.execRate) er.value   = data.execRate;
   // §VAL-MODE (v2.027) — remember the saved valuation type so the chooser can preselect it.
