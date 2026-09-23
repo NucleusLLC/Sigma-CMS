@@ -1430,6 +1430,9 @@ tr:hover td{background:#fdf9f1;} tr.ord-row{cursor:pointer;} tr.ord-row:hover td
 .edit-overlay.open{display:flex;animation:fadeIn .2s;}
 .edit-box{background:var(--paper);border:2px solid var(--gold);width:720px;max-width:100%;margin:auto;animation:scaleIn .2s;}
 .edit-hdr{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.5rem;border-bottom:2px solid var(--border);background:var(--cream);}
+/* §EDIT-HDR-ADDR (v2.548) — property address beside the job number in Project Data */
+.edit-hdr-l{display:flex;align-items:center;min-width:0;flex:1;}
+.edit-hdr-addr{font-family:Sora,system-ui,sans-serif;font-size:14px;font-weight:700;color:var(--ink,#f5f5f4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;margin-right:14px;}
 .edit-badge{background:var(--gold);color:var(--ink);font-family:'DM Mono',monospace;font-size:11px;font-weight:700;padding:2px 9px;letter-spacing:.04em;margin-right:8px;}
 .edit-tabs{display:flex;border-bottom:2px solid var(--border);background:var(--cream);padding:0 1rem;}
 .etab{padding:9px 16px;font-size:12px;font-weight:700;color:var(--slate-lt);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;text-transform:uppercase;letter-spacing:.05em;}
@@ -13857,6 +13860,8 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
   <div class="edit-hdr">
     <div class="edit-hdr-l">
       <span class="edit-badge" id="editBadge">2026-001</span>
+      <!-- §EDIT-HDR-ADDR (v2.548) — the property address beside the job number (asked for) -->
+      <span class="edit-hdr-addr" id="editHdrAddr"></span>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
       <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.06em;color:#e0a93c;">PROJECT DATA</span>
@@ -20649,7 +20654,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
-  {v:'v2.548',type:'fix',date:'09-23-2026',ts:'09-23-2026 10:00',_static:true,title:'Collapsing a housing project no longer shrinks its logo',desc:'When a housing project was collapsed on Developments, its logo box was made smaller. It now stays exactly as it is — the same 338 × 190 box, the logo unscaled — and collapsing only folds away the list of appraisals.'},
+  {v:'v2.548',type:'fix',date:'09-23-2026',ts:'09-23-2026 10:00',_static:true,title:'Collapsing a housing project no longer shrinks its logo; the property address shows in Project Data',desc:'When a housing project was collapsed on Developments, its logo box was made smaller. It now stays exactly as it is — the same 338 × 190 box, the logo unscaled — and collapsing only folds away the list of appraisals. The Project Data window now shows the property address at the top, beside the job number, and it updates as the Street Address is edited.'},
   {v:'v2.547',type:'feat',date:'09-23-2026',ts:'09-23-2026 09:00',_static:true,title:'Developments: sort the appraisals in every housing project',desc:'A sort bar now sits at the top of Housing Projects on Developments: No., Lot / Unit, Address, Client, Report, Invoice and Newest. It sorts the appraisals inside every project the same way. Click the chosen button again to reverse the order (the arrow shows which way). Numbers and lots sort naturally, so Lot 2 comes before Lot 10, and jobs without a Lot/Unit go last. Report sorts from In progress through to Delivered; Invoice puts delinquent and unpaid jobs first. Each computer remembers the choice.'},
   {v:'v2.546',type:'feat',date:'09-23-2026',ts:'09-23-2026 08:00',_static:true,title:'Developments: collapse a housing project to see all the others',desc:'Each housing project on Developments has a small arrow in front of its name. ▾ collapses the project: its list of appraisals folds away and the card becomes one compact strip — the name, type, number code and how many appraisals it holds, with a smaller logo — so all the other housing projects fit on the screen. ▸ opens it again. When there is more than one project, Collapse all / Expand all sits beside the Housing Projects title. Each computer remembers which projects were collapsed.'},
   {v:'v2.545',type:'feat',date:'09-23-2026',ts:'09-23-2026 07:00',_static:true,title:'Valuation: Sync Areas button for Current and Presumable',desc:'Each valuation — Current and Presumable — has a Sync Areas button right beside the Linked / Manual switch above its tables. It rebuilds the areas from Project Data: the parcels, buildings, backyard, roof top, roof terrace, staircase, pool, jacuzzi, fencing, flooring and parking. Because it cannot be undone, it always asks first: "Are you sure you want to Sync Data? Syncing Data will remove all current areas from the Areas here below, and you will not be able to undo this." No is the default — pressing Enter, Escape or clicking outside the box cancels — and only "Yes, sync" goes ahead. On Yes, every Project Data item gets its row (a row that was already the same item, such as Pool or Fencing Shared, keeps its rate and %), every other row is removed, and that valuation is set to Linked. The other valuation is not touched.'},
@@ -46795,6 +46800,20 @@ function openEdit(order) {
 
   // ── Badge + order id ───────────────────────────────────────────────────────
   var badge=g('editBadge'); if(badge)badge.textContent=order.id;
+  // §EDIT-HDR-ADDR (v2.548) — the property address in the header, kept in step while the
+  //   Street Address field is edited. textContent only, so an address can never inject markup.
+  (function(){
+    var hdr=g('editHdrAddr'); if(!hdr) return;
+    var paint=function(){
+      var street=String((g('eAddress')||{}).value||order.address||'').trim();
+      var city=String(order.city||'').replace(/,\s*na\s*$/i,'').trim();
+      var t=[street,city].filter(Boolean).join(', ');
+      hdr.textContent=t; hdr.title=t;
+    };
+    paint();
+    var ea=g('eAddress'); if(ea && !ea._hdrAddrBound){ ea._hdrAddrBound=true; ea.addEventListener('input',function(){ try{ var h2=g('editHdrAddr'); if(h2){ var c=String((editingOrder&&editingOrder.city)||'').replace(/,\s*na\s*$/i,'').trim(); var t2=[String(ea.value||'').trim(),c].filter(Boolean).join(', '); h2.textContent=t2; h2.title=t2; } }catch(e){} }); }
+    setTimeout(paint,0);   // after the form fields are filled
+  })();
   sv('eId', order.id);
 
   // ── General ───────────────────────────────────────────────────────────────
