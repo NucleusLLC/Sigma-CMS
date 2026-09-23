@@ -20659,7 +20659,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
-  {v:'v2.551',type:'feat',date:'09-23-2026',ts:'09-23-2026 14:00',_static:true,title:'Create Contract: an AI-prepared SPACA for housing-project jobs',desc:'For jobs that belong to a housing project, Inspect Data › Documents has a new button, Create Contract (SPACA). Attach the Sales Purchase Agreement & Construction Agreement the developer uses in one of the Documents slots, press the button, and check the details it has filled in for you: the buyer\'s first and last name, the Lot / Unit #, the sale amount (taken from the Presumable Sales Price) and every size from Project Data — parcel, building, backyard, roof top, roof terrace, staircase, pool, jacuzzi, fencing, flooring and parking. A Contract setup box at the top keeps three things on the project, so every lot of the development reuses them: the developer’s name (the seller / builder in the contract), a PNG logo made for a white background (used on the contract instead of the project logo), and the Draft SP&CA PDF — press Upload Draft SP&CA PDF once and it is offered as the contract to base every lot on. The dialog also carries the rest of Project Data the contract can use — the buyer’s address, phone and email; the parcel’s street address, type, ROPV zone, legal description, APN and registered owners; the building type, year, bedrooms, bathrooms, expected completion, builder and any further parcels or buildings — and a Sync Data button reads all of it fresh from the saved job on the server and refills the dialog, outlining in green every field it changed. Sync only reads: it writes nothing, and it never empties a field the job has no value for, so a sale amount typed into the dialog survives it. The AI reads the attached contract itself and prepares this buyer\'s version: it keeps the contract\'s own language, wording and obligations and changes only the buyer, lot, price (in figures and in words) and sizes, leaving any detail it was not given as a blank line. Every page carries the project logo in its header and, in the footer, “SP&CA Sales Purchase & Contract Agreement” on the left and “Page N of M” on the right; the contract text flows from page to page inside the space between them and can never run into the header or footer. A Print / Preview button in the dialog reopens the last contract made for the job — including any corrections typed into it — and goes straight to the print preview, where Save as PDF keeps a copy. The result opens as a compact A4 document with the project\'s logo and balanced fonts, and you can edit any word directly on the page before saving it as a PDF. A yellow review box — not printed — lists every value the AI filled in and anything it was unsure of. It uses the Anthropic API key in Settings › API Keys. Always read the contract before it is signed.'},
+  {v:'v2.551',type:'feat',date:'09-23-2026',ts:'09-23-2026 14:00',_static:true,title:'Create Contract: an AI-prepared SP&SCA for housing-project jobs',desc:'For jobs that belong to a housing project, Inspect Data › Documents has a new button, Create Contract (SP&SCA). Attach the Sales Purchase Agreement & Construction Agreement the developer uses in one of the Documents slots, press the button, and check the details it has filled in for you: the buyer\'s first and last name, the Lot / Unit #, the sale amount (taken from the Presumable Sales Price) and every size from Project Data — parcel, building, backyard, roof top, roof terrace, staircase, pool, jacuzzi, fencing, flooring and parking. A Contract setup box at the top keeps three things on the project, so every lot of the development reuses them: the developer’s name (the seller / builder in the contract), a PNG logo made for a white background (used on the contract instead of the project logo), and the Draft SP&SCA PDF — press Upload Draft SP&SCA PDF once and it is offered as the contract to base every lot on. The dialog also carries the rest of Project Data the contract can use — the buyer’s address, phone and email; the parcel’s street address, type, ROPV zone, legal description, APN and registered owners; the building type, year, bedrooms, bathrooms, expected completion, builder and any further parcels or buildings — and a Sync Data button reads all of it fresh from the saved job on the server and refills the dialog, outlining in green every field it changed. Sync only reads: it writes nothing, and it never empties a field the job has no value for, so a sale amount typed into the dialog survives it. The AI reads the attached contract itself and prepares this buyer\'s version: it keeps the contract\'s own language, wording and obligations and changes only the buyer, lot, price (in figures and in words) and sizes, leaving any detail it was not given as a blank line. Every page carries the project logo in its header and, in the footer, “SP&SCA Sales Purchase & Contract Agreement” on the left and “Page N of M” on the right; the contract text flows from page to page inside the space between them and can never run into the header or footer. A Print / Preview button in the dialog reopens the last contract made for the job — including any corrections typed into it — and goes straight to the print preview, where Save as PDF keeps a copy. The result opens as a compact A4 document with the project\'s logo and balanced fonts, and you can edit any word directly on the page before saving it as a PDF. A yellow review box — not printed — lists every value the AI filled in and anything it was unsure of. The dialog grows out of the button that opened it and returns there when closed (Cancel or Escape, even halfway through opening), buttons react the moment they are pressed, and the contract window opens straight away with a “Preparing the contract…” page that fills in when the AI is done — so the browser’s pop-up blocker cannot stop it. With Reduce Motion or Reduce Transparency switched on in the system settings, it fades instead of moving and uses solid panels instead of glass. It uses the Anthropic API key in Settings › API Keys. Always read the contract before it is signed.'},
   {v:'v2.550',type:'fix',date:'09-23-2026',ts:'09-23-2026 12:00',_static:true,title:'Quick View shows a completed Presumable valuation in green',desc:'When a valuation was set to Presumable and fully filled in, Quick View still showed the Valuation step as Not Completed and the value boxes as "No valuation data yet", because it only ever looked at the Current values. It now follows the chosen valuation type, on every appraisal type: a Presumable valuation turns green once its three values (Free Market, Execution and Re-Construction) are filled — including the manual Presumable figures of a New Construction — a valuation set to Both turns green once Current and Presumable are both complete, and a Current valuation works as before. The value boxes in Quick View show the Presumable figures, marked PRESUMABLE, when that is the valuation there is.'},
   {v:'v2.549',type:'feat',date:'09-23-2026',ts:'09-23-2026 11:00',_static:true,title:'Parcel Type: Condominium Regime',desc:'Parcel Type now offers Condominium Regime. It is in Project Data (for Parcel 1 and for any further parcels), in the New Appraisal Order form and in Inspect Data, so the choice shows the same everywhere and prints on the report as the parcel type.'},
   {v:'v2.548',type:'fix',date:'09-23-2026',ts:'09-23-2026 10:00',_static:true,title:'Collapsing a housing project no longer shrinks its logo; the property address shows in Project Data',desc:'When a housing project was collapsed on Developments, its logo box was made smaller. It now stays exactly as it is — the same 338 × 190 box, the logo unscaled — and collapsing only folds away the list of appraisals. The Project Data window now shows the property address at the top, beside the job number, and it updates as the Street Address is edited.'},
@@ -45829,7 +45829,7 @@ function spacaBar(order){
   bar.style.display = '';
   bar.innerHTML = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 14px;margin:6px 0 14px;border:1px solid rgba(124,58,237,.35);'
     + 'border-radius:10px;background:rgba(124,58,237,.06);">'
-    + '<button type="button" class="btn-pri" onclick="spacaOpen()" style="background:linear-gradient(135deg,#6d28d9,#8b5cf6);border:none;">✦ Create Contract (SPACA)</button>'
+    + '<button type="button" class="btn-pri" onclick="spacaOpen()" style="background:linear-gradient(135deg,#6d28d9,#8b5cf6);border:none;">✦ Create Contract (SP&amp;SCA)</button>'
     + '<span style="font-size:12px;color:var(--slate-lt,#6b6257);flex:1;min-width:220px;">AI prepares the Sales Purchase &amp; Construction Agreement for '
     +   '<b>' + _spEsc(p ? p.name : 'this project') + '</b> from the contract attached below, with this buyer, lot, sale amount and sizes. You review and adjust it before saving the PDF.</span></div>';
 }
@@ -45867,18 +45867,19 @@ function spacaOpen(){
   var old = document.getElementById('spacaDlg'); if(old) old.remove();
   var ov = document.createElement('div');
   ov.id = 'spacaDlg';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:100030;background:rgba(10,8,4,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;';
-  ov.innerHTML = '<div role="dialog" aria-modal="true" aria-labelledby="spacaHead" style="width:min(720px,100%);max-height:94vh;overflow:auto;background:#17150f;border:1px solid #8b5cf6;'
-    + 'border-radius:14px;padding:20px 22px;box-shadow:0 24px 60px rgba(0,0,0,.55);font-family:Sora,system-ui,sans-serif;">'
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100030;display:flex;align-items:center;justify-content:center;padding:16px;';
+  ov.className = 'sp-scrim';   // §SPACA-FEEL (v2.551) — material, motion and press states live in _spFeelCss()
+  ov.innerHTML = '<div class="sp-card" role="dialog" aria-modal="true" aria-labelledby="spacaHead" style="width:min(720px,100%);max-height:94vh;overflow:auto;'
+    + 'border-radius:14px;padding:20px 22px;font-family:Sora,system-ui,sans-serif;">'
     + '<div style="display:flex;align-items:flex-start;gap:12px;">'
-    +   '<div style="flex:1;"><div id="spacaHead" style="font-size:16px;font-weight:800;color:#c4b5fd;">✦ Create Contract — SPACA</div>'
+    +   '<div style="flex:1;"><div id="spacaHead" style="font-size:16px;font-weight:800;color:#c4b5fd;letter-spacing:-0.01em;">✦ Create Contract — SP&amp;SCA</div>'
     +   '<div style="font-size:12px;color:#a8a29e;margin-top:3px;">' + _spEsc(p ? p.name : '') + ' · ' + _spEsc(o.projectNumber || o.id) + '</div></div>'
     // §SPACA-SYNC (v2.551) — pull Client, Parcel and Building data from the saved Project Data
     +   '<button type="button" id="spSync" class="btn-sec" onclick="spacaSync()" title="Read this job’s Client, Parcel and Building data from the database and fill this dialog" '
     +     'style="border:1px solid #8b5cf6;color:#ddd6fe;font-weight:700;white-space:nowrap;">⟳ Sync Data</button>'
     + '</div>'
     + '<div id="spSyncMsg" style="display:none;margin-top:8px;font-size:12px;"></div>'
-    // §SPACA-SETUP (v2.551) — developer, white-background logo and the draft SP&CA,
+    // §SPACA-SETUP (v2.551) — developer, white-background logo and the draft SP&SCA,
     //   kept on the PROJECT so every lot of the development reuses them.
     + '<div style="margin-top:14px;padding:12px 14px;border:1px solid rgba(139,92,246,.35);border-radius:10px;background:rgba(139,92,246,.05);">'
     +   '<div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;">Contract setup — saved to the project, used for every lot</div>'
@@ -45892,9 +45893,9 @@ function spacaOpen(){
     +           '<label class="btn-sec" style="cursor:pointer;font-size:12px;padding:6px 10px;text-align:center;">Upload PNG<input type="file" accept="image/png" style="display:none;" onchange="_spLogoPick(this)"></label>'
     +           '<button type="button" id="spLogoDel" class="btn-sec" style="font-size:11px;padding:4px 10px;display:none;" onclick="_spLogoClear()">Remove</button>'
     +         '</div></div></div>'
-    +     '<div><label style="' + lab + '">Draft SP&amp;CA (PDF)</label>'
+    +     '<div><label style="' + lab + '">Draft SP&amp;SCA (PDF)</label>'
     +       '<div id="spDraftInfo" style="font-size:12px;color:#d6d3d1;min-height:20px;margin-bottom:6px;"></div>'
-    +       '<label class="btn-sec" style="cursor:pointer;font-size:12px;padding:6px 10px;display:inline-block;">Upload Draft SP&amp;CA PDF<input type="file" accept="application/pdf,.pdf" style="display:none;" onchange="_spDraftPick(this)"></label></div>'
+    +       '<label class="btn-sec" style="cursor:pointer;font-size:12px;padding:6px 10px;display:inline-block;">Upload Draft SP&amp;SCA PDF<input type="file" accept="application/pdf,.pdf" style="display:none;" onchange="_spDraftPick(this)"></label></div>'
     +   '</div>'
     +   '<div id="spSetupMsg" style="display:none;margin-top:8px;font-size:12px;"></div>'
     + '</div>'
@@ -45920,11 +45921,14 @@ function spacaOpen(){
     + '<textarea id="spNote" rows="2" style="' + fld + 'resize:vertical;" placeholder="e.g. completion date 30 June 2027; deposit 10%"></textarea>'
     + '<div id="spMsg" style="display:none;margin-top:12px;padding:10px 12px;border-radius:8px;font-size:12.5px;line-height:1.55;"></div>'
     + '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:16px;">'
-    +   '<button type="button" class="btn-sec" onclick="document.getElementById(\'spacaDlg\').remove()">Cancel</button>'
+    +   '<button type="button" class="btn-sec" onclick="_spClose()">Cancel</button>'
     +   '<button type="button" id="spPrev" class="btn-sec" onclick="spacaPreview()" style="border:1px solid #8b5cf6;color:#ddd6fe;font-weight:700;">🖨 Print / Preview</button>'   // §SPACA-PRINT (v2.551)
     +   '<button type="button" id="spGo" class="btn-pri" style="background:linear-gradient(135deg,#6d28d9,#8b5cf6);border:none;" onclick="spacaGenerate()">✦ Create Contract</button>'
     + '</div></div>';
+  _spFeelCss();
+  var trig = (typeof event !== 'undefined' && event && event.currentTarget && event.currentTarget.getBoundingClientRect) ? event.currentTarget : document.querySelector('#spacaBar button');
   document.body.appendChild(ov);
+  _spEnter(ov, trig);
   ov._pick = pick ? String(pick.idx) : '';
   _spFill(o);
   _spSetupPaint();
@@ -45995,7 +45999,7 @@ function _spSyncMsg(t, kind){
 async function spacaSync(){
   var o = SPACA.order; if(!o) return;
   var btn = document.getElementById('spSync');
-  if(btn){ btn.disabled = true; btn.textContent = 'Syncing…'; }
+  if(btn){ btn.disabled = true; btn.textContent = 'Syncing…'; btn.classList.add('sp-busy'); }
   _spSyncMsg('Reading Project Data from the database…');
   try{
     var fresh = o, fromDb = false;
@@ -46022,9 +46026,84 @@ async function spacaSync(){
   }catch(e){
     _spSyncMsg('Not synced — ' + ((e && e.message) || e), 'err');
   }finally{
-    if(btn){ btn.disabled = false; btn.textContent = '⟳ Sync Data'; }
+    if(btn){ btn.disabled = false; btn.textContent = '⟳ Sync Data'; btn.classList.remove('sp-busy'); }
   }
 }
+
+// §SPACA-FEEL (v2.551) — the dialog as a material that arrives from, and returns to, the button
+//   that opened it (apple-design: spatial consistency, interruptibility, materials):
+//   · ENTER grows the card from the trigger's position (transform-origin = the button), blur and
+//     scale together, so it reads as a surface arriving rather than a fade. Critically damped
+//     curve (no overshoot — nothing was flicked), ~320ms.
+//   · EXIT is the SAME animation reversed — same path, mirrored easing — and because it is one
+//     Web Animation, pressing Cancel or Escape mid-entry reverses from the CURRENT frame, never
+//     from the end state (no jump, no waiting for the entry to finish).
+//   · Buttons answer on press (:active, 100ms), not on release.
+//   · Card = dark translucent glass over a dimming scrim (a modal task: dim to focus), with a
+//     bright top edge; text sits on it at full contrast.
+//   · prefers-reduced-motion → a short opacity cross-fade, no scale, no blur change.
+//     prefers-reduced-transparency → solid card, no backdrop blur.
+function _spFeelCss(){
+  if(document.getElementById('spFeelCss')) return;
+  var st = document.createElement('style'); st.id = 'spFeelCss';
+  st.textContent = ''
+    + '.sp-scrim{background:rgba(10,8,4,.62);-webkit-backdrop-filter:blur(8px) saturate(120%);backdrop-filter:blur(8px) saturate(120%);}'
+    + '.sp-card{background:rgba(23,21,15,.86);-webkit-backdrop-filter:blur(28px) saturate(160%);backdrop-filter:blur(28px) saturate(160%);'
+    +   'border:1px solid rgba(139,92,246,.55);border-top-color:rgba(221,214,254,.55);'
+    +   'box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 30px 80px rgba(0,0,0,.55),0 6px 18px rgba(0,0,0,.35);will-change:transform,opacity;}'
+    + '#spacaDlg button{transition:transform 100ms ease-out,filter 100ms ease-out;}'
+    + '#spacaDlg button:active:not(:disabled){transform:scale(.97);filter:brightness(1.12);}'
+    + '#spacaDlg label.btn-sec:active{transform:scale(.97);}'
+    + '#spacaDlg input:focus,#spacaDlg select:focus,#spacaDlg textarea:focus{outline:none;border-color:#8b5cf6 !important;box-shadow:0 0 0 3px rgba(139,92,246,.28);}'
+    + '#spSync.sp-busy{animation:spPulse 1s ease-in-out infinite;}@keyframes spPulse{50%{opacity:.55;}}'
+    + '@media (prefers-reduced-transparency: reduce){.sp-scrim{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(10,8,4,.8);}.sp-card{background:#17150f;-webkit-backdrop-filter:none;backdrop-filter:none;}}'
+    + '@media (prefers-contrast: more){.sp-card{background:#0f0d09;border-color:#c4b5fd;}}'
+    + '@media (prefers-reduced-motion: reduce){#spacaDlg button,#spacaDlg label.btn-sec{transition:none;}#spacaDlg button:active,#spacaDlg label.btn-sec:active{transform:none;}#spSync.sp-busy{animation:none;}}';
+  document.head.appendChild(st);
+}
+function _spReduced(){ try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
+function _spEnter(ov, trig){
+  var card = ov.querySelector('.sp-card'); if(!card || !card.animate) return;
+  var reduced = _spReduced(), o = '50% 0%';
+  if(trig && !reduced){
+    // transform-origin = where the trigger sits, in the card's own coordinates
+    var t = trig.getBoundingClientRect(), c = card.getBoundingClientRect();
+    o = Math.round(t.left + t.width / 2 - c.left) + 'px ' + Math.round(t.top + t.height / 2 - c.top) + 'px';
+  }
+  card.style.transformOrigin = o;
+  var ease = 'cubic-bezier(.2,.9,.25,1)';   // critically damped feel: fast out, no overshoot
+  ov._anims = reduced
+    ? [ ov.animate([{ opacity:0 }, { opacity:1 }], { duration:160, easing:'linear', fill:'both' }) ]
+    // movement rides the curve; opacity runs LINEAR on its own clock, so a reversal fades evenly
+    //   instead of replaying the curve's steep start backwards (measured: .93 → .47 → .05 in 3 frames)
+    : [ ov.animate([{ opacity:0 }, { opacity:1 }], { duration:220, easing:'linear', fill:'both' }),
+        card.animate([{ transform:'scale(.9)', filter:'blur(8px)' }, { transform:'scale(1)', filter:'blur(0)' }], { duration:320, easing:ease, fill:'both' }),
+        card.animate([{ opacity:0 }, { opacity:1 }], { duration:200, easing:'linear', fill:'both' }) ];
+  // Escape leaves the same way Cancel does
+  ov._esc = function(e){ if(e.key === 'Escape' && document.getElementById('spacaDlg') === ov){ e.preventDefault(); _spClose(); } };
+  document.addEventListener('keydown', ov._esc);
+  setTimeout(function(){ var f = document.getElementById('spFirst'); try{ if(f && !f.value) f.focus({ preventScroll:true }); }catch(_f){} }, reduced ? 0 : 200);
+}
+// Reverses the entry from wherever it is right now, then removes the dialog.
+function _spClose(){
+  var ov = document.getElementById('spacaDlg'); if(!ov || ov._closing) return;
+  ov._closing = true;
+  try{ document.removeEventListener('keydown', ov._esc); }catch(e){}
+  var anims = (ov._anims || []).filter(function(a){ return a && a.reverse; });
+  // Not a single frame painted yet: nothing to reverse from. reverse() on a PENDING animation
+  //   seeks to its END first (measured: opacity jumped 0 -> 1 before fading), so just go.
+  if(!anims.length || anims.some(function(a){ return a.pending || !(a.currentTime > 0); })){
+    anims.forEach(function(a){ try{ a.cancel(); }catch(e){} });
+    ov.remove(); return;
+  }
+  var done = 0;
+  anims.forEach(function(a){
+    a.onfinish = function(){ if(++done === anims.length) ov.remove(); };
+    a.reverse();   // plays back from the CURRENT frame — interruptible, same path out as in
+  });
+  setTimeout(function(){ if(ov.isConnected) ov.remove(); }, 900);   // backstop
+}
+try{ window._spClose = _spClose; }catch(e){}
 
 // §SPACA-SETUP (v2.551) — paints the logo, the draft and the contract picker from the project.
 function _spSetupPaint(){
@@ -46036,16 +46115,16 @@ function _spSetupPaint(){
                            : ((p && p.logo) ? 'None — the project logo is used' : 'No logo');
   if(del) del.style.display = lg ? '' : 'none';
   var dr = (p && p.spacaDraft) || null, di = document.getElementById('spDraftInfo');
-  if(di) di.innerHTML = dr ? '✓ ' + _spEsc(dr.name || 'Draft SP&CA') + ' <span style="color:#a8a29e;">(' + Math.round((dr.size || 0) / 1024) + ' KB)</span>'
+  if(di) di.innerHTML = dr ? '✓ ' + _spEsc(dr.name || 'Draft SP&SCA') + ' <span style="color:#a8a29e;">(' + Math.round((dr.size || 0) / 1024) + ' KB)</span>'
                            : '<span style="color:#a8a29e;">None uploaded yet</span>';
   var docs = _spacaDocs(o), wrap = document.getElementById('spDocWrap'), sel = document.getElementById('spDoc');
   var cur = sel ? sel.value : (dr ? 'draft' : ov._pick);
   if(!wrap) return;
   if(!dr && !docs.length){
-    wrap.innerHTML = '<div style="padding:10px 12px;border:1px solid rgba(248,113,113,.45);border-radius:8px;color:#fca5a5;font-size:12.5px;">No contract yet. Upload the Draft SP&amp;CA PDF above (or attach it in one of the Documents slots below).</div>';
+    wrap.innerHTML = '<div style="padding:10px 12px;border:1px solid rgba(248,113,113,.45);border-radius:8px;color:#fca5a5;font-size:12.5px;">No contract yet. Upload the Draft SP&amp;SCA PDF above (or attach it in one of the Documents slots below).</div>';
     return;
   }
-  var opts = (dr ? '<option value="draft">Draft SP&amp;CA (project) — ' + _spEsc(dr.name || '') + '</option>' : '')
+  var opts = (dr ? '<option value="draft">Draft SP&amp;SCA (project) — ' + _spEsc(dr.name || '') + '</option>' : '')
     + docs.map(function(d){ return '<option value="' + d.idx + '">' + _spEsc('Documents: ' + d.label + (d.name && d.name !== d.label ? ' — ' + d.name : '')) + '</option>'; }).join('');
   wrap.innerHTML = '<select id="spDoc" style="width:100%;box-sizing:border-box;background:#0f0d09;border:1px solid rgba(255,255,255,.16);border-radius:8px;color:#f5f5f4;font-family:inherit;font-size:13px;padding:8px 10px;">' + opts + '</select>';
   sel = document.getElementById('spDoc');
@@ -46101,7 +46180,7 @@ async function _spLogoClear(){
   catch(e){ _spSetupMsg('Not removed — ' + ((e && e.message) || e), 'err'); }
   _spSetupPaint();
 }
-// The draft SP&CA: the PDF goes to Storage (never into a database row); the project keeps its path.
+// The draft SP&SCA: the PDF goes to Storage (never into a database row); the project keeps its path.
 var SPACA_DRAFT_MAX = 24 * 1024 * 1024;   // the AI request limit is 32 MB, and base64 adds a third
 async function _spDraftPick(input){
   var file = input && input.files && input.files[0]; if(!file) return;
@@ -46118,8 +46197,8 @@ async function _spDraftPick(input){
     if(res && res.error) throw new Error(res.error.message || 'upload failed');
     await _spPatchProject({ spacaDraft: { path: path, name: file.name || safe, size: file.size, at: new Date().toISOString(),
                                           by: (typeof _authUser !== 'undefined' && _authUser && _authUser.email) || '' } });
-    try{ appLog('ACTION','DEVELOPMENTS','Draft SP&CA uploaded for project ' + ((hpById(o.housingProjectId) || {}).name || o.housingProjectId) + ': ' + (file.name || safe)); }catch(e){}
-    _spSetupMsg('Draft SP&CA saved to the project.');
+    try{ appLog('ACTION','DEVELOPMENTS','Draft SP&SCA uploaded for project ' + ((hpById(o.housingProjectId) || {}).name || o.housingProjectId) + ': ' + (file.name || safe)); }catch(e){}
+    _spSetupMsg('Draft SP&SCA saved to the project.');
     var sel = document.getElementById('spDoc'); if(sel) sel.value = 'draft';
     _spSetupPaint();
     sel = document.getElementById('spDoc'); if(sel) sel.value = 'draft';
@@ -46135,10 +46214,10 @@ function _spMsg(t, kind){
 }
 async function _spacaPdfBase64(o, idx){
   var d;
-  if(idx === 'draft'){   // §SPACA-SETUP (v2.551) — the project's Draft SP&CA
+  if(idx === 'draft'){   // §SPACA-SETUP (v2.551) — the project's Draft SP&SCA
     var pj = (typeof hpById === 'function') ? hpById(o.housingProjectId) : null;
     d = (pj && pj.spacaDraft && pj.spacaDraft.path) ? { storagePath: pj.spacaDraft.path } : null;
-    if(!d) throw new Error('the project has no Draft SP&CA uploaded');
+    if(!d) throw new Error('the project has no Draft SP&SCA uploaded');
   } else d = (o.inspData && o.inspData._docs && o.inspData._docs[idx]) || null;
   if(d && d.data && /^data:/.test(d.data)) return d.data.split(',')[1];
   try{ var ls = JSON.parse(localStorage.getItem('doc_' + o.id + '_' + idx) || 'null'); if(ls && ls.data && /^data:/.test(ls.data)) return ls.data.split(',')[1]; }catch(e){}
@@ -46181,10 +46260,19 @@ async function spacaGenerate(){
   if(!(Number(sale) > 0)){ _spMsg('Enter the sale amount.', 'err'); return; }
   var sizes = {}; document.querySelectorAll('#spacaDlg [data-size]').forEach(function(el){ var n = Number(el.value); if(n > 0) sizes[el.getAttribute('data-size')] = n; });
   var p = (typeof hpById === 'function') ? hpById(o.housingProjectId) : null;
-  var idx = v('spDoc'); if(idx === '') { _spMsg('Upload the Draft SP&CA PDF (or attach the contract in Documents) first.', 'err'); return; }
+  var idx = v('spDoc'); if(idx === '') { _spMsg('Upload the Draft SP&SCA PDF (or attach the contract in Documents) first.', 'err'); return; }
   if(idx !== 'draft') idx = +idx;
   var dev = v('spDev');
   var go = document.getElementById('spGo');
+  // §SPACA-FEEL (v2.551) — the window opens NOW, while the click still counts as a click;
+  //   opened after the AI call (a minute or more later) the popup blocker may refuse it.
+  var win = null;
+  try{
+    win = window.open('', '_blank');
+    if(win){ win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Preparing SP&amp;SCA…</title></head>'
+      + '<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#e9e6e0;font:600 15px Inter,system-ui,sans-serif;color:#5c554b;">'
+      + 'Preparing the contract… this window fills in when it is ready.</body></html>'); win.document.close(); }
+  }catch(_w){ win = null; }
   SPACA.busy = true; if(go){ go.disabled = true; go.textContent = 'Working…'; }
   try{
     // §SPACA-SETUP (v2.551) — a changed developer name is kept on the project for the next lot
@@ -46193,7 +46281,7 @@ async function spacaGenerate(){
     }
     _spMsg('Reading the attached contract…');
     var b64 = await _spacaPdfBase64(o, idx);
-    _spMsg('Claude is preparing the SPACA — this can take a minute or two for a long contract…');
+    _spMsg('Claude is preparing the SP&SCA — this can take a minute or two for a long contract…');
     var sizeLines = SPACA_SIZES.filter(function(s){ return sizes[s[0]]; }).map(function(s){ return '- ' + s[1] + ': ' + sizes[s[0]] + ' m²'; }).join('\n') || '- (no sizes given)';
     var details = 'Project: ' + (p ? p.name : '') + (p && p.type ? ' (' + p.type + ')' : '') + (p && p.location ? ', ' + p.location : '')
       + '\nDeveloper (seller / builder): ' + (dev || '(not given — keep what the contract says)')
@@ -46208,8 +46296,8 @@ async function spacaGenerate(){
       + (v('spBExtra') ? '\nOther parcels / buildings:\n' + v('spBExtra') : '')
       + '\nSale amount: AWG ' + Number(sale).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 })
       + '\nSizes:\n' + sizeLines + (note ? '\nAlso apply: ' + note : '');
-    var instructions = 'The attached PDF is the Sales Purchase Agreement & Construction Agreement (SPACA) that this developer uses. '
-      + 'Prepare this buyer’s SPACA from it.\n\n'
+    var instructions = 'The attached PDF is the Sales Purchase Agreement & Construction Agreement (SP&SCA) that this developer uses. '
+      + 'Prepare this buyer’s SP&SCA from it.\n\n'
       + 'Rules:\n'
       + '- Keep the contract’s own language, clause wording, order, obligations, amounts other than the ones below, and legal terms. Do not add, remove or soften any obligation, condition, penalty or right.\n'
       + '- Where a developer name is given below, use it as the seller / builder party name wherever the contract names the developer (parties, signatures).\n'
@@ -46253,12 +46341,13 @@ async function spacaGenerate(){
     if(stop === 'refusal') throw new Error('the AI declined this request. Nothing was created.');
     if(stop === 'max_tokens') throw new Error('the contract was too long to finish in one pass. Try a shorter contract or split it.');
     var c; try{ c = JSON.parse(out); }catch(e){ throw new Error('the AI answer could not be read as a contract'); }
-    try{ appLog('ACTION','DEVELOPMENTS','SPACA prepared by AI for ' + (o.projectNumber || o.id) + ' (' + first + ' ' + last + ', lot ' + lot + ')'); }catch(e){}
+    try{ appLog('ACTION','DEVELOPMENTS','SP&SCA prepared by AI for ' + (o.projectNumber || o.id) + ' (' + first + ' ' + last + ', lot ' + lot + ')'); }catch(e){}
     _spMsg('Done — the contract has opened in a new window. Review it, adjust anything, then Save as PDF.');
     _spKeep(o.id, { c:c, lot:lot, sale:sale, bodyHtml:'' });   // §SPACA-PRINT — kept for Print / Preview
-    await spacaShow(c, o, p, { lot:lot, sale:sale });
+    await spacaShow(c, o, p, { lot:lot, sale:sale }, { win: win });
   }catch(e){
     _spMsg('Not created — ' + ((e && e.message) || e), 'err');
+    try{ if(win && !win.closed) win.close(); }catch(_c){}
   }finally{
     SPACA.busy = false; if(go){ go.disabled = false; go.textContent = '✦ Create Contract'; }
   }
@@ -46268,14 +46357,14 @@ async function spacaGenerate(){
 //   text (standard-page-overflow): the BROWSER paginates, and everything that repeats on each
 //   page lives in @page MARGIN BOXES, outside the content box, so text cannot reach it:
 //     header  — the project logo, @top-left, on every page (project · lot, @top-right)
-//     footer  — "SP&CA Sales Purchase & Contract Agreement" @bottom-left, "Page N of M" @bottom-right
+//     footer  — "SP&SCA Sales Purchase & Contract Agreement" @bottom-left, "Page N of M" @bottom-right
 //   The logo goes in as content:image-set(url(…) 4x): a margin box cannot size an image, so the
 //   logo is redrawn at exactly the size wanted (≤ 12mm × 60mm) at 4× resolution. Measured in
 //   Chromium 153: it prints on every page at 13.0–24.9mm, body text 29.9–265.9mm, footer below.
 //   ONE geometry object feeds @page and the on-screen sheet, so the column you edit on screen
 //   is the column that prints (it was 144mm on screen vs 176mm on paper before this).
 var SPACA_GEO = { paperW:210, top:30, right:17, bottom:20, left:17, logoMaxH:12, logoMaxW:60, footClear:8 };
-var SPACA_FOOT = 'SP&CA Sales Purchase & Contract Agreement';
+var SPACA_FOOT = 'SP&SCA Sales Purchase & Contract Agreement';
 function _spGeoMargin(){ var g = SPACA_GEO; return g.top + 'mm ' + g.right + 'mm ' + g.bottom + 'mm ' + g.left + 'mm'; }
 // A CSS string literal that a quote, backslash or newline in the text cannot break out of.
 function _spCssStr(s){ return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ') + '"'; }
@@ -46333,8 +46422,10 @@ function _spDocCss(headLogo, headRight){
     + '}';
   return page
     + '*{box-sizing:border-box;}body{margin:0;background:#e9e6e0;font:9.6pt/1.42 ' + serif + ';color:#1f1b16;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
-    + '.bar{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#1f1b16;color:#f3efe7;padding:10px 16px;font:600 12.5px ' + sans + ';}'
-    + '.bar button{border:0;border-radius:7px;padding:8px 14px;font:700 12.5px ' + sans + ';cursor:pointer;background:#7c3aed;color:#fff;}.bar span{opacity:.75;font-weight:500;}'
+    // §SPACA-FEEL — the toolbar is a translucent layer the pages scroll under; the button answers on press
+    + '.bar{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:rgba(31,27,22,.78);-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);border-bottom:1px solid rgba(255,255,255,.08);color:#f3efe7;padding:10px 16px;font:600 12.5px ' + sans + ';}'
+    + '.bar button{border:0;border-radius:7px;padding:8px 14px;font:700 12.5px ' + sans + ';cursor:pointer;background:#7c3aed;color:#fff;transition:transform 100ms ease-out,filter 100ms ease-out;}.bar button:active{transform:scale(.97);filter:brightness(1.12);}.bar span{opacity:.8;font-weight:500;}'
+    + '@media (prefers-reduced-transparency: reduce){.bar{background:#1f1b16;-webkit-backdrop-filter:none;backdrop-filter:none;}}@media (prefers-reduced-motion: reduce){.bar button{transition:none;}.bar button:active{transform:none;}}'
     // the on-screen sheet: paper width, padded by the SAME margins as @page
     + '.sheet{background:#fff;width:' + g.paperW + 'mm;max-width:100%;margin:18px auto;padding:' + _spGeoMargin() + ';box-shadow:0 8px 30px rgba(0,0,0,.18);position:relative;}'
     + '.shead{position:absolute;left:' + g.left + 'mm;right:' + g.right + 'mm;top:0;height:' + (g.top - 5) + 'mm;display:flex;align-items:flex-end;justify-content:space-between;font:500 7.5pt ' + sans + ';color:#6b6257;}'
@@ -46342,7 +46433,7 @@ function _spDocCss(headLogo, headRight){
     + '.sfoot{position:absolute;left:' + g.left + 'mm;right:' + g.right + 'mm;bottom:' + g.footClear + 'mm;display:flex;justify-content:space-between;font:600 7.5pt ' + sans + ';color:#5c554b;}'
     + '.doc{outline:none;}'
     + 'header.title{text-align:center;border-bottom:1.2px solid #1f1b16;padding:1.5mm 0 7px;margin-bottom:10px;}'   // top pad: the 14.5pt caps' font box rose 0.6mm above the content edge (measured)
-    + 'h1{font:700 14.5pt/1.2 ' + sans + ';letter-spacing:.02em;margin:0;text-transform:uppercase;}'
+    + 'h1{font:700 14.5pt/1.2 ' + sans + ';letter-spacing:.01em;margin:0;text-transform:uppercase;}'   // caps want a little air, less than before
     + '.sub{font:500 8.8pt ' + sans + ';color:#5c554b;margin-top:2px;}.meta{font:600 8.5pt ' + sans + ';color:#5c554b;margin-top:3px;}'
     + '.parties{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin:8px 0 6px;}.party{break-inside:avoid;}.party b{display:block;font:700 7.8pt ' + sans + ';letter-spacing:.1em;text-transform:uppercase;color:#6b6257;}'
     + '.recitals{margin:6px 0 8px;}.recitals p{margin:0 0 3px;}p{margin:0 0 3.5px;text-align:justify;hyphens:auto;orphans:3;widows:3;}'
@@ -46358,7 +46449,7 @@ function _spDocCss(headLogo, headRight){
 //   the browser's print preview once fonts and images have settled.
 async function spacaShow(c, o, p, x, opt){
   opt = opt || {};
-  var w = window.open('', '_blank');
+  var w = (opt.win && !opt.win.closed) ? opt.win : window.open('', '_blank');
   if(!w){ _spMsg('Your browser blocked the contract window. Allow pop-ups for this site and try again.', 'err'); return null; }
   var e = _spEsc;
   var lsrc = (p && (p.logoWhite || p.logo)) || '';
@@ -46370,7 +46461,7 @@ async function spacaShow(c, o, p, x, opt){
       + ((c.check || []).length ? '<p class="warn">To check:</p><ul>' + c.check.map(function(t){ return '<li>' + e(t) + '</li>'; }).join('') + '</ul>' : '')
       + ((c.changes || []).length ? '<p>What the AI filled in:</p><ul>' + c.changes.map(function(t){ return '<li>' + e(t) + '</li>'; }).join('') + '</ul>' : '') + '</aside>' : '';
   var key = o.id;
-  var html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>SP&amp;CA — ' + e(headRight) + '</title>'
+  var html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>SP&amp;SCA — ' + e(headRight) + '</title>'
     + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">'
     + '<style>' + _spDocCss(headLogo, headRight) + '</style></head><body>'
     + '<div class="bar"><button id="spPrint">Print / Save as PDF</button><span>Click anywhere in the contract to edit it. Edits are kept for Print / Preview in the Create Contract dialog. The yellow box is for your review and is not printed.</span></div>'
@@ -46378,7 +46469,7 @@ async function spacaShow(c, o, p, x, opt){
     + '<div class="doc" contenteditable="true" spellcheck="true">' + body + '</div>'
     + '<div class="sfoot"><span>' + e(SPACA_FOOT) + '</span><span>Page 1 of …</span></div></div>' + review
     + '</body></html>';
-  w.document.write(html); w.document.close();
+  w.document.open(); w.document.write(html); w.document.close();
   // edits flow back, so Print / Preview reprints what was corrected, not the AI's first draft
   try{
     var doc = w.document.querySelector('.doc'), t = null;
