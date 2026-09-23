@@ -1,5 +1,11 @@
 # Type 5 — Assessment Report: wording for approval (plan risk R5)
 
+> **APPROVED — 23 September 2026, by the owner.** All four texts approved as written. Reliance clause: keep
+> Type 5's wider wording ("the named client and the intended use stated in it"); confirm with the insurer when
+> convenient — it is editable in Settings › Disclaimers. The Contents note (item 2) was made editable in
+> Settings › Disclaimers as "Notes on this Report — Type 5 Assessment Report" (key `notes5`), with the approved
+> text as its default. Released as v2.554.
+
 Everything below is **proposed** wording written with the implementation. None of it has been approved by the bureau
 or by its professional-indemnity insurer, and the Type 5 implementation plan records that approval as risk **R5**.
 This page exists so the four texts can be read together, in the order a reader of the report meets them, and signed
