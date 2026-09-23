@@ -20659,7 +20659,7 @@ function _syncSigmaLogo(){
 window._sigmaLogoUpdated=function(){setTimeout(_syncSigmaLogo,100);};
 
 var APP_LOG=[
-  {v:'v2.551',type:'feat',date:'09-23-2026',ts:'09-23-2026 14:00',_static:true,title:'Create Contract: an AI-prepared SPACA for housing-project jobs',desc:'For jobs that belong to a housing project, Inspect Data › Documents has a new button, Create Contract (SPACA). Attach the Sales Purchase Agreement & Construction Agreement the developer uses in one of the Documents slots, press the button, and check the details it has filled in for you: the buyer\'s first and last name, the Lot / Unit #, the sale amount (taken from the Presumable Sales Price) and every size from Project Data — parcel, building, backyard, roof top, roof terrace, staircase, pool, jacuzzi, fencing, flooring and parking. A Contract setup box at the top keeps three things on the project, so every lot of the development reuses them: the developer’s name (the seller / builder in the contract), a PNG logo made for a white background (used on the contract instead of the project logo), and the Draft SP&CA PDF — press Upload Draft SP&CA PDF once and it is offered as the contract to base every lot on. The AI reads the attached contract itself and prepares this buyer\'s version: it keeps the contract\'s own language, wording and obligations and changes only the buyer, lot, price (in figures and in words) and sizes, leaving any detail it was not given as a blank line. The result opens as a compact A4 document with the project\'s logo and balanced fonts, and you can edit any word directly on the page before saving it as a PDF. A yellow review box — not printed — lists every value the AI filled in and anything it was unsure of. It uses the Anthropic API key in Settings › API Keys. Always read the contract before it is signed.'},
+  {v:'v2.551',type:'feat',date:'09-23-2026',ts:'09-23-2026 14:00',_static:true,title:'Create Contract: an AI-prepared SPACA for housing-project jobs',desc:'For jobs that belong to a housing project, Inspect Data › Documents has a new button, Create Contract (SPACA). Attach the Sales Purchase Agreement & Construction Agreement the developer uses in one of the Documents slots, press the button, and check the details it has filled in for you: the buyer\'s first and last name, the Lot / Unit #, the sale amount (taken from the Presumable Sales Price) and every size from Project Data — parcel, building, backyard, roof top, roof terrace, staircase, pool, jacuzzi, fencing, flooring and parking. A Contract setup box at the top keeps three things on the project, so every lot of the development reuses them: the developer’s name (the seller / builder in the contract), a PNG logo made for a white background (used on the contract instead of the project logo), and the Draft SP&CA PDF — press Upload Draft SP&CA PDF once and it is offered as the contract to base every lot on. The dialog also carries the rest of Project Data the contract can use — the buyer’s address, phone and email; the parcel’s street address, type, ROPV zone, legal description, APN and registered owners; the building type, year, bedrooms, bathrooms, expected completion, builder and any further parcels or buildings — and a Sync Data button reads all of it fresh from the saved job on the server and refills the dialog, outlining in green every field it changed. Sync only reads: it writes nothing, and it never empties a field the job has no value for, so a sale amount typed into the dialog survives it. The AI reads the attached contract itself and prepares this buyer\'s version: it keeps the contract\'s own language, wording and obligations and changes only the buyer, lot, price (in figures and in words) and sizes, leaving any detail it was not given as a blank line. The result opens as a compact A4 document with the project\'s logo and balanced fonts, and you can edit any word directly on the page before saving it as a PDF. A yellow review box — not printed — lists every value the AI filled in and anything it was unsure of. It uses the Anthropic API key in Settings › API Keys. Always read the contract before it is signed.'},
   {v:'v2.550',type:'fix',date:'09-23-2026',ts:'09-23-2026 12:00',_static:true,title:'Quick View shows a completed Presumable valuation in green',desc:'When a valuation was set to Presumable and fully filled in, Quick View still showed the Valuation step as Not Completed and the value boxes as "No valuation data yet", because it only ever looked at the Current values. It now follows the chosen valuation type, on every appraisal type: a Presumable valuation turns green once its three values (Free Market, Execution and Re-Construction) are filled — including the manual Presumable figures of a New Construction — a valuation set to Both turns green once Current and Presumable are both complete, and a Current valuation works as before. The value boxes in Quick View show the Presumable figures, marked PRESUMABLE, when that is the valuation there is.'},
   {v:'v2.549',type:'feat',date:'09-23-2026',ts:'09-23-2026 11:00',_static:true,title:'Parcel Type: Condominium Regime',desc:'Parcel Type now offers Condominium Regime. It is in Project Data (for Parcel 1 and for any further parcels), in the New Appraisal Order form and in Inspect Data, so the choice shows the same everywhere and prints on the report as the parcel type.'},
   {v:'v2.548',type:'fix',date:'09-23-2026',ts:'09-23-2026 10:00',_static:true,title:'Collapsing a housing project no longer shrinks its logo; the property address shows in Project Data',desc:'When a housing project was collapsed on Developments, its logo box was made smaller. It now stays exactly as it is — the same 338 × 190 box, the logo unscaled — and collapsing only folds away the list of appraisals. The Project Data window now shows the property address at the top, beside the job number, and it updates as the Street Address is edited.'},
@@ -45870,8 +45870,14 @@ function spacaOpen(){
   ov.style.cssText = 'position:fixed;inset:0;z-index:100030;background:rgba(10,8,4,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;';
   ov.innerHTML = '<div role="dialog" aria-modal="true" aria-labelledby="spacaHead" style="width:min(720px,100%);max-height:94vh;overflow:auto;background:#17150f;border:1px solid #8b5cf6;'
     + 'border-radius:14px;padding:20px 22px;box-shadow:0 24px 60px rgba(0,0,0,.55);font-family:Sora,system-ui,sans-serif;">'
-    + '<div id="spacaHead" style="font-size:16px;font-weight:800;color:#c4b5fd;">✦ Create Contract — SPACA</div>'
-    + '<div style="font-size:12px;color:#a8a29e;margin-top:3px;">' + _spEsc(p ? p.name : '') + ' · ' + _spEsc(o.projectNumber || o.id) + '</div>'
+    + '<div style="display:flex;align-items:flex-start;gap:12px;">'
+    +   '<div style="flex:1;"><div id="spacaHead" style="font-size:16px;font-weight:800;color:#c4b5fd;">✦ Create Contract — SPACA</div>'
+    +   '<div style="font-size:12px;color:#a8a29e;margin-top:3px;">' + _spEsc(p ? p.name : '') + ' · ' + _spEsc(o.projectNumber || o.id) + '</div></div>'
+    // §SPACA-SYNC (v2.551) — pull Client, Parcel and Building data from the saved Project Data
+    +   '<button type="button" id="spSync" class="btn-sec" onclick="spacaSync()" title="Read this job’s Client, Parcel and Building data from the database and fill this dialog" '
+    +     'style="border:1px solid #8b5cf6;color:#ddd6fe;font-weight:700;white-space:nowrap;">⟳ Sync Data</button>'
+    + '</div>'
+    + '<div id="spSyncMsg" style="display:none;margin-top:8px;font-size:12px;"></div>'
     // §SPACA-SETUP (v2.551) — developer, white-background logo and the draft SP&CA,
     //   kept on the PROJECT so every lot of the development reuses them.
     + '<div style="margin-top:14px;padding:12px 14px;border:1px solid rgba(139,92,246,.35);border-radius:10px;background:rgba(139,92,246,.05);">'
@@ -45902,6 +45908,14 @@ function spacaOpen(){
     + '</div>'
     + '<label style="' + lab + '">Sizes (from Project Data — change any here; empty ones are left out)</label>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;">' + sizes + '</div>'
+    // §SPACA-SYNC (v2.551) — the rest of Project Data the contract can use
+    + SPACA_DETAILS.map(function(grp){
+        return '<label style="' + lab + '">' + grp[0] + '</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;">'
+          + grp[1].map(function(f){
+              return '<div' + (f[2] ? ' style="grid-column:1 / -1;"' : '') + '><div style="font-size:11px;color:#a8a29e;margin-bottom:2px;">' + f[1] + '</div>'
+                + (f[2] === 'area' ? '<textarea id="' + f[0] + '" rows="2" style="' + fld + 'resize:vertical;"></textarea>' : '<input id="' + f[0] + '" style="' + fld + '">') + '</div>';
+            }).join('') + '</div>';
+      }).join('')
     + '<label style="' + lab + '" for="spNote">Anything else to apply (optional)</label>'
     + '<textarea id="spNote" rows="2" style="' + fld + 'resize:vertical;" placeholder="e.g. completion date 30 June 2027; deposit 10%"></textarea>'
     + '<div id="spMsg" style="display:none;margin-top:12px;padding:10px 12px;border-radius:8px;font-size:12.5px;line-height:1.55;"></div>'
@@ -45911,7 +45925,103 @@ function spacaOpen(){
     + '</div></div>';
   document.body.appendChild(ov);
   ov._pick = pick ? String(pick.idx) : '';
+  _spFill(o);
   _spSetupPaint();
+}
+
+// §SPACA-SYNC (v2.551) — Client, Parcel and Building fields: [dialog id, label, wide|'area'].
+var SPACA_DETAILS = [
+  ['Buyer — contact (Project Data › Client Info)', [['spCAddr','Address',1],['spCPhone','Phone'],['spCEmail','Email']]],
+  ['Parcel (Project Data › Parcel Info)', [['spPAddr','Street address',1],['spPType','Parcel type'],['spPZone','ROPV zone'],['spPLegal','Legal description'],['spPApn','APN / parcel number'],['spPOwner','Registered owner(s)',1]]],
+  ['Building (Project Data › Building Info)', [['spBType','Building type'],['spBYear','Year built / projected'],['spBBeds','Bedrooms'],['spBBaths','Bathrooms'],['spBComp','Expected completion'],['spBBuilder','Builder / contractor'],['spBNote','Building note',1],['spBExtra','Other parcels / buildings','area']]]
+];
+// What each dialog field shows for an order (the Project Data values, as the form shows them).
+function _spValues(o){
+  var cp = String(o.city || '').split(',');
+  var n = function(v){ return (v != null && v !== '' && Number(v) > 0) ? String(v) : ''; };
+  var owners = (Array.isArray(o.ownersList) && o.ownersList.length)
+    ? o.ownersList.map(function(w){ return (w && w.name ? w.name : '') + (w && w.pct ? ' (' + w.pct + '%)' : ''); }).filter(Boolean).join('; ')
+    : (o.owner || '');
+  var extra = [];
+  (Array.isArray(o.parcels) ? o.parcels : []).forEach(function(q, i){
+    if(!q) return;
+    var t = [q.type, q.size ? q.size + ' m²' : '', q.legal, q.apn ? 'APN ' + q.apn : '', q.owner ? 'owner ' + q.owner : ''].filter(function(s){ return String(s || '').trim(); });
+    if(t.length) extra.push('Parcel ' + (i + 2) + ': ' + t.join(', '));
+  });
+  (Array.isArray(o.buildings) ? o.buildings : []).forEach(function(b, i){
+    if(!b) return;
+    var t = [b.size ? b.size + ' m²' : '', b.note].filter(function(s){ return String(s || '').trim(); });
+    if(t.length) extra.push('Building ' + (i + 2) + ': ' + t.join(', '));
+  });
+  var pd = (o.valData && o.valData.presumData) || {};
+  var v = {
+    spFirst: o.clientFirst || '', spLast: o.clientLast || '',
+    spLot: (typeof _hpLotOf === 'function') ? (_hpLotOf(o) || '') : (o.lotUnit || ''),
+    spSale: pd.projectSalePrice || '',
+    // placeholder values the office types to get past a field (00000, na, n/a, -) are left out
+    spCAddr: [o.clientAddr, (cp[0] || '').trim(), o.zip, o.stateZip || (cp[1] || '').trim(), o.country].filter(function(s){ s = String(s || '').trim(); return s && !/^(0+|n\/?a|-+|\.+)$/i.test(s); }).join(', '),
+    spCPhone: [o.clientCell, o.clientWork].filter(Boolean).join(' / '), spCEmail: o.clientEmail || '',
+    spPAddr: o.address || '', spPType: o.propType || '', spPZone: o.ropvZone || '', spPLegal: o.legal || '', spPApn: o.apn || '', spPOwner: owners,
+    spBType: o.buildType || '', spBYear: o.year != null ? String(o.year) : '', spBBeds: o.beds != null ? String(o.beds) : '', spBBaths: o.baths != null ? String(o.baths) : '',
+    spBComp: o.compDate || '', spBBuilder: o.builder || '', spBNote: o.bldgNote || '', spBExtra: extra.join('\n')
+  };
+  SPACA_SIZES.forEach(function(s){ v['size:' + s[0]] = n(o[s[0]]); });
+  return v;
+}
+function _spField(k){ return k.indexOf('size:') === 0 ? document.querySelector('#spacaDlg [data-size="' + k.slice(5) + '"]') : document.getElementById(k); }
+// Puts the values into the dialog; returns the ids that changed. With keep, a value the job
+//   does not have never empties a field (so a sale amount typed here survives a Sync).
+function _spFill(o, keep){
+  var v = _spValues(o), changed = [];
+  Object.keys(v).forEach(function(k){
+    var el = _spField(k); if(!el) return;
+    var nv = String(v[k] == null ? '' : v[k]);
+    if(keep && nv === '') return;
+    if(String(el.value) !== nv){ changed.push(k); el.value = nv; }
+  });
+  return changed;
+}
+function _spSyncMsg(t, kind){
+  var m = document.getElementById('spSyncMsg'); if(!m) return;
+  m.style.display = t ? 'block' : 'none';
+  m.style.color = kind === 'err' ? '#fca5a5' : (kind === 'ok' ? '#86efac' : '#c4b5fd');
+  m.textContent = t || '';
+}
+// Reads the SAVED job from the database (no insp_data — photos and documents are not needed and
+//   _fromRow would write their local copies), lays it over the in-memory job so a value missing
+//   from the row does not blank a field, and refills the dialog. Nothing is written anywhere.
+async function spacaSync(){
+  var o = SPACA.order; if(!o) return;
+  var btn = document.getElementById('spSync');
+  if(btn){ btn.disabled = true; btn.textContent = 'Syncing…'; }
+  _spSyncMsg('Reading Project Data from the database…');
+  try{
+    var fresh = o, fromDb = false;
+    try{
+      var q = _sb.schema('public').from('orders')
+        .select('order_id,status,due_date,address,city,property_type,appraiser,client,assessed_value,beds,baths,gla_m2,parcel_m2,year_built,fee,updated_at,val_data,extra_data')
+        .eq('order_id', o.id).limit(1);
+      var r = (typeof _finRace === 'function') ? await _finRace(q, 20000, 'reading Project Data') : await q;
+      if(r && !r.error && r.data && r.data.length){
+        var tmp = {};
+        _fromRow(r.data[0], tmp);
+        fresh = Object.assign({}, o);
+        Object.keys(tmp).forEach(function(k){ var x = tmp[k]; if(x != null && x !== '') fresh[k] = x; });
+        fromDb = true;
+      }
+    }catch(_q){}
+    var changed = _spFill(fresh, true);
+    changed.forEach(function(k){
+      var el = _spField(k); if(!el) return;
+      el.style.boxShadow = '0 0 0 2px #22c55e'; setTimeout(function(){ el.style.boxShadow = ''; }, 2600);
+    });
+    _spSyncMsg((fromDb ? 'Synced from Project Data (saved on the server). ' : 'The server could not be reached — synced from the copy on this computer. ')
+      + (changed.length ? changed.length + ' field' + (changed.length === 1 ? '' : 's') + ' updated (outlined in green).' : 'Everything was already up to date.'), fromDb ? 'ok' : 'err');
+  }catch(e){
+    _spSyncMsg('Not synced — ' + ((e && e.message) || e), 'err');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '⟳ Sync Data'; }
+  }
 }
 
 // §SPACA-SETUP (v2.551) — paints the logo, the draft and the contract picker from the project.
@@ -46086,8 +46196,14 @@ async function spacaGenerate(){
     var details = 'Project: ' + (p ? p.name : '') + (p && p.type ? ' (' + p.type + ')' : '') + (p && p.location ? ', ' + p.location : '')
       + '\nDeveloper (seller / builder): ' + (dev || '(not given — keep what the contract says)')
       + '\nBuyer first name(s): ' + first + '\nBuyer last name: ' + last
-      + '\nBuyer address / contact on file: ' + [o.clientAddr, o.clientEmail, o.clientCell || o.clientWork].filter(Boolean).join(' · ')
-      + '\nLot / Unit: ' + lot + '\nProperty address: ' + (o.address || '') + (o.city ? ', ' + o.city : '')
+      // §SPACA-SYNC (v2.551) — the Client / Parcel / Building fields as they stand in the dialog
+      + '\nBuyer address: ' + v('spCAddr') + '\nBuyer phone: ' + v('spCPhone') + '\nBuyer email: ' + v('spCEmail')
+      + '\nLot / Unit: ' + lot + '\nProperty (parcel) street address: ' + v('spPAddr')
+      + '\nParcel type: ' + v('spPType') + '\nROPV zone: ' + v('spPZone') + '\nLegal description: ' + v('spPLegal')
+      + '\nAPN / parcel number: ' + v('spPApn') + '\nRegistered owner(s) of the land: ' + v('spPOwner')
+      + '\nBuilding type: ' + v('spBType') + '\nYear built / projected: ' + v('spBYear') + '\nBedrooms: ' + v('spBBeds') + '\nBathrooms: ' + v('spBBaths')
+      + '\nExpected completion: ' + v('spBComp') + '\nBuilder / contractor: ' + v('spBBuilder') + '\nBuilding note: ' + v('spBNote')
+      + (v('spBExtra') ? '\nOther parcels / buildings:\n' + v('spBExtra') : '')
       + '\nSale amount: AWG ' + Number(sale).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 })
       + '\nSizes:\n' + sizeLines + (note ? '\nAlso apply: ' + note : '');
     var instructions = 'The attached PDF is the Sales Purchase Agreement & Construction Agreement (SPACA) that this developer uses. '
@@ -46096,6 +46212,7 @@ async function spacaGenerate(){
       + '- Keep the contract’s own language, clause wording, order, obligations, amounts other than the ones below, and legal terms. Do not add, remove or soften any obligation, condition, penalty or right.\n'
       + '- Where a developer name is given below, use it as the seller / builder party name wherever the contract names the developer (parties, signatures).\n'
       + '- Replace only the variable details with the buyer details below: the buyer’s names, the lot or unit number, the sale price (in figures and, where the contract writes it out, in words in the contract’s language), and every area or size. Where the contract refers to a size that has no value below, leave it as it is and say so under "check".\n'
+      + '- Use the buyer’s address and contact details, and the parcel and building data below (street address, legal description, APN / parcel number, parcel and building type, bedrooms, bathrooms, completion date, builder), wherever the contract has a place for them. An empty value means not given.\n'
       + '- Where the contract has a blank or placeholder for something not given below (ID number, date of birth, signing date and place, etc.), keep a blank line "__________".\n'
       + '- Keep it as short as the contract allows: no repeated headers, no page furniture, no line-by-line tables of contents. Put each article’s text in its paragraphs, one paragraph per numbered sub-clause.\n'
       + '- List every value you inserted or replaced under "changes", and anything unclear under "check".\n\n'
@@ -46193,7 +46310,7 @@ function spacaShow(c, o, p, x){
   w.document.write(html); w.document.close();
 }
 try{ window.spacaOpen = spacaOpen; window.spacaGenerate = spacaGenerate; window.spacaBar = spacaBar;
-     window._spLogoPick = _spLogoPick; window._spLogoClear = _spLogoClear; window._spDraftPick = _spDraftPick; }catch(e){}
+     window._spLogoPick = _spLogoPick; window._spLogoClear = _spLogoClear; window._spDraftPick = _spDraftPick; window.spacaSync = spacaSync; }catch(e){}
 
 try{
   window.hpEditInOrders = hpEditInOrders; window.hpLotOpen = hpLotOpen; window.hpCopyOpen = hpCopyOpen;
