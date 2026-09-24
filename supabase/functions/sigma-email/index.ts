@@ -24,6 +24,7 @@
 //   SMTP_FROM  e.g. 'Taxatie Bureau Jozef Laclé <website@taxatie-bureau.com>'
 //              Most servers insist the From address matches SMTP_USER; if the send
 //              is rejected for that reason the error is surfaced verbatim.
+//   SMTP_REPLY_TO  optional, default info@zenarch.net (Reply-To + the §NO-REPLY notice)
 //   Missing any of HOST/USER/PASS → {ok:false,error:'not_configured'}.
 //
 // Request (POST JSON, Authorization: Bearer <session token>):
@@ -194,6 +195,21 @@ function ccLikelyAtFault(detail: string, ccList: string[], primary: string): boo
   return /(recipient|rcpthost|relay|unknown user|user unknown|no such user|mailbox unavailable|mailbox not found|no mailbox|address rejected|does not exist)/.test(d);
 }
 
+// §NO-REPLY — the notice goes at the foot of the message (before </body> when the
+// template is a full document). Marked so a template that already carries it is
+// never given a second copy.
+function addNoReplyNotice(html: string, sendAddr: string, replyTo: string): string {
+  if (html.indexOf("data-noreply") >= 0) return html;
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const note = '<div data-noreply="1" style="margin-top:24px;padding-top:12px;border-top:1px solid #ddd;'
+    + 'font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#666;">'
+    + "Do not reply to this email " + esc(sendAddr) + " (no one monitors this email). "
+    + 'If you want to email us, email us at <a href="mailto:' + esc(replyTo) + '" style="color:#666;">'
+    + esc(replyTo) + "</a>.</div>";
+  const at = html.search(/<\/body>/i);
+  return at >= 0 ? html.slice(0, at) + note + html.slice(at) : html + note;
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
   const ch = corsHeaders(origin);
@@ -282,6 +298,14 @@ Deno.serve(async (req: Request) => {
   const SMTP_USER = Deno.env.get("SMTP_USER") || "";
   const SMTP_PASS = Deno.env.get("SMTP_PASS") || "";
   const SMTP_FROM = Deno.env.get("SMTP_FROM") || SMTP_USER;
+  // §NO-REPLY (2026-09-24) — mail now leaves from an unmonitored sending mailbox
+  // (outgoing@zenarch.net), after website@taxatie-bureau.com was suspended by A2.
+  // Replies are steered to the monitored inbox twice over: a Reply-To header, and a
+  // notice on every message. Added HERE, not in each template, so every kind of mail
+  // (invoice, receipt, reminder, final notice, payout, inspection) carries it.
+  const REPLY_TO = Deno.env.get("SMTP_REPLY_TO") || "info@zenarch.net";
+  const sendAddr = (SMTP_FROM.match(/<([^>]+)>/)?.[1] || SMTP_FROM).trim();
+  const bodyHtml = addNoReplyNotice(html, sendAddr, REPLY_TO);
 
   // Log the attempt up front so a failure is never invisible. One row per request:
   // the retry below is part of the same send, not a second one, so it updates this
@@ -349,10 +373,11 @@ Deno.serve(async (req: Request) => {
         from: SMTP_FROM,
         to,
         subject,
-        html,
+        html: bodyHtml,
         // A text/plain alternative keeps it out of spam filters that distrust HTML-only mail.
-        content: html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+        content: bodyHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
       };
+      if (REPLY_TO && sendableAddress(REPLY_TO)) msg.replyTo = REPLY_TO;
       // A real Cc header, not a bcc: the client should see that the bureau is copied.
       if (cc.length) msg.cc = cc;
       if (attachment?.contentBase64 && attachment?.name) {
