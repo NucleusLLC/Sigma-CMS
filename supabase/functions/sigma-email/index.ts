@@ -72,6 +72,51 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+// §MIME-HEADER (2026-09-28) — denomailer 1.6.0 wraps any header text holding a non-ASCII
+// character (or starting with "=?") as `=?utf-8?Q?…?=` using its BODY quoted-printable
+// encoder: spaces left raw and a `=\r\n` soft break every 74 characters, both illegal in a
+// header. A long subject with "—" (every RFI, reminder and final notice) or a From name
+// with "é" broke the header block, and the client showed the raw message source.
+// So non-ASCII header text is handed over already encoded as RFC 2047 base64 words
+// (≤ 45 UTF-8 bytes each → ≤ 75 chars, never splitting a character), folded with CRLF+SP,
+// behind one leading space so denomailer's `startsWith("=?")` test does not re-wrap it
+// (writeCmd joins with a space; the extra space is ordinary header whitespace).
+// ASCII text is returned untouched.
+function mimeHeader(s: string): string {
+  // deno-lint-ignore no-control-regex
+  if (!/[^\x20-\x7e]/.test(s) && !s.startsWith("=?")) return s;
+  const enc = new TextEncoder();
+  const words: string[] = [];
+  let cur = "";
+  for (const ch of Array.from(s)) {
+    if (cur && enc.encode(cur + ch).length > 45) { words.push(cur); cur = ""; }
+    cur += ch;
+  }
+  if (cur) words.push(cur);
+  return " " + words.map((w) => {
+    let bin = "";
+    enc.encode(w).forEach((b) => { bin += String.fromCharCode(b); });
+    return "=?UTF-8?B?" + btoa(bin) + "?=";
+  }).join("\r\n ");
+}
+// "Name <addr>" → { mail, name } with the name header-encoded (see mimeHeader). The object
+// form matters: denomailer trims a name parsed from a string, which would drop the space.
+function fromHeader(from: string): string | { mail: string; name: string } {
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(from);
+  if (!m || !m[1].trim()) return from;
+  return { mail: m[2].trim(), name: mimeHeader(m[1].trim()) };
+}
+// HTML → plain text for the text/plain part, keeping paragraph and line breaks.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
+    .replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // A plain address and nothing else: no whitespace (so no CR/LF can reach a header),
 // and no angle brackets (so 'Name <a@b.com>' never lands in the delivery log as if
 // it were an address).
@@ -370,12 +415,12 @@ Deno.serve(async (req: Request) => {
     });
     try {
       const msg: Record<string, unknown> = {
-        from: SMTP_FROM,
+        from: fromHeader(SMTP_FROM),        // §MIME-HEADER
         to,
-        subject,
+        subject: mimeHeader(subject),       // §MIME-HEADER
         html: bodyHtml,
         // A text/plain alternative keeps it out of spam filters that distrust HTML-only mail.
-        content: bodyHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+        content: htmlToText(bodyHtml),
       };
       if (REPLY_TO && sendableAddress(REPLY_TO)) msg.replyTo = REPLY_TO;
       // A real Cc header, not a bcc: the client should see that the bureau is copied.
