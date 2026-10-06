@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.649';
+var APP_VERSION = 'v2.650';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -91756,6 +91756,40 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
 .tv-body{ flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,7fr) minmax(0,3fr); gap:1vw; }
 .tv-body.busy{ grid-template-columns:minmax(0,4fr) minmax(0,1fr); gap:.7vw; }
 .tv-foot{ flex:0 0 auto; font-size:1.4vh; color:var(--mut); display:flex; justify-content:space-between; opacity:.7; }
+#tvMain{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:1.2vh; }
+/* §TV-NEWS — bottom news bar: BREAKING (red, one story at a time) + slow WORLD NEWS ticker.
+   It lives outside #tvMain, so the board's 30-second repaint never restarts the scroll. */
+#tvNews{ flex:0 0 14vh; display:flex; gap:.7vw; min-height:0; }
+#tvNews.off{ display:none; }
+.tvn-feat{ flex:0 0 37%; position:relative; border-radius:1.2vh; overflow:hidden; background:linear-gradient(100deg,#7f1d1d,#b91c1c 55%,#dc2626); box-shadow:0 0 0 2px #ef4444 inset; }
+.tvn-feat.top{ background:linear-gradient(100deg,#0f2747,#1e3a8a); box-shadow:0 0 0 2px #3b82f6 inset; }
+.tvn-slide{ position:absolute; inset:0; display:flex; align-items:stretch; animation:tvnIn .9s cubic-bezier(.2,.8,.2,1) both; }
+.tvn-slide.out{ animation:tvnOut .6s ease-in both; }
+@keyframes tvnIn{ from{ transform:translateY(100%); opacity:0; } to{ transform:none; opacity:1; } }
+@keyframes tvnOut{ from{ transform:none; opacity:1; } to{ transform:translateY(-60%); opacity:0; } }
+.tvn-slide img{ height:100%; aspect-ratio:16/9; object-fit:cover; flex:none; }
+.tvn-slide .bx{ flex:1; min-width:0; padding:.8vh 1vw 1.4vh; display:flex; flex-direction:column; justify-content:center; gap:.4vh; }
+.tvn-tag{ align-self:flex-start; display:inline-flex; align-items:center; gap:.5vw; background:#fff; color:#b91c1c; font-size:1.5vh; font-weight:800; letter-spacing:.14em; padding:.2vh .55vw; border-radius:.5vh; }
+.tvn-feat.top .tvn-tag{ color:#1e3a8a; }
+.tvn-tag i{ width:1vh; height:1vh; border-radius:50%; background:currentColor; animation:tvnPulse 1.2s ease-in-out infinite; }
+@keyframes tvnPulse{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.3; transform:scale(.7); } }
+.tvn-slide .hl{ font-size:2.45vh; font-weight:800; color:#fff; line-height:1.18; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.tvn-slide .mt{ font-size:1.55vh; color:#fecaca; font-weight:600; } .tvn-feat.top .tvn-slide .mt{ color:#bfdbfe; }
+.tvn-dots{ position:absolute; right:.8vw; bottom:.7vh; display:flex; gap:.35vw; }
+.tvn-dots i{ width:.8vh; height:.8vh; border-radius:50%; background:rgba(255,255,255,.35); } .tvn-dots i.on{ background:#fff; }
+.tvn-tick{ flex:1; min-width:0; display:flex; background:#0f1522; border:2px solid #263042; border-radius:1.2vh; overflow:hidden; }
+.tvn-lab{ flex:none; background:#1e293b; color:#e2e8f0; padding:0 1vw; display:flex; flex-direction:column; justify-content:center; line-height:1.1; border-right:2px solid #263042; }
+.tvn-lab b{ font-size:2.1vh; font-weight:800; letter-spacing:.08em; } .tvn-lab span{ font-size:1.4vh; font-weight:700; color:#94a3b8; letter-spacing:.1em; }
+.tvn-win{ flex:1; min-width:0; overflow:hidden; -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%); mask-image:linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%); }
+.tvn-track{ display:flex; align-items:center; height:100%; width:max-content; will-change:transform; animation:tvnScroll var(--tvn-dur, 300s) linear infinite; }
+@keyframes tvnScroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+.tvn-it{ display:flex; align-items:center; gap:.9vw; height:100%; padding:0 1.5vw; }
+.tvn-it img{ height:8.6vh; width:15.3vh; object-fit:cover; border-radius:.7vh; background:#1e2738; flex:none; }
+.tvn-it .tx{ display:flex; flex-direction:column; gap:.35vh; }
+.tvn-it .tt{ font-size:2.4vh; font-weight:700; color:#f1f5f9; white-space:nowrap; }
+.tvn-it .tm{ font-size:1.5vh; color:#94a3b8; white-space:nowrap; } .tvn-it .tm b{ color:#e0b85a; font-weight:800; letter-spacing:.05em; }
+.tvn-it.hot .tt{ color:#fca5a5; }
+.tvn-sep{ width:.9vh; height:.9vh; border-radius:50%; background:#475569; flex:none; }
 .tv-empty{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2vh; font-size:4vh; color:var(--mut); background:var(--bg); text-align:center; }
 .tv-diag{ font-size:2.1vh; line-height:1.6; color:#cbd5e1; max-width:80vw; }
 .tv-diag b{ color:#fbbf24; }
@@ -92069,7 +92103,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     }, function(){ return false; });
   }
   function render(){
-    var root = document.getElementById('sigmaTv'); if(!root) return;
+    var root = document.getElementById('tvMain'); if(!root) return;
     var D = collect(), ds = D.ds, total = 0;
     ds.forEach(function(d){ total += D.byDay[key(d)].length; });
     var a = ds[0], b = ds[5], n = new Date();
@@ -92079,11 +92113,67 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     root.innerHTML =
       '<div class="tv-hd"><div class="tv-brand">Σ SIGMA</div><div><div class="tv-title">Inspections this week</div><div class="tv-sub">' + range + ' · ' + total + (total === 1 ? ' visit' : ' visits') + '</div></div>' +
       '<div class="tv-legend">' + legend + '</div>' +
-      '<div class="tv-clock"><b>' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + '</b><small>' + DN[n.getDay()] + ' ' + n.getDate() + ' ' + MN[n.getMonth()] + '</small></div></div>' +
+      '<div class="tv-clock"><b>' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + '</b><small>' + DN[n.getDay()] + ' ' + n.getDate() + ' ' + MN[n.getMonth()] + (TV.at ? ' · updated ' + p2(TV.at.getHours()) + ':' + p2(TV.at.getMinutes()) : '') + '</small></div></div>' +
       '<div class="tv-body busy" style="position:relative">' + renderDays(D) + renderCad(ready ? cadaster() : null) + (ready ? '' : '<div class="tv-empty">Loading schedule…' + diag() + '</div>') + '</div>' +
-      '<div class="tv-foot"><span>SIGMA office board</span><span>' + (TV.at ? 'Updated ' + p2(TV.at.getHours()) + ':' + p2(TV.at.getMinutes()) : '') + '</span></div>';
+      '';
     fit();
   }
+  // §TV-NEWS — world headlines + photos from a relay (news RSS has no CORS), refreshed every 10 minutes.
+  //   BREAKING = an urgent word in the headline (last 12 h) or flagged by the relay; those rotate
+  //   in the red panel one at a time; the slow ticker on the right carries AI & innovation news. With nothing breaking
+  //   the panel turns blue and rotates the top stories. A dead feed hides the whole bar.
+  var TV_NEWS_URL = 'https://cimgpycjczatjzltgscf.supabase.co/functions/v1/tv-news';
+  var NEWS = { items:[], ai:[], sig:'', feat:[], fi:0, rot:null };
+  var HOT_WORDS = /\b(breaking|killed|dead|deaths?|earthquake|tsunami|explosion|blast|attack|shooting|war|missile|strike[sd]?|crash|hurricane|evacuat\w*|emergency|coup|assassinat\w*)\b/i;
+  function newsAgo(t){ var m = Math.round((Date.now() - t) / 60000); if(!(m >= 0)) return ''; if(m < 1) return 'just now'; if(m < 60) return m + ' min ago'; var h = Math.round(m / 60); return h < 24 ? h + ' h ago' : ''; }
+  function newsHot(x){ return !!x.breaking || (HOT_WORDS.test(x.title) && (!isFinite(x.t) || Date.now() - x.t < 12 * 3600000)); }
+  function newsSlide(){
+    var box = document.getElementById('tvNews'), f = box && box.querySelector('.tvn-feat'); if(!f || !NEWS.feat.length) return;
+    var x = NEWS.feat[NEWS.fi % NEWS.feat.length], hot = f.className.indexOf('top') < 0;
+    var old = f.querySelector('.tvn-slide:not(.out)'); if(old){ old.className = 'tvn-slide out'; setTimeout(function(){ if(old.parentNode) old.parentNode.removeChild(old); }, 700); }
+    var el = document.createElement('div'); el.className = 'tvn-slide';
+    el.innerHTML = (x.img ? '<img src="' + esc(x.img) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
+      '<div class="bx"><span class="tvn-tag"><i></i>' + (hot ? 'BREAKING' : 'TOP STORY') + '</span><div class="hl">' + esc(x.title) + '</div><div class="mt">' + esc(x.src || 'WORLD') + (newsAgo(x.t) ? ' · ' + esc(newsAgo(x.t)) : '') + '</div></div>';
+    f.insertBefore(el, f.querySelector('.tvn-dots'));
+    var dots = f.querySelectorAll('.tvn-dots i'); for(var i = 0; i < dots.length; i++) dots[i].className = (i === NEWS.fi % NEWS.feat.length) ? 'on' : '';
+    NEWS.fi++;
+  }
+  function newsPaint(){
+    var box = document.getElementById('tvNews'); if(!box) return;
+    var L = NEWS.items.slice(0, 24), A = NEWS.ai.slice(0, 16);
+    if(!L.length && !A.length){ box.className = 'off'; box.innerHTML = ''; NEWS.sig = ''; return; }
+    var sig = L.concat(A).map(function(x){ return x.title; }).join('|');
+    if(sig === NEWS.sig && box.innerHTML){                               // same headlines: just refresh the "x min ago"
+      var sp = box.querySelectorAll('.tvn-it .tm span'), tick = NEWS.tick || [];
+      for(var i = 0; i < sp.length; i++){ var it = tick[i % (tick.length || 1)]; if(it) sp[i].textContent = newsAgo(it.t); }
+      return;
+    }
+    NEWS.sig = sig;
+    // left: world BREAKING (or TOP STORY); right: AI & innovation (falls back to world if the AI feeds are down)
+    var hot = L.filter(newsHot).slice(0, 6), isHot = hot.length > 0;
+    NEWS.feat = isHot ? hot : L.slice(0, 5); NEWS.fi = 0;
+    NEWS.tick = A.length ? A : L.filter(function(x){ return NEWS.feat.indexOf(x) < 0; });
+    var one = NEWS.tick.map(function(x){
+      return '<div class="tvn-it">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
+        '<div class="tx"><div class="tt">' + esc(x.title) + '</div><div class="tm"><b>' + esc(x.src || 'WORLD') + '</b> · <span>' + esc(newsAgo(x.t)) + '</span></div></div></div><div class="tvn-sep"></div>';
+    }).join('');
+    box.className = '';
+    box.innerHTML = '<div class="tvn-feat' + (isHot ? '' : ' top') + '"><div class="tvn-dots">' + NEWS.feat.map(function(){ return '<i></i>'; }).join('') + '</div></div>' +
+      '<div class="tvn-tick"><div class="tvn-lab">' + (A.length ? '<b>AI</b><span>INNOVATION</span>' : '<b>WORLD</b><span>NEWS</span>') + '</div><div class="tvn-win"><div class="tvn-track">' + one + one + '</div></div></div>';
+    var tr = box.querySelector('.tvn-track');
+    setTimeout(function(){ var w = tr.scrollWidth / 2; tr.style.setProperty('--tvn-dur', Math.max(60, Math.round(w / (window.innerWidth / 30))) + 's'); }, 300);   // slow: 1/30 of the screen width per second
+    if(NEWS.feat.length){ newsSlide(); } else { var ft = box.querySelector('.tvn-feat'); if(ft) ft.style.display = 'none'; }
+    if(NEWS.rot) clearInterval(NEWS.rot);
+    NEWS.rot = setInterval(newsSlide, 10000);
+  }
+  function newsClean(items){ return (items || []).filter(function(x){ return x && x.title; }).map(function(x){ return { title:String(x.title), img:x.img || '', src:x.src || '', t:x.t ? +new Date(x.t) : NaN, breaking:!!x.breaking }; }); }
+  function newsSet(world, ai){ NEWS.items = newsClean(world); NEWS.ai = newsClean(ai); newsPaint(); }
+  function newsLoad(){
+    if(!window.fetch) return;
+    fetch(TV_NEWS_URL, { cache:'no-store' }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){ if(j && (j.world || j.ai)) newsSet(j.world, j.ai); }, function(){});
+  }
+  function newsStart(){ newsLoad(); setInterval(newsLoad, 10 * 60 * 1000); setInterval(newsPaint, 60 * 1000); }
+
   // payments + documents are read by the Dashboard's own probes; repaint once both have answered
   function probe(force){
     try{ if(typeof _synProbe === 'function') _synProbe(force); }catch(e){}
@@ -92104,7 +92194,8 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     if(TV.on){ render(); return; }
     TV.on = true;
     document.documentElement.classList.add('tv-mode');
-    var root = document.createElement('div'); root.id = 'sigmaTv'; document.body.appendChild(root);
+    var root = document.createElement('div'); root.id = 'sigmaTv'; root.innerHTML = '<div id="tvMain"></div><div id="tvNews" class="off"></div>'; document.body.appendChild(root);
+    newsStart();
     render();
     // §TV-SIGNIN — on sigma-cms.com orders load only after sign-in. Until they do, give the screen back to
     //   the normal login (with a note); the moment orders arrive, the board takes over. Sign in once with
@@ -92141,7 +92232,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
   window.addEventListener('hashchange', function(){ if(parseHash()) start(); });
   function boot(){ if(parseHash()) start(); }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
-  try{ window._tvBoard = { render:render, refresh:refresh, state:TV }; }catch(e){}
+  try{ window._tvBoard = { render:render, refresh:refresh, state:TV, setNews:newsSet }; }catch(e){}
 })();
 </script>
 
