@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.647';
+var APP_VERSION = 'v2.648';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -82777,7 +82777,7 @@ function calNewInspSave(){
   if(!ord){ if(msg)msg.textContent='Order not found.'; return; }
   // §CAL-CAP (v2.426) — the 2-per-hour rule. Excludes this order so re-saving
   //   an existing booking at its own time is not blocked by itself.
-  if(!_capGuard(d, t, oid, 'calNewInspMsg')) return;
+  if(!_capGuard(d, t, oid, 'calNewInspMsg', who)) return;
   // §INSP-PURPOSE-ALL (v2.493) — validated before anything is written, so a refusal
   //   leaves the order exactly as it was rather than half-booked.
   if(!_inspPurposeCommit('calNewInsp', ord, 'calNewInspMsg')) return;
@@ -83211,7 +83211,7 @@ function qvScheduleSave(oid){
   var ord=(typeof ORDERS!=='undefined'&&ORDERS)?ORDERS.find(function(o){return o.id===oid;}):null;
   if(!ord){ if(msg)msg.textContent='Order not found.'; return; }
   // §CAL-CAP (v2.426) — same rule, same check, same exclusion.
-  if(!_capGuard(date, time, oid, 'qvSchedMsg')) return;
+  if(!_capGuard(date, time, oid, 'qvSchedMsg', who)) return;
   // §INSP-PURPOSE (v2.488) — checked BEFORE anything is written, so a refusal leaves
   //   the order exactly as it was rather than half-booked. "Other" with nothing typed is
   //   the one refusal: it would reach the inspector as the word "Other" and say nothing.
@@ -83497,10 +83497,53 @@ window._capCheck=_capCheck; window._capLoad=_capLoad; window._capDenyMsg=_capDen
 /* Shared refusal for the three write paths: message into the dialog when there is
    one, toast when there is not, and always a log line. Returns false so a caller
    can `if(!_capBlock(...)) return;`. */
-function _capGuard(dateStr, timeStr, oid, msgElId){
-  var r=_capCheck(dateStr,timeStr,oid);
-  if(r.ok) return true;
-  var txt=_capDenyMsg(r);
+/* §INSP-GAP (v2.648) — ASKED FOR: "Always give an inspection minimum 30 minutes, and allow 15 min
+   of travel time. So never let someone put an inspection with only 30 min in between, Min 45min."
+   Per INSPECTOR: two inspectors may be on site at the same time (the 2-per-hour rule above already
+   allows that), but one person's bookings must start at least INSP_GAP_MIN apart. A booking with no
+   inspector on either side counts as a clash — an unassigned visit could be anybody's.
+   Enforced inside _capGuard, so every booking path gets it: Calendar New Inspection, Quick-View
+   Schedule, the Project Data time picker (+ its _inspTimeCommit funnel) and Calendar Edit. Like the
+   hour cap it stops NEW writes only; existing bookings are never rewritten. */
+var INSP_LEN_MIN = 30, INSP_TRAVEL_MIN = 15, INSP_GAP_MIN = INSP_LEN_MIN + INSP_TRAVEL_MIN;
+function _gapMin(t){ var p=_calTimeParts(t); return p ? p.h*60 + (p.m||0) : null; }
+function _gapHHMM(m){ m=Math.max(0,Math.min(1439,m)); var h=Math.floor(m/60), mi=m%60; return (h<10?'0':'')+h+':'+(mi<10?'0':'')+mi; }
+function _gapWhoOf(oid){
+  try{ var o=(typeof ORDERS!=='undefined'&&ORDERS)?ORDERS.find(function(x){return x&&x.id===oid;}):null;
+       if(!o && typeof editingOrder!=='undefined' && editingOrder && editingOrder.id===oid) o=editingOrder;
+       return o ? (_inspDefault(o)||'') : ''; }catch(e){ return ''; }
+}
+function _gapCheck(dateStr, timeStr, excludeIds, who){
+  var key=_calDateKey(dateStr), t=_gapMin(timeStr);
+  if(!key || t==null) return {ok:true, hits:[]};
+  var me=String(who||'').trim().toLowerCase(), hits=[];
+  (typeof ORDERS!=='undefined'&&ORDERS?ORDERS:[]).forEach(function(o){
+    if(!o||!o.inspDate||!o.inspTime||excludeIds.indexOf(o.id)>=0) return;
+    if(_calDateKey(o.inspDate)!==key) return;
+    var t2=_gapMin(o.inspTime); if(t2==null || Math.abs(t2-t)>=INSP_GAP_MIN) return;
+    var whoO=_inspDefault(o)||'', them=whoO.trim().toLowerCase();
+    if(me && them && me!==them) return;                 // a different inspector — allowed
+    hits.push({id:o.id, t:t2, who:whoO||'unassigned'});
+  });
+  return {ok:!hits.length, hits:hits, t:t};
+}
+function _gapDenyMsg(g){
+  var lo=Math.min.apply(null,g.hits.map(function(h){return h.t;})), hi=Math.max.apply(null,g.hits.map(function(h){return h.t;}));
+  var before=lo-INSP_GAP_MIN, after=hi+INSP_GAP_MIN;
+  return 'Too close to ' + g.hits.map(function(h){ return h.id+' at '+_gapHHMM(h.t)+' ('+h.who+')'; }).join(', ')
+       + '. Leave at least ' + INSP_GAP_MIN + ' minutes between inspections (' + INSP_LEN_MIN + ' min inspection + '
+       + INSP_TRAVEL_MIN + ' min travel). Pick ' + (before>=0 ? _gapHHMM(before)+' or earlier, or ' : '') + _gapHHMM(after) + ' or later.';
+}
+window._gapCheck=_gapCheck; window._gapDenyMsg=_gapDenyMsg;
+
+function _capGuard(dateStr, timeStr, oid, msgElId, who, alsoExclude){
+  var r=_capCheck(dateStr,timeStr,oid), txt='';
+  if(!r.ok) txt=_capDenyMsg(r);
+  else {
+    var g=_gapCheck(dateStr, timeStr, [oid].concat(alsoExclude?[alsoExclude]:[]), who ? who : _gapWhoOf(oid));
+    if(g.ok) return true;
+    txt=_gapDenyMsg(g);
+  }
   var el=msgElId?document.getElementById(msgElId):null;
   if(el) el.textContent=txt;
   else { try{ if(typeof _editToast==='function') _editToast('\u26a0 '+txt); else alert(txt); }catch(e){ alert(txt); } }
@@ -83585,8 +83628,18 @@ function _calKindWords(ev){
 //   where it should.
 function _calArg(v){ return JSON.stringify(String(v==null?'':v)).replace(/"/g,'&quot;'); }
 
+// §CAL-PAST (v2.648) — ASKED FOR: "When an inspection happened, then don't remove it, but make it
+//   grayed, and dim it down". Done = its start + INSP_LEN_MIN has passed (or the day is over).
+function _calIsPast(ev){
+  try{
+    var d=new Date(ev.date); if(isNaN(d.getTime())) return false;
+    var m=(ev.kind==='booked') ? _gapMin(ev.time) : null;
+    if(m==null){ d.setHours(23,59,59,0); } else { d.setHours(0, m + INSP_LEN_MIN, 0, 0); }
+    return d < new Date();
+  }catch(e){ return false; }
+}
 function _calPill(ev,extraCls){
-  return '<div class="cal-event '+ev.cls+(extraCls?' '+extraCls:'')
+  return '<div class="cal-event '+ev.cls+(extraCls?' '+extraCls:'')+(ev.kind!=='due'&&_calIsPast(ev)?' cal-past':'')
     +'" onclick="event.stopPropagation();calEventClick(this,'+_calArg(ev.orderId)+')"'
     +' title="'+_ce(ev.address+(ev.city?', '+ev.city:''))+' | '+_ce(ev.appraiser)
       +(_calKindWords(ev)?' | '+_ce(_calKindWords(ev)):'')+'">'
@@ -83932,7 +83985,7 @@ function calEditInspection(oid){
     //   whichever order will END UP holding the slot, so a move into a full hour is
     //   refused for the right reason.
     var holder = moveTo || o.id;
-    if(date && time && !_capGuard(date, time, holder, 'calEdMsg')) return;
+    if(date && time && !_capGuard(date, time, holder, 'calEdMsg', g('calEdWho'), moveTo ? o.id : null)) return;   // §INSP-GAP: a move must not clash with the slot it leaves
 
     var mv = null;
     if(moveTo){
@@ -84136,7 +84189,7 @@ function _calRenderWeek(title,grid,evs,ix){
               +' title="'+(n>INSP_MAX_PER_HOUR?('Over the limit \u2014 '+n+' booked'):'This hour is full')+'"'))
         +' style="cursor:pointer;">';
       slot.forEach(function(ev){
-        html+='<div class="cal-event '+ev.cls+'" onclick="event.stopPropagation();calEventClick(this,'
+        html+='<div class="cal-event '+ev.cls+(_calIsPast(ev)?' cal-past':'')+'" onclick="event.stopPropagation();calEventClick(this,'
           +_calArg(ev.orderId)+')">'
           +_calKindTag(ev)
           +'<span class="cal-ev-id">'+_ce(ev.orderId)+'</span>'
@@ -84211,7 +84264,7 @@ function _calRenderDay(title,grid,evs,ix){
             :'')
         +'>';
     slot.forEach(function(ev){
-      html+='<div class="cal-event '+ev.cls+' cal-day-event" onclick="event.stopPropagation();calEventClick(this,'
+      html+='<div class="cal-event '+ev.cls+(_calIsPast(ev)?' cal-past':'')+' cal-day-event" onclick="event.stopPropagation();calEventClick(this,'
         +_calArg(ev.orderId)+')">'
         +'<div class="cal-day-ev-row">'+_calKindTag(ev)+'<span class="cal-ev-id">'+_ce(ev.orderId)+'</span>'
         +(ev.time?'<span class="cal-ev-time">'+_ce(ev.time)+'</span>':'')+_calMeasTag(ev)+'</div>'
@@ -91719,7 +91772,8 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
 .v-cli{ font-weight:600; }
 .v-tel{ font-weight:800; font-variant-numeric:tabular-nums; color:var(--acc); white-space:nowrap; }
 .v-who{ font-weight:700; color:var(--mut); }
-.past{ opacity:.45; }
+#sigmaTv .past{ opacity:.45; }
+.cal-event.cal-past, .cal-chip.cal-past{ opacity:.45; filter:grayscale(1); }
 
 /* ── LEFT: six day tiles, 3 × 2 ──────────────────────────────────── */
 .tvb{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); grid-template-rows:repeat(2, minmax(0,1fr)); gap:1vh .7vw; min-height:0; }
@@ -91885,7 +91939,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     out.sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric:true }); });   // oldest job first
     return out;
   }
-  function isPast(d, e){ if(e.s == null || TV.wk) return false; var t = new Date(d); var x = e.s + 1; t.setHours(Math.floor(x), Math.round((x % 1) * 60), 0, 0); return t < new Date(); }
+  function isPast(d, e){ if(e.s == null || TV.wk) return false; var t = new Date(d); t.setHours(0, Math.round(e.s * 60) + (typeof INSP_LEN_MIN === 'number' ? INSP_LEN_MIN : 30), 0, 0); return t < new Date(); }   /* done = start + inspection length */
 
   function renderDays(D){
     var tk = key(new Date());
