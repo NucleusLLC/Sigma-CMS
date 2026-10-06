@@ -22394,7 +22394,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.645';
+var APP_VERSION = 'v2.646';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -91680,6 +91680,9 @@ function pfpInit(){
 <style id="tvBoardCss">
 html.tv-mode, html.tv-mode body{ overflow:hidden !important; }
 html.tv-mode body > *:not(#sigmaTv){ display:none !important; }
+html:not(.tv-mode) #sigmaTv{ display:none; }
+#tvSignin{ position:fixed; left:50%; top:2vh; transform:translateX(-50%); z-index:2147483001; background:#e0b85a; color:#111;
+  font:700 18px/1.35 var(--font, system-ui, sans-serif); padding:12px 22px; border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.35); text-align:center; max-width:90vw; }
 #sigmaTv{ position:fixed; inset:0; z-index:2147483000; font-family:var(--font, 'Sora', system-ui, sans-serif);
   display:flex; flex-direction:column; padding:1.6vh 1.2vw 1vh; box-sizing:border-box; gap:1.2vh;
   --bg:#0b0f17; --card:#151c2a; --ink:#f1f5f9; --mut:#94a3b8; --line:#263042; --acc:#e0b85a; --today:#1a2740; --todayb:#e0b85a;
@@ -91974,7 +91977,24 @@ html.tv-mode body > *:not(#sigmaTv){ display:none !important; }
     document.documentElement.classList.add('tv-mode');
     var root = document.createElement('div'); root.id = 'sigmaTv'; document.body.appendChild(root);
     render();
-    var tries = 0; (function wait(){ if(typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length && typeof _sb !== 'undefined' && _sb){ TV.at = new Date(); probe(false); return; } if(++tries < 240) setTimeout(wait, 500); })();
+    // §TV-SIGNIN — on sigma-cms.com orders load only after sign-in. Until they do, give the screen back to
+    //   the normal login (with a note); the moment orders arrive, the board takes over. Sign in once with
+    //   "Remember me" and the TV opens straight onto the board every time after.
+    var t0 = Date.now(), live = false;
+    var gate = setInterval(function(){
+      var ready = typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length && typeof _sb !== 'undefined' && _sb;
+      var auth = document.getElementById('authScreen');
+      var needAuth = !ready && auth && auth.style.display !== 'none' && Date.now() - t0 > 2500;
+      var note = document.getElementById('tvSignin');
+      if(ready){
+        clearInterval(gate); if(note) note.remove();
+        document.documentElement.classList.add('tv-mode');
+        if(!live){ live = true; TV.at = new Date(); probe(false); }
+      } else if(needAuth){
+        document.documentElement.classList.remove('tv-mode');
+        if(!note){ note = document.createElement('div'); note.id = 'tvSignin'; note.textContent = 'Office TV board: sign in once and tick “Remember me” — the inspection board opens automatically.'; document.body.appendChild(note); }
+      }
+    }, 1000);
     setInterval(refresh, 5 * 60 * 1000);
     setInterval(render, 30 * 1000);
   }
