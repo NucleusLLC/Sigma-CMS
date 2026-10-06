@@ -22394,7 +22394,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.644';
+var APP_VERSION = 'v2.645';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -91661,4 +91661,328 @@ function pfpInit(){
     catch(e){ console.error("PFP mount failed",e); el.innerHTML="<p style=\"padding:20px;color:#c0392b\">Floor Plan module failed to load: "+e.message+"</p>"; } }
 }
 </script>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     §TV-BOARD (v2.645) — OFFICE TV: INSPECTIONS + CADASTER RUN
+     Open sigma-cms.com/calendar (or /#tv) on the office TV. Optional ?wk=YYYY-MM-DD shows the
+     Mon–Sat week containing that date (default: this week; on Sunday the coming
+     week). Read-only, nothing is written.
+     LEFT  — six full-height day columns (Mon–Sat). Visits from calGetEvents() (the Calendar's
+             own source), booked 08:00–19:00 plus "time TBA". Each shows time,
+             job, address, client + phone, FIELD WORK (purpose ticks of the
+             booking + field-work items ticked on the cost list) and inspector.
+     RIGHT — CADASTER: open job orders that are at least PARTIALLY PAID (the
+             invoice read §SYN-PAY uses, _synPay st part|paid) and still miss the
+             Cadastral Register (slot 0) and/or Site Plan (slot 2) — the same
+             slot test (_synSlot) as the Dashboard's Documents Needed box, so a
+             file uploaded or a "received by hand" tick takes it off the list.
+     Refresh every 5 minutes; clock every 30 s.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style id="tvBoardCss">
+html.tv-mode, html.tv-mode body{ overflow:hidden !important; }
+html.tv-mode body > *:not(#sigmaTv){ display:none !important; }
+#sigmaTv{ position:fixed; inset:0; z-index:2147483000; font-family:var(--font, 'Sora', system-ui, sans-serif);
+  display:flex; flex-direction:column; padding:1.6vh 1.2vw 1vh; box-sizing:border-box; gap:1.2vh;
+  --bg:#0b0f17; --card:#151c2a; --ink:#f1f5f9; --mut:#94a3b8; --line:#263042; --acc:#e0b85a; --today:#1a2740; --todayb:#e0b85a;
+  background:var(--bg); color:var(--ink); }
+#sigmaTv *{ box-sizing:border-box; font-family:inherit; }
+.tv-hd{ display:flex; align-items:center; gap:2vw; flex:0 0 auto; }
+.tv-brand{ font-size:3.8vh; font-weight:800; color:var(--acc); letter-spacing:.02em; }
+.tv-title{ font-size:3.8vh; font-weight:800; line-height:1.05; white-space:nowrap; }
+.tv-brand, .tv-sub{ white-space:nowrap; }
+.tv-sub{ font-size:2.2vh; color:var(--mut); font-weight:500; }
+.tv-legend{ display:flex; gap:.4vw; margin-left:auto; flex-wrap:wrap; justify-content:flex-end; min-width:0; }
+.tv-legend span{ display:inline-flex; align-items:center; gap:.4vw; font-size:1.9vh; color:#cbd5e1; white-space:nowrap; margin-left:.8vw; }
+.tv-legend i{ width:1.6vh; height:1.6vh; border-radius:50%; }
+.tv-clock{ text-align:right; line-height:1.05; }
+.tv-clock b{ display:block; font-size:5vh; font-weight:800; font-variant-numeric:tabular-nums; }
+.tv-clock small{ font-size:1.9vh; color:var(--mut); }
+.tv-body{ flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,7fr) minmax(0,3fr); gap:1vw; }
+.tv-body.busy{ grid-template-columns:minmax(0,4fr) minmax(0,1fr); gap:.7vw; }
+.tv-foot{ flex:0 0 auto; font-size:1.4vh; color:var(--mut); display:flex; justify-content:space-between; opacity:.7; }
+.tv-empty{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:4vh; color:var(--mut); background:var(--bg); }
+
+/* field-work chips — the colour IS the job */
+.fw{ display:inline-flex; align-items:center; max-width:100%; overflow-wrap:anywhere; font-weight:800; letter-spacing:.04em; border-radius:.7vh; padding:.25vh .6vw; color:#fff; white-space:normal; line-height:1.2; }
+.fw.MEASURE{ background:#ea580c; } .fw.PHOTOS{ background:#2563eb; } .fw.DRONE{ background:#7c3aed; }
+.fw.FLOORPLAN{ background:#0d9488; } .fw.INSPECTION{ background:#16a34a; } .fw.BUILDING{ background:#dc2626; }
+.fw.PHASE{ background:#db2777; } .fw.OTHER{ background:#475569; } .fw.NONE{ background:transparent; color:var(--mut); border:2px dashed var(--line); }
+
+.v-time{ font-weight:800; font-variant-numeric:tabular-nums; }
+.v-id{ color:var(--mut); font-weight:700; }
+.v-addr{ font-weight:800; }
+.v-cli{ font-weight:600; }
+.v-tel{ font-weight:800; font-variant-numeric:tabular-nums; color:var(--acc); white-space:nowrap; }
+.v-who{ font-weight:700; color:var(--mut); }
+.past{ opacity:.45; }
+
+/* ── LEFT: six day tiles, 3 × 2 ──────────────────────────────────── */
+.tvb{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); grid-template-rows:repeat(2, minmax(0,1fr)); gap:1vh .7vw; min-height:0; }
+.tvb-day{ background:var(--card); border-radius:1.4vh; display:flex; flex-direction:column; min-height:0; overflow:hidden; border:2px solid var(--line); }
+.tvb-day.today{ border:.4vh solid var(--todayb); }
+.tvb-dh{ display:flex; align-items:center; gap:.7vw; white-space:nowrap; padding:.8vh .9vw; border-bottom:2px solid var(--line); }
+.tvb-dh b{ font-size:3.2vh; font-weight:800; } .tvb-dh span{ font-size:2.2vh; color:var(--mut); }
+.tvb-dh i{ margin-left:auto; font-style:normal; font-weight:800; font-size:2.2vh; color:#111; background:var(--acc); border-radius:2vh; min-width:3.4vh; height:3.4vh; display:inline-flex; align-items:center; justify-content:center; padding:0 .5vw; }
+.tvb-day.today .tvb-dh{ background:var(--today); }
+.tvb-day.today .tvb-dh b::after{ content:'TODAY'; font-size:1.5vh; margin-left:.6vw; background:var(--todayb); color:#111; padding:.1vh .4vw; border-radius:.4vh; vertical-align:middle; }
+.tvb-list{ flex:1; min-height:0; padding:.8vh .8vw; display:flex; flex-direction:column; gap:1vh; overflow:hidden; }
+/* busy week (5+ visits on a day): six full-height day columns */
+.tvb.cols{ grid-template-columns:repeat(6, minmax(0,1fr)); grid-template-rows:minmax(0,1fr) !important; gap:.5vw; }
+.tvb.cols .tvb-dh{ flex-wrap:wrap; row-gap:.2vh; padding:.7vh .6vw; } .tvb.cols .tvb-dh b{ font-size:2.8vh; flex-basis:100%; } .tvb.cols .tvb-dh span{ font-size:2vh; } .tvb.cols .tvb-dh i{ font-size:1.9vh; min-width:2.9vh; height:2.9vh; }
+.tvb.cols .tvb-day.today .tvb-dh b::after{ display:none; }
+.tv-more{ font-size:1.9vh; font-weight:800; color:var(--acc); text-align:center; padding:.5vh 0; }
+.tvb.cols .tvb-list{ padding:.6vh .5vw; gap:.8vh; }
+/* one visit = one card: gold time bar, then address / client + phone / field work */
+.tvx-v{ background:#1e2738; border-radius:1vh; overflow:hidden; flex:none; }
+.tvx-v .tvx-t{ display:flex; align-items:center; gap:.6vw; background:var(--acc); color:#111; padding:.35vh .7vw; }
+.tvx-v .tvx-t b{ font-size:3vh; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1; letter-spacing:.02em; }
+.tvx-v .tvx-t span{ margin-left:auto; font-size:1.8vh; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.tvx-v .tvx-b{ padding:.6vh .7vw .7vh; display:flex; flex-direction:column; gap:.35vh; }
+.tvx-v .tvx-a{ font-size:2.3vh; font-weight:800; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tvx-v .tvx-c{ display:flex; gap:.6vw; align-items:baseline; font-size:1.95vh; white-space:nowrap; min-width:0; color:#cbd5e1; }
+.tvx-v .tvx-c span{ overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.tvx-v .tvx-c b{ margin-left:auto; flex:none; color:#fff; font-weight:700; font-variant-numeric:tabular-nums; }
+.tvx-v .tvx-f{ display:flex; flex-wrap:wrap; gap:.25vh .9vw; font-size:1.75vh; color:#cbd5e1; }
+.tvx-v .tvx-f span{ display:inline-flex; align-items:center; gap:.35vw; white-space:nowrap; }
+.tvx-v .tvx-f i{ width:1.3vh; height:1.3vh; border-radius:50%; flex:none; }
+.tvx-v .tvx-f .tvx-none{ color:var(--mut); font-style:italic; }
+.tvx-v.past{ opacity:.4; } .tvx-v.past .tvx-t{ background:#64748b; }
+.tvb.cols .tvx-v .tvx-t b{ font-size:2.7vh; } .tvb.cols .tvx-v .tvx-a{ font-size:2vh; } .tvb.cols .tvx-v .tvx-c{ font-size:1.7vh; } .tvb.cols .tvx-v .tvx-f{ font-size:1.55vh; }
+.tvb.cols .tvx-v .tvx-c{ flex-wrap:wrap; } .tvb.cols .tvx-v .tvx-c b{ margin-left:0; }
+.tvb-none{ color:var(--mut); font-size:2.2vh; margin:auto; opacity:.55; }
+
+/* ── RIGHT: cadaster run ─────────────────────────────────────────── */
+.tvk{ background:var(--card); border-radius:1.4vh; border:2px solid #b45309; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+.tvk-hd{ background:#b45309; color:#fff; padding:.9vh 1vw; }
+.tvk-hd b{ display:block; font-size:3vh; font-weight:800; letter-spacing:.04em; }
+.tvk-hd span{ font-size:1.8vh; opacity:.9; }
+.tvk-list{ flex:1; min-height:0; overflow:hidden; padding:.5vh .9vw; }
+.tvk-list.two{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:1vw; align-content:start; }
+.tvk-more{ grid-column:1 / -1; font-size:2vh; font-weight:800; color:var(--acc); text-align:center; padding:.8vh 0; }
+.tvk-it{ background:#1e2738; border-radius:1vh; padding:.8vh .8vw; margin-bottom:.9vh; display:flex; flex-direction:column; gap:.3vh; break-inside:avoid; }
+.tvk-it .tvx-a{ font-size:2.2vh; font-weight:800; line-height:1.15; }
+.tvk-it .tvx-ks{ font-size:1.75vh; color:#cbd5e1; display:flex; gap:.6vw; white-space:nowrap; } .tvk-it .tvx-ks span{ overflow:hidden; text-overflow:ellipsis; min-width:0; } .tvk-it .tvx-ks b{ margin-left:auto; flex:none; color:var(--mut); font-weight:700; }
+.tvk-it .tvx-kn{ font-size:1.85vh; font-weight:700; color:#fbbf24; }
+.tvk-it .tvx-kp{ font-size:1.5vh; font-weight:800; letter-spacing:.05em; color:#86efac; } .tvk-it .tvx-kp.part{ color:#fcd34d; }
+.tvk-none{ color:var(--mut); font-size:2.2vh; text-align:center; margin-top:4vh; opacity:.7; }
+.tvk-wait{ color:var(--mut); font-size:2vh; text-align:center; margin-top:4vh; }
+</style>
+<script id="tvBoardJs">
+(function(){
+  var H0 = 8, H1 = 19;                                     // visible window 08:00–19:00
+  var DN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var TV = { on:false, wk:null, at:null };
+  // field-work chips, in the order they print
+  var FW = [ ['BUILDING','BUILDING INSP.'], ['INSPECTION','INSPECTION'], ['PHOTOS','PHOTOS'], ['MEASURE','MEASURE'],
+             ['FLOORPLAN','FLOORPLAN'], ['DRONE','DRONE'], ['PHASE','PHASE CONTROL'], ['OTHER','OTHER'] ];
+  var PURPOSE_TO_FW = { building:'BUILDING', measurement:'MEASURE', drone:'DRONE', photos:'PHOTOS', floorplan:'FLOORPLAN', phase:'PHASE', other:'OTHER' };
+  var TASK_TO_FW = { INSPECT:'INSPECTION', FLOORPLAN:'FLOORPLAN', DRONE:'DRONE', MEASURE:'MEASURE' };
+  // documents fetched at the Cadaster — Documents Needed slots
+  var CAD_DOCS = [ { i:0, t:'CADASTRAL REGISTER' }, { i:2, t:'SITE PLAN' } ];
+
+  // sigma-cms.com/calendar (Cloudflare _redirects serves index.html there) or #tv; week via ?wk= / &wk=
+  function parseHash(){
+    var wk = String(location.search + location.hash).match(/[?&#]wk=(\d{4}-\d{2}-\d{2})/i);
+    var onPath = /^\/calendar\/?$/i.test(location.pathname || '');
+    if(!onPath && !/^#tv(?![a-z])/i.test(String(location.hash || ''))) return false;
+    TV.wk = wk ? wk[1] : null; return true;
+  }
+  function esc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function p2(n){ return (n < 10 ? '0' : '') + n; }
+  function key(d){ return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  function monday(){
+    var d = TV.wk ? new Date(TV.wk + 'T12:00:00') : new Date();
+    d.setHours(12, 0, 0, 0);
+    var dow = d.getDay();
+    if(dow === 0 && !TV.wk) d.setDate(d.getDate() + 1);      // Sunday: show the coming week
+    else d.setDate(d.getDate() - ((dow + 6) % 7));
+    return d;
+  }
+  function days(){ var m = monday(), out = []; for(var i = 0; i < 6; i++){ var d = new Date(m); d.setDate(m.getDate() + i); out.push(d); } return out; }
+  function hm(t){
+    var p = (typeof _calTimeParts === 'function') ? _calTimeParts(t) : null;
+    if(!p){ var m = String(t || '').match(/^(\d{1,2}):(\d{2})/); p = m ? { h:+m[1], m:+m[2] } : null; }
+    return p ? p.h + (p.m || 0) / 60 : null;
+  }
+  function fmt(x){ var h = Math.floor(x), m = Math.round((x - h) * 60); return p2(h) + ':' + p2(m); }
+  function short(name){ var s = String(name || '').trim(); if(!s || s === '-') return 'Unassigned'; var p = s.split(/\s+/); return p.length > 1 ? p[0] + ' ' + p[p.length - 1].charAt(0) + '.' : s; }
+  function addrOf(o, fallback){ return String((o && o.address) || fallback || '').replace(/,\s*na\s*$/i, '').trim() || '(no address)'; }
+
+  // What has to be done on site: the booking's Purpose ticks + field-work items ticked on the cost list.
+  function fieldWork(o){
+    var got = {}, other = '';
+    try{
+      (typeof _inspPurposeKeys === 'function' ? _inspPurposeKeys(o) : []).forEach(function(k){ if(PURPOSE_TO_FW[k]) got[PURPOSE_TO_FW[k]] = 1; });
+      if(got.OTHER) other = String(o.inspPurposeOther || '').trim();
+    }catch(e){}
+    try{
+      if(typeof getCostItems === 'function' && typeof _mfResolveTask === 'function'){
+        (getCostItems(o.apprType || 2) || []).forEach(function(it){
+          if(!it) return;
+          var bare = String(it.id || '').replace(/^ec_/, '');
+          var on = (o.costItems && (bare in o.costItems)) ? !!o.costItems[bare] : !!it.checked;
+          var fw = on ? TASK_TO_FW[_mfResolveTask(it)] : null;
+          if(fw) got[fw] = 1;
+        });
+      }
+    }catch(e){}
+    if(got.BUILDING) delete got.INSPECTION;                  // a building inspection already is the visit
+    if(got.INSPECTION && got.PHOTOS) delete got.INSPECTION;  // "Inspection & Photos" — say PHOTOS once
+    if(got.OTHER && other && FW.some(function(f){ return f[0] !== 'OTHER' && got[f[0]] && f[1].indexOf(other.toUpperCase()) === 0; })) delete got.OTHER;
+    return FW.filter(function(f){ return got[f[0]]; }).map(function(f){ return { k:f[0], t:(f[0] === 'OTHER' && other) ? other.toUpperCase() : f[1] }; });
+  }
+  var FW_COL = { BUILDING:'#ef4444', INSPECTION:'#22c55e', PHOTOS:'#3b82f6', MEASURE:'#f97316', FLOORPLAN:'#14b8a6', DRONE:'#a855f7', PHASE:'#ec4899', OTHER:'#94a3b8' };
+  var FW_WORD = { BUILDING:'Building insp.', INSPECTION:'Inspection', PHOTOS:'Photos', MEASURE:'Measure', FLOORPLAN:'Floor plan', DRONE:'Drone', PHASE:'Phase control', OTHER:'Other' };
+  function cap(t){ t = String(t || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); }
+  function dots(list){
+    if(!list.length) return '<span class="tvx-none">Field work not set</span>';
+    return list.map(function(f){ return '<span><i style="background:' + FW_COL[f.k] + '"></i>' + esc(f.k === 'OTHER' && f.t !== 'OTHER' ? cap(f.t) : FW_WORD[f.k]) + '</span>'; }).join('');
+  }
+  function card(d, e){
+    return '<div class="tvx-v' + (isPast(d, e) ? ' past' : '') + '"><div class="tvx-t"><b>' + (e.s != null ? fmt(e.s) : 'Time TBA') + '</b><span>' + esc(short(e.who)) + '</span></div>' +
+      '<div class="tvx-b"><div class="tvx-a">' + esc(e.addr) + '</div>' +
+      '<div class="tvx-c"><span>' + esc(e.client || 'Client not set') + '</span>' + (e.tel ? '<b>' + esc(e.tel) + '</b>' : '') + '</div>' +
+      '<div class="tvx-f">' + dots(e.fw) + '</div></div></div>';
+  }
+
+  function collect(){
+    var ds = days(), keys = {}, byDay = {}, used = {};
+    ds.forEach(function(d){ keys[key(d)] = 1; byDay[key(d)] = []; });
+    var evs = (typeof calGetEvents === 'function') ? calGetEvents() : [];
+    evs.forEach(function(ev){
+      if(!keys[ev.dateKey] || ev.kind === 'due') return;
+      var o = null; try{ o = ORDERS.find(function(x){ return x && x.id === ev.orderId; }); }catch(e){}
+      o = o || {};
+      var s = null;
+      if(ev.kind === 'booked'){ s = hm(ev.time); if(s == null || s < H0 || s >= H1) return; }   // outside 08:00–19:00: not shown
+      var fw = fieldWork(o); fw.forEach(function(f){ used[f.k] = 1; });
+      byDay[ev.dateKey].push({ id:ev.orderId, s:s, addr:addrOf(o, ev.address), client:String(o.client || '').trim(),
+        tel:String(o.clientCell || o.clientWork || '').trim(), who:ev.appraiser && ev.appraiser !== '-' ? ev.appraiser : '', fw:fw });
+    });
+    Object.keys(byDay).forEach(function(k){ byDay[k].sort(function(a, b){ return (a.s == null ? 99 : a.s) - (b.s == null ? 99 : b.s); }); });
+    return { ds:ds, byDay:byDay, used:used };
+  }
+  // Cadaster run: open, at least partially paid, Cadastral Register and/or Site Plan still missing.
+  //   null = not read yet (probes still running) — never guessed into the list.
+  function cadaster(){
+    if(typeof _synPay !== 'function' || typeof _synSlot !== 'function') return null;
+    if(typeof _SYN_PAY_STATE !== 'undefined' && _SYN_PAY_STATE !== 'done') return null;
+    if(typeof _SYN_STATE !== 'undefined' && _SYN_STATE !== 'done') return null;
+    var out = [];
+    (ORDERS || []).forEach(function(o){
+      if(typeof _synOpen === 'function' ? !_synOpen(o) : (!o || o.archived)) return;
+      var p = _synPay(o); if(!p || (p.st !== 'part' && p.st !== 'paid')) return;
+      var need = CAD_DOCS.filter(function(d){ return _synSlot(o, d.i) === 'missing'; });
+      if(!need.length) return;
+      out.push({ id:o.id, addr:addrOf(o), client:String(o.client || '').trim(), pay:p.st, need:need });
+    });
+    out.sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric:true }); });   // oldest job first
+    return out;
+  }
+  function isPast(d, e){ if(e.s == null || TV.wk) return false; var t = new Date(d); var x = e.s + 1; t.setHours(Math.floor(x), Math.round((x % 1) * 60), 0, 0); return t < new Date(); }
+
+  function renderDays(D){
+    var tk = key(new Date());
+    var cnt = D.ds.map(function(d){ return D.byDay[key(d)].length; });
+    var r1 = Math.max(2, cnt[0], cnt[1], cnt[2]), r2 = Math.max(2, cnt[3], cnt[4], cnt[5]);   // Mon–Wed row, Thu–Sat row
+    var busy = true;                                                                     // six full-height day columns, every week (approved layout)
+    var h = '<div class="tvb' + (busy ? ' cols' : '') + '" style="grid-template-rows:minmax(0,' + r1 + 'fr) minmax(0,' + r2 + 'fr)">';
+    D.ds.forEach(function(d){
+      var k = key(d), L = D.byDay[k], n = L.length;
+      h += '<div class="tvb-day' + (k === tk ? ' today' : '') + '"><div class="tvb-dh"><b>' + DN[d.getDay()] + '</b><span>' + d.getDate() + ' ' + MN[d.getMonth()] + '</span>' + (n ? '<i title="visits">' + n + '</i>' : '') + '</div><div class="tvb-list">';
+      L.forEach(function(e){ h += card(d, e); });
+      if(!n) h += '<div class="tvb-none">No inspections</div>';
+      h += '</div></div>';
+    });
+    return h + '</div>';
+  }
+  function renderCad(K){
+    var h = '<div class="tvk"><div class="tvk-hd"><b>CADASTER</b><span>' + (K ? K.length + ' job' + (K.length === 1 ? '' : 's') + ' paid · documents to collect' : 'documents to collect') + '</span></div><div class="tvk-list">';
+    if(K === null) h += '<div class="tvk-wait">Reading payments and documents…</div>';
+    else if(!K.length) h += '<div class="tvk-none">Nothing to collect</div>';
+    else K.forEach(function(x){
+      h += '<div class="tvk-it"><div class="tvx-a">' + esc(x.addr) + '</div>' +
+           '<div class="tvx-ks"><span>' + esc(x.client || '') + '</span><b>' + esc(x.id) + '</b></div>' +
+           '<div class="tvx-kn">Get: ' + x.need.map(function(d){ return cap(d.t).replace('register', 'Register').replace('plan', 'Plan'); }).join(' + ') + '</div>' +
+           '<div class="tvx-kp ' + x.pay + '">' + (x.pay === 'paid' ? 'PAID' : 'PART PAID') + '</div></div>';
+    });
+    return h + '</div></div>';
+  }
+
+  // shrink (zoom) a list until it fits its box — never scroll, never clip
+  function fitList(l, steps){
+    l.style.zoom = 1;
+    for(var i = 0; i < steps.length; i++){ l.style.zoom = steps[i]; if(l.scrollHeight <= l.clientHeight + 1) return; }
+  }
+  function fit(){
+    var root = document.getElementById('sigmaTv'); if(!root) return;
+    root.querySelectorAll('.tvb-list').forEach(function(l){
+      fitList(l, l.closest('.cols') ? [1, .92, .85, .78, .72, .66, .6] : [1.15, 1.05, 1, .92, .85, .78, .72, .66, .6]);
+      if(l.scrollHeight <= l.clientHeight + 1) return;
+      var items = l.querySelectorAll('.tvx-v'), hidden = 0, more = document.createElement('div');
+      more.className = 'tv-more'; l.appendChild(more);
+      for(var j = items.length - 1; j > 0 && l.scrollHeight > l.clientHeight + 1; j--){ items[j].style.display = 'none'; hidden++; more.textContent = '+ ' + hidden + ' more — see Calendar'; }
+    });
+    var k = root.querySelector('.tvk-list');
+    if(k){
+      k.classList.remove('two'); fitList(k, [1, .9, .82, .75]);
+      if(k.scrollHeight > k.clientHeight + 1){ k.classList.add('two'); fitList(k, [.85, .78, .72, .66]); }
+      // still too many at the smallest legible size: drop the newest jobs, say how many are not shown
+      var items = k.querySelectorAll('.tvk-it'), hidden = 0;
+      if(k.scrollHeight > k.clientHeight + 1){
+        var more = document.createElement('div'); more.className = 'tvk-more'; k.appendChild(more);
+        for(var j = items.length - 1; j > 0 && k.scrollHeight > k.clientHeight + 1; j--){ items[j].style.display = 'none'; hidden++; more.textContent = '+ ' + hidden + ' more job' + (hidden === 1 ? '' : 's') + ' — see SIGMA Documents Needed'; }
+      }
+    }
+  }
+
+  function render(){
+    var root = document.getElementById('sigmaTv'); if(!root) return;
+    var D = collect(), ds = D.ds, total = 0;
+    ds.forEach(function(d){ total += D.byDay[key(d)].length; });
+    var a = ds[0], b = ds[5], n = new Date();
+    var range = a.getDate() + (a.getMonth() !== b.getMonth() ? ' ' + MN[a.getMonth()] : '') + ' – ' + b.getDate() + ' ' + MN[b.getMonth()] + ' ' + b.getFullYear();
+    var legend = FW.filter(function(f){ return D.used[f[0]]; }).map(function(f){ return '<span><i style="background:' + FW_COL[f[0]] + '"></i>' + FW_WORD[f[0]] + '</span>'; }).join('');
+    var ready = (typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length);
+    root.innerHTML =
+      '<div class="tv-hd"><div class="tv-brand">Σ SIGMA</div><div><div class="tv-title">Inspections this week</div><div class="tv-sub">' + range + ' · ' + total + (total === 1 ? ' visit' : ' visits') + '</div></div>' +
+      '<div class="tv-legend">' + legend + '</div>' +
+      '<div class="tv-clock"><b>' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + '</b><small>' + DN[n.getDay()] + ' ' + n.getDate() + ' ' + MN[n.getMonth()] + '</small></div></div>' +
+      '<div class="tv-body busy" style="position:relative">' + renderDays(D) + renderCad(ready ? cadaster() : null) + (ready ? '' : '<div class="tv-empty">Loading schedule…</div>') + '</div>' +
+      '<div class="tv-foot"><span>SIGMA office board</span><span>' + (TV.at ? 'Updated ' + p2(TV.at.getHours()) + ':' + p2(TV.at.getMinutes()) : '') + '</span></div>';
+    fit();
+  }
+  // payments + documents are read by the Dashboard's own probes; repaint once both have answered
+  function probe(force){
+    try{ if(typeof _synProbe === 'function') _synProbe(force); }catch(e){}
+    try{ if(typeof _synPayProbe === 'function') _synPayProbe(force); }catch(e){}
+    var tries = 0;
+    (function wait(){
+      var busy = (typeof _SYN_STATE !== 'undefined' && (_SYN_STATE === 'lean' || _SYN_STATE === 'deep')) || (typeof _SYN_PAY_STATE !== 'undefined' && _SYN_PAY_STATE === 'reading');
+      if(busy && ++tries < 120){ setTimeout(wait, 500); return; }
+      render();
+    })();
+  }
+  async function refresh(){
+    try{ if(typeof window.sbLiveOrders === 'function') await window.sbLiveOrders({ quiet:true }); }catch(e){ console.warn('[TV] refresh failed', e); }
+    if(typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length) TV.at = new Date();
+    probe(true);
+  }
+  function start(){
+    if(TV.on){ render(); return; }
+    TV.on = true;
+    document.documentElement.classList.add('tv-mode');
+    var root = document.createElement('div'); root.id = 'sigmaTv'; document.body.appendChild(root);
+    render();
+    var tries = 0; (function wait(){ if(typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length && typeof _sb !== 'undefined' && _sb){ TV.at = new Date(); probe(false); return; } if(++tries < 240) setTimeout(wait, 500); })();
+    setInterval(refresh, 5 * 60 * 1000);
+    setInterval(render, 30 * 1000);
+  }
+  window.addEventListener('hashchange', function(){ if(parseHash()) start(); });
+  function boot(){ if(parseHash()) start(); }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  try{ window._tvBoard = { render:render, refresh:refresh, state:TV }; }catch(e){}
+})();
+</script>
+
 </body></html>

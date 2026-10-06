@@ -10,3 +10,6 @@
 
 /index.html
   Cache-Control: no-store, must-revalidate
+
+/calendar
+  Cache-Control: no-store, must-revalidate
