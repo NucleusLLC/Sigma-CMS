@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.650';
+var APP_VERSION = 'v2.651';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -91759,37 +91759,37 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
 #tvMain{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:1.2vh; }
 /* §TV-NEWS — bottom news bar: BREAKING (red, one story at a time) + slow WORLD NEWS ticker.
    It lives outside #tvMain, so the board's 30-second repaint never restarts the scroll. */
-#tvNews{ flex:0 0 14vh; display:flex; gap:.7vw; min-height:0; }
+#tvNews{ flex:0 0 16.8vh; display:flex; gap:.7vw; min-height:0; }
 #tvNews.off{ display:none; }
-.tvn-feat{ flex:0 0 37%; position:relative; border-radius:1.2vh; overflow:hidden; background:linear-gradient(100deg,#7f1d1d,#b91c1c 55%,#dc2626); box-shadow:0 0 0 2px #ef4444 inset; }
+.tvn-feat{ flex:0 0 42%; position:relative; border-radius:1.44vh; overflow:hidden; background:linear-gradient(100deg,#7f1d1d,#b91c1c 55%,#dc2626); box-shadow:0 0 0 2px #ef4444 inset; }
 .tvn-feat.top{ background:linear-gradient(100deg,#0f2747,#1e3a8a); box-shadow:0 0 0 2px #3b82f6 inset; }
 .tvn-slide{ position:absolute; inset:0; display:flex; align-items:stretch; animation:tvnIn .9s cubic-bezier(.2,.8,.2,1) both; }
 .tvn-slide.out{ animation:tvnOut .6s ease-in both; }
 @keyframes tvnIn{ from{ transform:translateY(100%); opacity:0; } to{ transform:none; opacity:1; } }
 @keyframes tvnOut{ from{ transform:none; opacity:1; } to{ transform:translateY(-60%); opacity:0; } }
 .tvn-slide img{ height:100%; aspect-ratio:16/9; object-fit:cover; flex:none; }
-.tvn-slide .bx{ flex:1; min-width:0; padding:.8vh 1vw 1.4vh; display:flex; flex-direction:column; justify-content:center; gap:.4vh; }
-.tvn-tag{ align-self:flex-start; display:inline-flex; align-items:center; gap:.5vw; background:#fff; color:#b91c1c; font-size:1.5vh; font-weight:800; letter-spacing:.14em; padding:.2vh .55vw; border-radius:.5vh; }
+.tvn-slide .bx{ flex:1; min-width:0; padding:0.96vh 1vw 1.68vh; display:flex; flex-direction:column; justify-content:center; gap:0.48vh; }
+.tvn-tag{ align-self:flex-start; display:inline-flex; align-items:center; gap:.5vw; background:#fff; color:#b91c1c; font-size:1.8vh; font-weight:800; letter-spacing:.14em; padding:0.24vh .55vw; border-radius:0.6vh; }
 .tvn-feat.top .tvn-tag{ color:#1e3a8a; }
-.tvn-tag i{ width:1vh; height:1vh; border-radius:50%; background:currentColor; animation:tvnPulse 1.2s ease-in-out infinite; }
+.tvn-tag i{ width:1.2vh; height:1.2vh; border-radius:50%; background:currentColor; animation:tvnPulse 1.2s ease-in-out infinite; }
 @keyframes tvnPulse{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.3; transform:scale(.7); } }
-.tvn-slide .hl{ font-size:2.45vh; font-weight:800; color:#fff; line-height:1.18; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.tvn-slide .mt{ font-size:1.55vh; color:#fecaca; font-weight:600; } .tvn-feat.top .tvn-slide .mt{ color:#bfdbfe; }
-.tvn-dots{ position:absolute; right:.8vw; bottom:.7vh; display:flex; gap:.35vw; }
-.tvn-dots i{ width:.8vh; height:.8vh; border-radius:50%; background:rgba(255,255,255,.35); } .tvn-dots i.on{ background:#fff; }
-.tvn-tick{ flex:1; min-width:0; display:flex; background:#0f1522; border:2px solid #263042; border-radius:1.2vh; overflow:hidden; }
+.tvn-slide .hl{ font-size:2.94vh; font-weight:800; color:#fff; line-height:1.18; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.tvn-slide .mt{ font-size:1.86vh; color:#fecaca; font-weight:600; } .tvn-feat.top .tvn-slide .mt{ color:#bfdbfe; }
+.tvn-dots{ position:absolute; right:.8vw; bottom:0.84vh; display:flex; gap:.35vw; }
+.tvn-dots i{ width:0.96vh; height:0.96vh; border-radius:50%; background:rgba(255,255,255,.35); } .tvn-dots i.on{ background:#fff; }
+.tvn-tick{ flex:1; min-width:0; display:flex; background:#0f1522; border:2px solid #263042; border-radius:1.44vh; overflow:hidden; }
 .tvn-lab{ flex:none; background:#1e293b; color:#e2e8f0; padding:0 1vw; display:flex; flex-direction:column; justify-content:center; line-height:1.1; border-right:2px solid #263042; }
-.tvn-lab b{ font-size:2.1vh; font-weight:800; letter-spacing:.08em; } .tvn-lab span{ font-size:1.4vh; font-weight:700; color:#94a3b8; letter-spacing:.1em; }
+.tvn-lab b{ font-size:2.52vh; font-weight:800; letter-spacing:.08em; } .tvn-lab span{ font-size:1.68vh; font-weight:700; color:#94a3b8; letter-spacing:.1em; }
 .tvn-win{ flex:1; min-width:0; overflow:hidden; -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%); mask-image:linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%); }
 .tvn-track{ display:flex; align-items:center; height:100%; width:max-content; will-change:transform; animation:tvnScroll var(--tvn-dur, 300s) linear infinite; }
 @keyframes tvnScroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
 .tvn-it{ display:flex; align-items:center; gap:.9vw; height:100%; padding:0 1.5vw; }
-.tvn-it img{ height:8.6vh; width:15.3vh; object-fit:cover; border-radius:.7vh; background:#1e2738; flex:none; }
-.tvn-it .tx{ display:flex; flex-direction:column; gap:.35vh; }
-.tvn-it .tt{ font-size:2.4vh; font-weight:700; color:#f1f5f9; white-space:nowrap; }
-.tvn-it .tm{ font-size:1.5vh; color:#94a3b8; white-space:nowrap; } .tvn-it .tm b{ color:#e0b85a; font-weight:800; letter-spacing:.05em; }
+.tvn-it img{ height:10.32vh; width:18.36vh; object-fit:cover; border-radius:0.84vh; background:#1e2738; flex:none; }
+.tvn-it .tx{ display:flex; flex-direction:column; gap:0.42vh; }
+.tvn-it .tt{ font-size:2.88vh; font-weight:700; color:#f1f5f9; white-space:nowrap; }
+.tvn-it .tm{ font-size:1.8vh; color:#94a3b8; white-space:nowrap; } .tvn-it .tm b{ color:#e0b85a; font-weight:800; letter-spacing:.05em; }
 .tvn-it.hot .tt{ color:#fca5a5; }
-.tvn-sep{ width:.9vh; height:.9vh; border-radius:50%; background:#475569; flex:none; }
+.tvn-sep{ width:1.08vh; height:1.08vh; border-radius:50%; background:#475569; flex:none; }
 .tv-empty{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2vh; font-size:4vh; color:var(--mut); background:var(--bg); text-align:center; }
 .tv-diag{ font-size:2.1vh; line-height:1.6; color:#cbd5e1; max-width:80vw; }
 .tv-diag b{ color:#fbbf24; }
