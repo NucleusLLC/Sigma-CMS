@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.652';
+var APP_VERSION = 'v2.653';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -91757,6 +91757,18 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
 .tv-body.busy{ grid-template-columns:minmax(0,4fr) minmax(0,1fr); gap:.7vw; }
 .tv-foot{ flex:0 0 auto; font-size:1.4vh; color:var(--mut); display:flex; justify-content:space-between; opacity:.7; }
 #tvMain{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:1.2vh; }
+/* §TV-STATS — one scrolling row of firm numbers above the news bar (outside #tvMain: the 30 s repaint never restarts it) */
+#tvStats{ flex:0 0 7vh; display:flex; background:#111a2b; border:2px solid #3a4a66; border-radius:1.2vh; overflow:hidden; }
+#tvStats.off{ display:none; }
+.tvs-lab{ flex:none; background:#e0b85a; color:#111; padding:0 1.1vw; display:flex; align-items:center; font-size:2.2vh; font-weight:800; letter-spacing:.1em; }
+.tvs-win{ flex:1; min-width:0; overflow:hidden; -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%); mask-image:linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%); }
+.tvs-track{ display:flex; align-items:center; height:100%; width:max-content; will-change:transform; animation:tvnScroll var(--tvs-dur, 120s) linear infinite; }
+.tvs-it{ display:flex; align-items:baseline; gap:.8vw; padding:0 2vw; white-space:nowrap; }
+.tvs-it .k{ font-size:2.1vh; font-weight:700; color:#94a3b8; letter-spacing:.04em; text-transform:uppercase; }
+.tvs-it .v{ font-size:3.1vh; font-weight:800; color:#fff; font-variant-numeric:tabular-nums; }
+.tvs-it .v.gold{ color:#e0b85a; } .tvs-it .v.good{ color:#4ade80; } .tvs-it .v.warn{ color:#fb923c; }
+.tvs-it .x{ font-size:2vh; font-weight:600; color:#cbd5e1; }
+.tvs-sep{ width:1vh; height:1vh; transform:rotate(45deg); background:#e0b85a; flex:none; }
 /* §TV-NEWS — bottom news bar: BREAKING (red, one story at a time) + slow WORLD NEWS ticker.
    It lives outside #tvMain, so the board's 30-second repaint never restarts the scroll. */
 #tvNews{ flex:0 0 16.8vh; display:flex; gap:.7vw; min-height:0; }
@@ -92117,7 +92129,89 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
       '<div class="tv-body busy" style="position:relative">' + renderDays(D) + renderCad(ready ? cadaster() : null) + (ready ? '' : '<div class="tv-empty">Loading schedule…' + diag() + '</div>') + '</div>' +
       '';
     fit();
+    statsTick();
   }
+  // §TV-STATS — asked for: running ad campaign (live), new appraisals this week, appraisal requests without
+  //   follow-up (last 2 weeks), fastest turnaround this week, total appraisals this year — scrolling right to left.
+  //   Appraisal = Types 1-3. Order date = o.orderedISO || o.ordered (display date; orderedISO is not filled on
+  //   live rows). Turnaround = approvedAt − order date. "Followed up" = the request became a job order
+  //   (order_id / status converted) or was archived/marked spam; open = status new|seen with no order.
+  //   Ads = the Marketing screen's own meta-ads relay; the item is left out when the relay cannot answer.
+  var STATS = { ads:null, adsAt:0, req:null, reqAt:0, sig:'' };
+  function statsWeekStart(){ var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; }
+  function statsAppr(o){ return o && [1, 2, 3].indexOf(Number(o.apprType || 2)) >= 0; }
+  function statsOrdered(o){ var t = Date.parse(o.orderedISO || o.ordered || ''); return isFinite(t) ? t : NaN; }
+  function statsLoadReq(){
+    if(!tvAllowed() || typeof _sb === 'undefined' || !_sb || Date.now() - STATS.reqAt < 4 * 60000) return;
+    STATS.reqAt = Date.now();
+    var since = new Date(Date.now() - 14 * 864e5).toISOString();
+    try{
+      _sb.from('inquiries').select('id,created_at,status,order_id,kind').gte('created_at', since).then(function(q){
+        if(!q || q.error || !q.data) return;
+        var reqs = q.data.filter(function(r){ return (r.kind || 'request') === 'request'; });
+        STATS.req = { total:reqs.length, open:reqs.filter(function(r){ return !r.order_id && (r.status === 'new' || r.status === 'seen'); }).length };
+        statsPaint();
+      }, function(){});
+    }catch(e){}
+  }
+  function statsLoadAds(){
+    if(!tvAllowed() || !window.fetch || typeof SB_URL === 'undefined' || typeof SB_KEY === 'undefined' || Date.now() - STATS.adsAt < 9 * 60000) return;
+    STATS.adsAt = Date.now();
+    var acc = ''; try{ acc = localStorage.getItem('sigmaAds_accountId') || ''; }catch(e){}
+    var url = SB_URL + '/functions/v1/meta-ads'; try{ var px = localStorage.getItem('sigmaAds_proxy'); if(px) url = px; }catch(e){}
+    fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + SB_KEY, apikey:SB_KEY },
+                 body:JSON.stringify({ action:'overview', preset:'last_7d', daily:false, detail:true, accountId:acc }) })
+      .then(function(r){ return r.json(); }).then(function(j){
+        if(!j || !j.ok || !j.campaigns){ STATS.ads = null; statsPaint(); return; }
+        var live = j.campaigns.filter(function(c){ return c.effective_status === 'ACTIVE' && !(c.stop_time && Date.parse(c.stop_time) < Date.now()); });
+        STATS.ads = { cur:j.currency || '', live:live.map(function(c){ var i = c.insights || {}; return { name:c.name, res:i.results, label:i.result_label, clicks:i.clicks, imp:i.impressions, spend:i.spend, ctr:i.ctr }; }) };
+        statsPaint();
+      }, function(){ STATS.ads = null; statsPaint(); });
+  }
+  function statsNum(n){ n = Number(n); return isFinite(n) ? n.toLocaleString('en-US') : '—'; }
+  function statsPaint(){
+    var box = document.getElementById('tvStats'); if(!box) return;
+    if(typeof ORDERS === 'undefined' || !ORDERS || !ORDERS.length || !tvAllowed()){ box.className = 'off'; return; }
+    var ws = +statsWeekStart(), yr = new Date().getFullYear(), A = ORDERS.filter(statsAppr), items = [];
+    function it(k, v, cls, x){ items.push('<div class="tvs-it"><span class="k">' + esc(k) + '</span><span class="v' + (cls ? ' ' + cls : '') + '">' + esc(v) + '</span>' + (x ? '<span class="x">' + esc(x) + '</span>' : '') + '</div>'); }
+    // 1. ad campaign(s) running now
+    if(STATS.ads && STATS.ads.live.length){
+      STATS.ads.live.slice(0, 2).forEach(function(c){
+        var bits = [];
+        if(c.res != null) bits.push(statsNum(c.res) + ' ' + String(c.label || 'results').toLowerCase());
+        if(c.clicks != null) bits.push(statsNum(c.clicks) + ' clicks');
+        if(c.imp != null) bits.push(statsNum(c.imp) + ' views');
+        if(c.spend != null) bits.push((STATS.ads.cur ? STATS.ads.cur + ' ' : '') + Number(c.spend).toFixed(2) + ' spent');
+        it('Ad campaign running', c.name, 'gold', bits.length ? bits.join(' · ') + ' (7 days)' : '');
+      });
+    } else if(STATS.ads && !STATS.ads.live.length){ it('Ad campaign running', 'None right now', '', ''); }
+    // 2. new appraisals this week
+    var nw = A.filter(function(o){ return statsOrdered(o) >= ws; });
+    it('New appraisals this week', String(nw.length), nw.length ? 'good' : '', nw.length ? nw.slice(0, 4).map(function(o){ return o.id; }).join(', ') + (nw.length > 4 ? ' …' : '') : '');
+    // 3. requests without follow-up (last 2 weeks)
+    if(STATS.req){
+      it('Requests without follow-up (2 weeks)', String(STATS.req.open), STATS.req.open ? 'warn' : 'good', STATS.req.open ? 'of ' + STATS.req.total + ' received' : 'all ' + STATS.req.total + ' followed up ✓');
+    }
+    // 4. fastest turnaround this week (order date -> approved)
+    var done = A.filter(function(o){ return o.approvedAt && Date.parse(o.approvedAt) >= ws && isFinite(statsOrdered(o)); })
+                .map(function(o){ return { id:o.id, d:Math.max(0, (Date.parse(o.approvedAt) - statsOrdered(o)) / 864e5) }; })
+                .sort(function(a, b){ return a.d - b.d; });
+    if(done.length){ var f = done[0], dd = f.d < 1 ? 'same day' : (Math.round(f.d * 10) / 10) + (Math.round(f.d * 10) / 10 === 1 ? ' day' : ' days'); it('Fastest turnaround this week', dd, 'gold', f.id + ' · ' + done.length + ' approved this week'); }
+    else it('Fastest turnaround this week', '—', '', 'no report approved yet this week');
+    // 5. total appraisals this year
+    var ty = A.filter(function(o){ var y = (String(o.id).match(/^(\d{4})-/) || [])[1]; if(!y){ var t = statsOrdered(o); y = isFinite(t) ? String(new Date(t).getFullYear()) : ''; } return y === String(yr); });
+    it('Total appraisals ' + yr, String(ty.length), 'gold', '');
+    var sig = items.join('');
+    if(sig === STATS.sig && box.innerHTML) return;                     // unchanged: keep scrolling, don't restart
+    STATS.sig = sig;
+    var one = items.join('<div class="tvs-sep"></div>') + '<div class="tvs-sep"></div>';
+    box.className = '';
+    box.innerHTML = '<div class="tvs-lab">SIGMA STATS</div><div class="tvs-win"><div class="tvs-track">' + one + one + '</div></div>';
+    var tr = box.querySelector('.tvs-track');
+    setTimeout(function(){ var w = tr.scrollWidth / 2; tr.style.setProperty('--tvs-dur', Math.max(40, Math.round(w / (window.innerWidth / 30))) + 's'); }, 300);
+  }
+  function statsTick(){ statsLoadReq(); statsLoadAds(); statsPaint(); }
+
   // §TV-NEWS — world headlines + photos from a relay (news RSS has no CORS), refreshed every 10 minutes.
   //   BREAKING = an urgent word in the headline (last 12 h) or flagged by the relay; those rotate
   //   in the red panel one at a time; the slow ticker on the right carries AI & innovation news. With nothing breaking
@@ -92194,7 +92288,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     if(TV.on){ render(); return; }
     TV.on = true;
     document.documentElement.classList.add('tv-mode');
-    var root = document.createElement('div'); root.id = 'sigmaTv'; root.innerHTML = '<div id="tvMain"></div><div id="tvNews" class="off"></div>'; document.body.appendChild(root);
+    var root = document.createElement('div'); root.id = 'sigmaTv'; root.innerHTML = '<div id="tvMain"></div><div id="tvStats" class="off"></div><div id="tvNews" class="off"></div>'; document.body.appendChild(root);
     newsStart();
     render();
     // §TV-SIGNIN — on sigma-cms.com orders load only after sign-in. Until they do, give the screen back to
