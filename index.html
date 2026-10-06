@@ -104,6 +104,7 @@
 ================================================================================
 -->
 <html lang="en"><head>
+<script id="tvErrCatch">/* §TV-DIAG: keep the last errors so the office TV board can show why it is stuck */window.__tvErr=[];window.addEventListener("error",function(e){try{window.__tvErr.push(String(e.message||"error")+(e.lineno?" (line "+e.lineno+")":""));if(window.__tvErr.length>8)window.__tvErr.shift();}catch(x){}});</script>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22394,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.646';
+var APP_VERSION = 'v2.647';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -91702,7 +91703,9 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
 .tv-body{ flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,7fr) minmax(0,3fr); gap:1vw; }
 .tv-body.busy{ grid-template-columns:minmax(0,4fr) minmax(0,1fr); gap:.7vw; }
 .tv-foot{ flex:0 0 auto; font-size:1.4vh; color:var(--mut); display:flex; justify-content:space-between; opacity:.7; }
-.tv-empty{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:4vh; color:var(--mut); background:var(--bg); }
+.tv-empty{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2vh; font-size:4vh; color:var(--mut); background:var(--bg); text-align:center; }
+.tv-diag{ font-size:2.1vh; line-height:1.6; color:#cbd5e1; max-width:80vw; }
+.tv-diag b{ color:#fbbf24; }
 
 /* field-work chips — the colour IS the job */
 .fw{ display:inline-flex; align-items:center; max-width:100%; overflow-wrap:anywhere; font-weight:800; letter-spacing:.04em; border-radius:.7vh; padding:.25vh .6vw; color:#fff; white-space:normal; line-height:1.2; }
@@ -91939,6 +91942,27 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     }
   }
 
+  // §TV-DIAG — when the TV sits on "Loading schedule…", say why, on the screen itself.
+  var T0 = Date.now(), lastRetry = 0;
+  function diag(){
+    var sec = Math.round((Date.now() - T0) / 1000);
+    if(sec < 20) return '';
+    var ua = String(navigator.userAgent || ''), br = (ua.match(/(Tizen|Web0S|WebOS|SmartTV|SMART-TV|Android TV|AFT\w+|CrKey|Silk|SamsungBrowser\/[\d.]+|Chrome\/\d+|Firefox\/\d+|Version\/[\d.]+ Safari)/gi) || []).join(' ') || ua.slice(0, 80);
+    var app = typeof calGetEvents === 'function' && typeof window.sbLiveOrders === 'function';
+    var db = typeof _sb !== 'undefined' && !!_sb;
+    var auth = document.getElementById('authScreen'), signed = !!(auth && auth.style.display === 'none');
+    var n = (typeof ORDERS !== 'undefined' && ORDERS) ? ORDERS.length : 0;
+    var errs = (window.__tvErr || []).slice(-2).join(' | ');
+    function yn(x){ return x ? 'yes' : '<b>NO</b>'; }
+    return '<div class="tv-diag">Waiting ' + sec + ' s · Browser: ' + esc(br) + '<br>App started: ' + yn(app) + ' · Database: ' + yn(db) + ' · Signed in: ' + yn(signed) + ' · Orders: ' + (n ? n : '<b>0</b>') +
+      (errs ? '<br>Error: <b>' + esc(errs.slice(0, 220)) + '</b>' : '') + '</div>';
+  }
+  function retryLoad(){
+    var n = (typeof ORDERS !== 'undefined' && ORDERS) ? ORDERS.length : 0;
+    if(n || Date.now() - T0 < 20000 || Date.now() - lastRetry < 20000) return;
+    lastRetry = Date.now();
+    try{ if(typeof window.sbLiveOrders === 'function') window.sbLiveOrders({ rowLoader:true }); }catch(e){ (window.__tvErr = window.__tvErr || []).push('retry: ' + e.message); }
+  }
   function render(){
     var root = document.getElementById('sigmaTv'); if(!root) return;
     var D = collect(), ds = D.ds, total = 0;
@@ -91951,7 +91975,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
       '<div class="tv-hd"><div class="tv-brand">Σ SIGMA</div><div><div class="tv-title">Inspections this week</div><div class="tv-sub">' + range + ' · ' + total + (total === 1 ? ' visit' : ' visits') + '</div></div>' +
       '<div class="tv-legend">' + legend + '</div>' +
       '<div class="tv-clock"><b>' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + '</b><small>' + DN[n.getDay()] + ' ' + n.getDate() + ' ' + MN[n.getMonth()] + '</small></div></div>' +
-      '<div class="tv-body busy" style="position:relative">' + renderDays(D) + renderCad(ready ? cadaster() : null) + (ready ? '' : '<div class="tv-empty">Loading schedule…</div>') + '</div>' +
+      '<div class="tv-body busy" style="position:relative">' + renderDays(D) + renderCad(ready ? cadaster() : null) + (ready ? '' : '<div class="tv-empty">Loading schedule…' + diag() + '</div>') + '</div>' +
       '<div class="tv-foot"><span>SIGMA office board</span><span>' + (TV.at ? 'Updated ' + p2(TV.at.getHours()) + ':' + p2(TV.at.getMinutes()) : '') + '</span></div>';
     fit();
   }
@@ -91981,6 +92005,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     //   the normal login (with a note); the moment orders arrive, the board takes over. Sign in once with
     //   "Remember me" and the TV opens straight onto the board every time after.
     var t0 = Date.now(), live = false;
+    var paint = setInterval(function(){ if(typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length){ clearInterval(paint); return; } retryLoad(); render(); }, 5000);
     var gate = setInterval(function(){
       var ready = typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length && typeof _sb !== 'undefined' && _sb;
       var auth = document.getElementById('authScreen');
