@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.648';
+var APP_VERSION = 'v2.649';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -92008,14 +92008,65 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     var n = (typeof ORDERS !== 'undefined' && ORDERS) ? ORDERS.length : 0;
     var errs = (window.__tvErr || []).slice(-2).join(' | ');
     function yn(x){ return x ? 'yes' : '<b>NO</b>'; }
-    return '<div class="tv-diag">Waiting ' + sec + ' s · Browser: ' + esc(br) + '<br>App started: ' + yn(app) + ' · Database: ' + yn(db) + ' · Signed in: ' + yn(signed) + ' · Orders: ' + (n ? n : '<b>0</b>') +
+    return '<div class="tv-diag">Waiting ' + sec + ' s · Browser: ' + esc(br) + '<br>App started: ' + yn(app) + ' · Database: ' + yn(db) + ' · Signed in: ' + (TV.keyOK ? 'TV key' : yn(signed)) + ' · Orders: ' + (n ? n : '<b>0</b>') +
       (errs ? '<br>Error: <b>' + esc(errs.slice(0, 220)) + '</b>' : '') + '</div>';
   }
+  function tvAllowed(){                                   // signed in, or this TV holds the key — never a stranger
+    var auth = document.getElementById('authScreen');
+    return !!(TV.keyOK || (auth && auth.style.display === 'none'));
+  }
   function retryLoad(){
+    if(!tvAllowed()) return;
     var n = (typeof ORDERS !== 'undefined' && ORDERS) ? ORDERS.length : 0;
     if(n || Date.now() - T0 < 20000 || Date.now() - lastRetry < 20000) return;
     lastRetry = Date.now();
     try{ if(typeof window.sbLiveOrders === 'function') window.sbLiveOrders({ rowLoader:true }); }catch(e){ (window.__tvErr = window.__tvErr || []).push('retry: ' + e.message); }
+  }
+  // §TV-KEY (v2.649) — ASKED FOR: "for the calendar page sigma-cms.com/calendar do not request login and
+  //   password". The board shows client names, phones and payment status, so it is not opened to anyone
+  //   with the URL: the TV opens sigma-cms.com/calendar?tv=<key> once, the key is checked against this
+  //   SHA-256 and remembered on that TV, and from then on plain /calendar goes straight to the board with
+  //   no sign-in. Without the key the normal login stays (§TV-SIGNIN). The data is read exactly as the
+  //   signed-out app already can (anon client); no user is signed in and nothing is written.
+  var TV_KEY_HASH = '06c21407479a6266381c10f5f00bfe61011cc939301bea0a82db5c6f0a8e830f', TV_KEY_LS = 'sigma_tv_key', lastKeyLoad = 0;
+  function tvKeyFromUrl(){ var m = String(location.search + location.hash).match(/[?&#]tv=([A-Za-z0-9_-]{16,})/); return m ? m[1] : ''; }
+  // Plain-JS SHA-256 (hex of a UTF-8/ASCII string) for TV browsers without crypto.subtle (or plain http).
+  function sha256hex(str){
+    function rr(v, n){ return (v >>> n) | (v << (32 - n)); }
+    var K = [], H = [], i, j, primes = 0, cand = 2;
+    while(primes < 64){ var isP = true; for(j = 2; j * j <= cand; j++){ if(cand % j === 0){ isP = false; break; } }
+      if(isP){ if(primes < 8) H[primes] = (Math.pow(cand, 1 / 2) * 4294967296) | 0; K[primes] = (Math.pow(cand, 1 / 3) * 4294967296) | 0; primes++; } cand++; }
+    var bytes = unescape(encodeURIComponent(str)), words = [], bl = bytes.length * 8;
+    for(i = 0; i < bytes.length; i++) words[i >> 2] |= (bytes.charCodeAt(i) & 255) << (24 - (i % 4) * 8);
+    words[bl >> 5] |= 0x80 << (24 - bl % 32); words[(((bl + 64) >> 9) << 4) + 15] = bl;
+    for(i = 0; i < words.length; i += 16){
+      var w = [], a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+      for(j = 0; j < 64; j++){
+        if(j < 16) w[j] = words[i + j] | 0;
+        else { var s0 = rr(w[j-15], 7) ^ rr(w[j-15], 18) ^ (w[j-15] >>> 3), s1 = rr(w[j-2], 17) ^ rr(w[j-2], 19) ^ (w[j-2] >>> 10); w[j] = (w[j-16] + s0 + w[j-7] + s1) | 0; }
+        var t1 = (h + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & f) ^ (~e & g)) + K[j] + w[j]) | 0;
+        var t2 = ((rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+        h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0; H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+    }
+    var out = ''; for(i = 0; i < 8; i++) out += ('00000000' + (H[i] >>> 0).toString(16)).slice(-8);
+    return out;
+  }
+  function tvKeyCheck(){
+    var k = tvKeyFromUrl(), stored = '';
+    try{ stored = localStorage.getItem(TV_KEY_LS) || ''; }catch(e){}
+    var cand = k || stored;
+    if(!cand) return Promise.resolve(false);
+    return Promise.resolve().then(function(){ return sha256hex(cand); }).then(function(hex){
+      var ok = hex === TV_KEY_HASH;
+      if(ok && k){
+        try{ localStorage.setItem(TV_KEY_LS, k); }catch(e){}
+        try{ history.replaceState(null, '', location.pathname + (TV.wk ? '?wk=' + TV.wk : '')); }catch(e){}   // key out of the address bar
+      }
+      if(!ok && !k && stored){ try{ localStorage.removeItem(TV_KEY_LS); }catch(e){} }                   // a retired key stops working
+      return ok;
+    }, function(){ return false; });
   }
   function render(){
     var root = document.getElementById('sigmaTv'); if(!root) return;
@@ -92059,9 +92110,10 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     //   the normal login (with a note); the moment orders arrive, the board takes over. Sign in once with
     //   "Remember me" and the TV opens straight onto the board every time after.
     var t0 = Date.now(), live = false;
+    TV.keyOK = false; tvKeyCheck().then(function(ok){ TV.keyOK = ok; });
     var paint = setInterval(function(){ if(typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length){ clearInterval(paint); return; } retryLoad(); render(); }, 5000);
     var gate = setInterval(function(){
-      var ready = typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length && typeof _sb !== 'undefined' && _sb;
+      var ready = tvAllowed() && typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length && typeof _sb !== 'undefined' && _sb;
       var auth = document.getElementById('authScreen');
       var needAuth = !ready && auth && auth.style.display !== 'none' && Date.now() - t0 > 2500;
       var note = document.getElementById('tvSignin');
@@ -92069,6 +92121,15 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
         clearInterval(gate); if(note) note.remove();
         document.documentElement.classList.add('tv-mode');
         if(!live){ live = true; TV.at = new Date(); probe(false); }
+      } else if(TV.keyOK){
+        // TV key: stay on the board and load the data ourselves — no sign-in screen
+        if(note) note.remove();
+        document.documentElement.classList.add('tv-mode');
+        if(typeof _sb !== 'undefined' && _sb && Date.now() - lastKeyLoad > 15000){
+          lastKeyLoad = Date.now();
+          try{ if(typeof mfCloudPull === 'function') mfCloudPull(function(){}); }catch(e){}   // the firm's cost list (field work)
+          try{ if(typeof window.sbLiveOrders === 'function') window.sbLiveOrders({ rowLoader:true }); }catch(e){}
+        }
       } else if(needAuth){
         document.documentElement.classList.remove('tv-mode');
         if(!note){ note = document.createElement('div'); note.id = 'tvSignin'; note.textContent = 'Office TV board: sign in once and tick “Remember me” — the inspection board opens automatically.'; document.body.appendChild(note); }
