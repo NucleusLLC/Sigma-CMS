@@ -13,3 +13,6 @@
 
 /calendar
   Cache-Control: no-store, must-revalidate
+
+/officedash
+  Cache-Control: no-store, must-revalidate

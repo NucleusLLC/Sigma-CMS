@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.655';
+var APP_VERSION = 'v2.656';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -91889,7 +91889,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
   // sigma-cms.com/calendar (Cloudflare _redirects serves index.html there) or #tv; week via ?wk= / &wk=
   function parseHash(){
     var wk = String(location.search + location.hash).match(/[?&#]wk=(\d{4}-\d{2}-\d{2})/i);
-    var onPath = /^\/calendar\/?$/i.test(location.pathname || '');
+    var onPath = /^\/(calendar|officedash)\/?$/i.test(location.pathname || '');
     if(!onPath && !/^#tv(?![a-z])/i.test(String(location.hash || ''))) return false;
     TV.wk = wk ? wk[1] : null; return true;
   }
@@ -92342,6 +92342,13 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     var root = document.createElement('div'); root.id = 'sigmaTv'; root.innerHTML = '<div id="tvMain"></div><div id="tvStats" class="off"></div><div id="tvNews" class="off"></div>'; document.body.appendChild(root);
     newsStart();
     render();
+    // §TV-OFFICEDASH (v2.656) — asked for: "sigma-cms.com/officedash, allow no login, displays this 20 seconds,
+    //   then goes to www.aec-flow.com/officedash". Same open board as /calendar; only /officedash hands over.
+    //   ?dwell=<seconds> overrides the 20 s for testing.
+    if(/^\/officedash\/?$/i.test(location.pathname || '')){
+      var dw = String(location.search).match(/[?&]dwell=(\d{1,4})/i);
+      setTimeout(function(){ location.href = 'https://www.aec-flow.com/officedash'; }, (dw ? +dw[1] : 20) * 1000);
+    }
     // §TV-SIGNIN — on sigma-cms.com orders load only after sign-in. Until they do, give the screen back to
     //   the normal login (with a note); the moment orders arrive, the board takes over. Sign in once with
     //   "Remember me" and the TV opens straight onto the board every time after.
