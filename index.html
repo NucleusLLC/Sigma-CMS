@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.654';
+var APP_VERSION = 'v2.655';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -92144,12 +92144,16 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
   function statsLoadReq(){
     if(!tvAllowed() || typeof _sb === 'undefined' || !_sb || Date.now() - STATS.reqAt < 4 * 60000) return;
     STATS.reqAt = Date.now();
-    var since = new Date(Date.now() - 14 * 864e5).toISOString();
+    var d14 = Date.now() - 14 * 864e5, m0 = new Date(); m0.setHours(0, 0, 0, 0); m0.setDate(1);
+    var since = new Date(Math.min(d14, +m0)).toISOString();
     try{
       _sb.from('inquiries').select('id,created_at,status,order_id,kind').gte('created_at', since).then(function(q){
         if(!q || q.error || !q.data) return;
-        var reqs = q.data.filter(function(r){ return (r.kind || 'request') === 'request'; });
-        STATS.req = { total:reqs.length, open:reqs.filter(function(r){ return !r.order_id && (r.status === 'new' || r.status === 'seen'); }).length };
+        var all = q.data.filter(function(r){ return (r.kind || 'request') === 'request'; });
+        var reqs = all.filter(function(r){ return Date.parse(r.created_at) >= d14; });
+        var month = all.filter(function(r){ return Date.parse(r.created_at) >= +m0; });
+        STATS.req = { total:reqs.length, open:reqs.filter(function(r){ return !r.order_id && (r.status === 'new' || r.status === 'seen'); }).length,
+                      month:month.length, monthConv:month.filter(function(r){ return !!r.order_id || r.status === 'converted'; }).length };
         statsPaint();
       }, function(){});
     }catch(e){}
@@ -92209,6 +92213,45 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     // 5. total appraisals this year
     var ty = A.filter(function(o){ var y = (String(o.id).match(/^(\d{4})-/) || [])[1]; if(!y){ var t = statsOrdered(o); y = isFinite(t) ? String(new Date(t).getFullYear()) : ''; } return y === String(yr); });
     it('Total appraisals ' + yr, String(ty.length), 'gold', '');
+    // §TV-STATS-2 (v2.655) — asked for: the five suggested extras.
+    // 6. total value appraised this year — o.value is display text ("AWG 625,561"); USD x1.79 (the AWG peg)
+    var tv = 0, tvN = 0;
+    ty.forEach(function(o){
+      var t = String(o.value || ''), n = Number(t.replace(/[^\d.]/g, '').replace(/^\.+/, ''));
+      if(!(n > 0)) return;
+      if(/usd|us\$|\$/i.test(t) && !/awg|afl/i.test(t)) n *= 1.79;
+      tv += n; tvN++;
+    });
+    if(tvN) it('Total value appraised ' + yr, 'AWG ' + (tv >= 1e6 ? (Math.round(tv / 1e5) / 10) + ' M' : statsNum(Math.round(tv))), 'gold', tvN + ' properties');
+    // 7. reports due this week / overdue (not approved, not archived)
+    var t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    var openRep = ORDERS.filter(function(o){ return o && !o.archived && !o.approved && String(o.status || '').toLowerCase() !== 'approved'; });
+    var dueOf = function(o){ var t = Date.parse(o.dueRaw || o.reportDue || o.due || ''); return isFinite(t) ? t : NaN; };
+    var dueWk = openRep.filter(function(o){ var t = dueOf(o); return t >= +t0 && t < ws + 7 * 864e5; });
+    var over = openRep.filter(function(o){ var t = dueOf(o); return t < +t0; }).sort(function(a, b){ return dueOf(a) - dueOf(b); });
+    it('Reports due this week', String(dueWk.length), dueWk.length ? '' : 'good', over.length ? over.length + ' overdue: ' + over.slice(0, 3).map(function(o){ return o.id; }).join(', ') + (over.length > 3 ? ' …' : '') : 'none overdue ✓');
+    if(over.length){ var last = items.pop(); items.push(last.replace('class="v', 'class="v warn').replace('class="v warn good', 'class="v warn')); }
+    // 8. average turnaround: this month vs last month (order date -> approved)
+    var mS = new Date(t0); mS.setDate(1); var pS = new Date(mS); pS.setMonth(pS.getMonth() - 1);
+    var avgTat = function(a, b){
+      var L = A.filter(function(o){ var t = Date.parse(o.approvedAt || ''); return t >= +a && t < +b && isFinite(statsOrdered(o)); })
+               .map(function(o){ return Math.max(0, (Date.parse(o.approvedAt) - statsOrdered(o)) / 864e5); });
+      return L.length ? { avg:L.reduce(function(x, y){ return x + y; }, 0) / L.length, n:L.length } : null;
+    };
+    var cur = avgTat(mS, new Date(Date.now() + 864e5)), prev = avgTat(pS, mS), r1 = function(x){ return Math.round(x * 10) / 10; };
+    if(cur || prev){
+      var main = cur || prev, lab = cur ? MN[mS.getMonth()] : MN[pS.getMonth()], cmp = '';
+      if(cur && prev){ var dlt = r1(cur.avg - prev.avg); cmp = (dlt <= 0 ? '▼ ' + Math.abs(dlt) : '▲ ' + dlt) + ' days vs ' + MN[pS.getMonth()]; }
+      else cmp = main.n + ' report' + (main.n === 1 ? '' : 's');
+      it('Avg turnaround ' + lab, r1(main.avg) + ' days', cur && prev ? (cur.avg <= prev.avg ? 'good' : 'warn') : '', cmp);
+    }
+    // 9. milestone countdown to the next round number this year
+    if(ty.length){ var goal = (Math.floor(ty.length / 10) + 1) * 10, left = goal - ty.length; it('Next milestone', left + ' to go', 'gold', 'to appraisal #' + goal + ' of ' + yr); }
+    // 10. requests this month -> job orders
+    if(STATS.req && STATS.req.month != null){
+      var pc = STATS.req.month ? Math.round(STATS.req.monthConv / STATS.req.month * 100) : 0;
+      it('Requests this month', String(STATS.req.month), 'gold', STATS.req.month ? pc + '% became job orders' : '');
+    }
     var sig = items.join('');
     if(sig === STATS.sig && box.innerHTML) return;                     // unchanged: keep scrolling, don't restart
     STATS.sig = sig;
