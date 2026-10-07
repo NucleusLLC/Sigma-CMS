@@ -7549,6 +7549,30 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
 </style>
 </head>
 <body class="theme-dark-cyber" style="background: rgb(8, 10, 15); overflow: hidden;">
+<!-- §TV-LOADER (v2.660) — asked for: on sigma-cms.com/officedash, a simple clean modern loader with the SIGMA logo
+     instead of the app booting / "Loading schedule…". Painted first thing in <body>, removed by the TV board
+     (tvLoaderDone) once the schedule has loaded. Only on /officedash. -->
+<script>
+(function(){
+  if(!/^\/officedash\/?$/i.test(location.pathname || '')) return;
+  var css = '#tvLoader{position:fixed;inset:0;z-index:2147483600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;'
+    + 'background:radial-gradient(ellipse at 50% 42%,#141a26 0%,#0a0d14 62%,#07090e 100%);transition:opacity .6s ease;font-family:Sora,system-ui,-apple-system,"Segoe UI",sans-serif}'
+    + '#tvLoader.out{opacity:0;pointer-events:none}'
+    + '#tvLoader img{width:min(22vmin,190px);height:auto;filter:drop-shadow(0 10px 34px rgba(221,184,90,.28));animation:tvlBreath 2.4s ease-in-out infinite}'
+    + '#tvLoader .w{font-size:min(4.2vmin,34px);font-weight:800;letter-spacing:.42em;margin-right:-.42em;color:#ddb85a}'
+    + '#tvLoader .bar{width:min(34vmin,280px);height:3px;border-radius:3px;background:rgba(221,184,90,.14);overflow:hidden;position:relative}'
+    + '#tvLoader .bar i{position:absolute;top:0;bottom:0;width:38%;border-radius:3px;background:linear-gradient(90deg,transparent,#ddb85a,transparent);animation:tvlSlide 1.3s ease-in-out infinite}'
+    + '@keyframes tvlBreath{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.045);opacity:1}}'
+    + '@keyframes tvlSlide{0%{left:-40%}100%{left:102%}}'
+    + '@media (prefers-reduced-motion:reduce){#tvLoader img,#tvLoader .bar i{animation:none}#tvLoader .bar i{left:31%}}';
+  document.write('<style id="tvLoaderCss">' + css + '</style><div id="tvLoader" role="status" aria-label="Loading">'
+    + '<img src="/sigma-logo.png" alt="SIGMA"><div class="w">SIGMA</div><div class="bar"><i></i></div></div>');
+  window.tvLoaderDone = function(){
+    var el = document.getElementById('tvLoader'); if(!el || el.classList.contains('out')) return;
+    el.classList.add('out'); setTimeout(function(){ try{ el.remove(); }catch(e){} }, 700);
+  };
+})();
+</script>
 <noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#080a0f;color:#e0f4ff;font-family:sans-serif;font-size:18px;text-align:center;padding:40px;"><div><div style="font-size:32px;margin-bottom:16px;">⚠</div>SIGMA requires JavaScript.<br>Please enable JavaScript in your browser.</div></div></noscript>
 
 <!-- HEADER -->
@@ -22395,7 +22419,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.659';
+var APP_VERSION = 'v2.660';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -91734,7 +91758,7 @@ function pfpInit(){
      ═══════════════════════════════════════════════════════════════════════ -->
 <style id="tvBoardCss">
 html.tv-mode, html.tv-mode body{ overflow:hidden !important; }
-html.tv-mode body > *:not(#sigmaTv){ display:none !important; }
+html.tv-mode body > *:not(#sigmaTv):not(#tvLoader){ display:none !important; }
 html:not(.tv-mode) #sigmaTv{ display:none; }
 #tvSignin{ position:fixed; left:50%; top:2vh; transform:translateX(-50%); z-index:2147483001; background:#e0b85a; color:#111;
   font:700 18px/1.35 var(--font, system-ui, sans-serif); padding:12px 22px; border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.35); text-align:center; max-width:90vw; }
@@ -92352,7 +92376,19 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
       // §TV-KEY-RELAY (v2.658) — asked for: no login page on aec-flow.com/officedash. That board opens with its
       //   own secret key (?k=…); it arrives here in the URL and is passed straight back, never stored in this file.
       var tk = String(location.search).match(/[?&]k=([A-Za-z0-9_-]{16,200})/);
-      setTimeout(function(){ location.href = 'https://aec-flow.com/officedash' + (tk ? '?k=' + tk[1] : ''); }, (dw ? +dw[1] : 30) * 1000);
+      // §TV-LOADER (v2.660) — the loader stays until the schedule is on the board (25 s at most), then fades;
+      //   the 30 s on screen count from that moment, so the loading time is not taken out of them.
+      var shown = Date.now();
+      var waitBoard = setInterval(function(){
+        var loaded = typeof ORDERS !== 'undefined' && ORDERS && ORDERS.length;
+        if(loaded){ try{ render(); }catch(e){} }
+        var main = document.getElementById('tvMain');
+        var ok = loaded && main && !main.querySelector('.tv-empty') && !main.querySelector('.tvk-wait');   // schedule + CADASTER filled
+        if(!ok && Date.now() - shown < 25000) return;
+        clearInterval(waitBoard);
+        if(typeof window.tvLoaderDone === 'function') window.tvLoaderDone();
+        setTimeout(function(){ location.href = 'https://aec-flow.com/officedash' + (tk ? '?k=' + tk[1] : ''); }, (dw ? +dw[1] : 30) * 1000);
+      }, 250);
     }
     // §TV-SIGNIN — on sigma-cms.com orders load only after sign-in. Until they do, give the screen back to
     //   the normal login (with a note); the moment orders arrive, the board takes over. Sign in once with
