@@ -105,6 +105,56 @@
 -->
 <html lang="en"><head>
 <script id="tvErrCatch">/* §TV-DIAG: keep the last errors so the office TV board can show why it is stuck */window.__tvErr=[];window.addEventListener("error",function(e){try{window.__tvErr.push(String(e.message||"error")+(e.lineno?" (line "+e.lineno+")":""));if(window.__tvErr.length>8)window.__tvErr.shift();}catch(x){}});</script>
+<!-- §TV-LOADER (v2.660) + §TV-SNAP (v2.662) — asked for: a clean SIGMA loader on sigma-cms.com/officedash (v2.660),
+     then "can I have it quicker" (v2.662). First thing in <head>, only on /officedash: if this TV drew the board in the
+     last 20 minutes, that board (saved by snapSave() in the TV block) is painted at once, while the app loads
+     behind it; otherwise the SIGMA logo loader. tvLoaderDone() fades either one out when the live board is ready.
+     The overlay hangs off <html>, not <body>, so it paints before the body exists and the tv-mode rule never hides it. -->
+<script id="tvFast">
+(function(){
+  if(!/^\/officedash\/?$/i.test(location.pathname || '')) return;
+  var de = document.documentElement, snap = null;
+  try{ snap = JSON.parse(localStorage.getItem('sigma_tv_snap_v1') || 'null'); }catch(e){ snap = null; }
+  if(snap && !(snap.parts && snap.parts.Main && snap.css && Date.now() - (+snap.at || 0) < 20 * 60000)) snap = null;
+  var css = '#tvLoader{position:fixed;inset:0;z-index:2147483600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;'
+    + 'background:radial-gradient(ellipse at 50% 42%,#141a26 0%,#0a0d14 62%,#07090e 100%);transition:opacity .6s ease;font-family:Sora,system-ui,-apple-system,"Segoe UI",sans-serif}'
+    + '#tvLoader.snap{display:block;background:#0b0f17}'
+    + '#tvLoader.out{opacity:0;pointer-events:none}'
+    + '#tvLoader img.lg{width:min(22vmin,190px);height:auto;filter:drop-shadow(0 10px 34px rgba(221,184,90,.28));animation:tvlBreath 2.4s ease-in-out infinite}'
+    + '#tvLoader .w{font-size:min(4.2vmin,34px);font-weight:800;letter-spacing:.42em;margin-right:-.42em;color:#ddb85a}'
+    + '#tvLoader .bar{width:min(34vmin,280px);height:3px;border-radius:3px;background:rgba(221,184,90,.14);overflow:hidden;position:relative}'
+    + '#tvLoader .bar i{position:absolute;top:0;bottom:0;width:38%;border-radius:3px;background:linear-gradient(90deg,transparent,#ddb85a,transparent);animation:tvlSlide 1.3s ease-in-out infinite}'
+    + '@keyframes tvlBreath{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.045);opacity:1}}'
+    + '@keyframes tvlSlide{0%{left:-40%}100%{left:102%}}'
+    + '@media (prefers-reduced-motion:reduce){#tvLoader img.lg,#tvLoader .bar i{animation:none}#tvLoader .bar i{left:31%}}';
+  var st = document.createElement('style'); st.id = 'tvLoaderCss'; st.textContent = css + (snap ? '\n' + snap.css : '');
+  (document.head || de).appendChild(st);
+  var el = document.createElement('div'); el.id = 'tvLoader'; el.setAttribute('role', 'status'); el.setAttribute('aria-label', 'Loading');
+  var tick = null;
+  if(snap){
+    el.className = 'snap';
+    var part = function(k){ var x = snap.parts[k] || { cls:'off', html:'' }; return '<div id="snap' + k + '" class="' + String(x.cls || '').replace(/"/g, '') + '">' + x.html + '</div>'; };
+    el.innerHTML = '<div id="tvSnap">' + part('Main') + part('Stats') + part('News') + '</div>';
+    window.__tvSnapAt = Date.now();
+    // the saved clock is a minute or more old: keep it on the real time until the live board takes over
+    var DN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'], MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var p2 = function(n){ return (n < 10 ? '0' : '') + n; };
+    var clock = function(){
+      var b = el.querySelector('.tv-clock b'), s = el.querySelector('.tv-clock small'), n = new Date();
+      if(b) b.textContent = p2(n.getHours()) + ':' + p2(n.getMinutes());
+      if(s) s.textContent = DN[n.getDay()] + ' ' + n.getDate() + ' ' + MN[n.getMonth()];
+    };
+    clock(); tick = setInterval(clock, 1000);
+  } else {
+    el.innerHTML = '<img class="lg" src="/sigma-logo.png" alt="SIGMA"><div class="w">SIGMA</div><div class="bar"><i></i></div>';
+  }
+  de.appendChild(el);
+  window.tvLoaderDone = function(){
+    var x = document.getElementById('tvLoader'); if(!x || x.classList.contains('out')) return;
+    x.classList.add('out'); setTimeout(function(){ try{ if(tick) clearInterval(tick); x.remove(); }catch(e){} }, 700);
+  };
+})();
+</script>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <!-- §FAST-LOAD (v2.661): a real icon, so the browser stops fetching /favicon.ico (which served the 9.8 MB app). -->
   <link rel="icon" type="image/png" href="/sigma-logo.png">
@@ -7551,30 +7601,6 @@ try{ if(window.SigmaQR&&window.SigmaQR.stringToBytesFuncs&&window.SigmaQR.string
 </style>
 </head>
 <body class="theme-dark-cyber" style="background: rgb(8, 10, 15); overflow: hidden;">
-<!-- §TV-LOADER (v2.660) — asked for: on sigma-cms.com/officedash, a simple clean modern loader with the SIGMA logo
-     instead of the app booting / "Loading schedule…". Painted first thing in <body>, removed by the TV board
-     (tvLoaderDone) once the schedule has loaded. Only on /officedash. -->
-<script>
-(function(){
-  if(!/^\/officedash\/?$/i.test(location.pathname || '')) return;
-  var css = '#tvLoader{position:fixed;inset:0;z-index:2147483600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;'
-    + 'background:radial-gradient(ellipse at 50% 42%,#141a26 0%,#0a0d14 62%,#07090e 100%);transition:opacity .6s ease;font-family:Sora,system-ui,-apple-system,"Segoe UI",sans-serif}'
-    + '#tvLoader.out{opacity:0;pointer-events:none}'
-    + '#tvLoader img{width:min(22vmin,190px);height:auto;filter:drop-shadow(0 10px 34px rgba(221,184,90,.28));animation:tvlBreath 2.4s ease-in-out infinite}'
-    + '#tvLoader .w{font-size:min(4.2vmin,34px);font-weight:800;letter-spacing:.42em;margin-right:-.42em;color:#ddb85a}'
-    + '#tvLoader .bar{width:min(34vmin,280px);height:3px;border-radius:3px;background:rgba(221,184,90,.14);overflow:hidden;position:relative}'
-    + '#tvLoader .bar i{position:absolute;top:0;bottom:0;width:38%;border-radius:3px;background:linear-gradient(90deg,transparent,#ddb85a,transparent);animation:tvlSlide 1.3s ease-in-out infinite}'
-    + '@keyframes tvlBreath{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.045);opacity:1}}'
-    + '@keyframes tvlSlide{0%{left:-40%}100%{left:102%}}'
-    + '@media (prefers-reduced-motion:reduce){#tvLoader img,#tvLoader .bar i{animation:none}#tvLoader .bar i{left:31%}}';
-  document.write('<style id="tvLoaderCss">' + css + '</style><div id="tvLoader" role="status" aria-label="Loading">'
-    + '<img src="/sigma-logo.png" alt="SIGMA"><div class="w">SIGMA</div><div class="bar"><i></i></div></div>');
-  window.tvLoaderDone = function(){
-    var el = document.getElementById('tvLoader'); if(!el || el.classList.contains('out')) return;
-    el.classList.add('out'); setTimeout(function(){ try{ el.remove(); }catch(e){} }, 700);
-  };
-})();
-</script>
 <noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#080a0f;color:#e0f4ff;font-family:sans-serif;font-size:18px;text-align:center;padding:40px;"><div><div style="font-size:32px;margin-bottom:16px;">⚠</div>SIGMA requires JavaScript.<br>Please enable JavaScript in your browser.</div></div></noscript>
 
 <!-- HEADER -->
@@ -22421,7 +22447,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.661';
+var APP_VERSION = 'v2.662';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -92340,13 +92366,33 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     NEWS.rot = setInterval(newsSlide, 10000);
   }
   function newsClean(items){ return (items || []).filter(function(x){ return x && x.title; }).map(function(x){ return { title:String(x.title), img:x.img || '', src:x.src || '', t:x.t ? +new Date(x.t) : NaN, breaking:!!x.breaking }; }); }
-  function newsSet(world, ai){ NEWS.items = newsClean(world); NEWS.ai = newsClean(ai); newsPaint(); }
+  function newsSet(world, ai){ NEWS.items = newsClean(world); NEWS.ai = newsClean(ai); newsPaint(); setTimeout(snapSave, 1500); }   // §TV-SNAP: catch the news panel too
   function newsLoad(){
     if(!window.fetch) return;
     fetch(TV_NEWS_URL, { cache:'no-store' }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){ if(j && (j.world || j.ai)) newsSet(j.world, j.ai); }, function(){});
   }
   function newsStart(){ newsLoad(); setInterval(newsLoad, 10 * 60 * 1000); setInterval(newsPaint, 60 * 1000); }
 
+  // §TV-SNAP (v2.662) — keep a copy of the finished board on this TV, so the next visit paints it at once
+  //   (the <head> script tvFast). Only a complete board is saved; ids are renamed so the copy can sit beside
+  //   the live one, and the three page-level rules (tv-mode / not tv-mode) are left out of its CSS.
+  function snapSave(){
+    try{
+      var root = document.getElementById('sigmaTv'), cssEl = document.getElementById('tvBoardCss');
+      if(!root || !cssEl || root.querySelector('.tv-empty') || root.querySelector('.tvk-wait')) return;
+      var ren = function(x){ return x.replace(/#sigmaTv\b/g, '#tvSnap').replace(/#tv(Main|Stats|News)\b/g, '#snap$1'); };
+      var css = ren(cssEl.textContent).split('\n').filter(function(l){ return !/^\s*html[.:]/.test(l); }).join('\n');
+      var prev = null; try{ prev = JSON.parse(localStorage.getItem('sigma_tv_snap_v1') || 'null'); }catch(e){}
+      var parts = {};
+      ['Main', 'Stats', 'News'].forEach(function(k){
+        var el = document.getElementById('tv' + k);
+        var ready = el && !el.classList.contains('off') && el.children.length;
+        parts[k] = ready ? { cls:el.className, html:el.innerHTML }
+                         : ((prev && prev.parts && prev.parts[k]) || { cls:'off', html:'' });
+      });
+      localStorage.setItem('sigma_tv_snap_v1', JSON.stringify({ at:Date.now(), css:css, parts:parts }));
+    }catch(e){}
+  }
   // payments + documents are read by the Dashboard's own probes; repaint once both have answered
   function probe(force){
     try{ if(typeof _synProbe === 'function') _synProbe(force); }catch(e){}
@@ -92388,11 +92434,17 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
         // §FAST-LOAD (v2.661) — asked for: faster start. The board shows as soon as the schedule is in; CADASTER
         //   gets 1.5 s more to finish (instant once its cache is warm), then fills in on its own.
         if(loaded && !TV.ordersAt) TV.ordersAt = Date.now();
-        var ok = loaded && main && !main.querySelector('.tv-empty') && (!main.querySelector('.tvk-wait') || Date.now() - TV.ordersAt > 1500);
+        // §TV-SNAP (v2.662) — when the saved board is already on screen there is no hurry: swap only when the live
+        //   board is complete (CADASTER too), so the screen never steps back to "Reading payments…".
+        var cadOk = !main || !main.querySelector('.tvk-wait') || (!window.__tvSnapAt && Date.now() - TV.ordersAt > 1500);
+        var ok = loaded && main && !main.querySelector('.tv-empty') && cadOk;
         if(!ok && Date.now() - shown < 25000) return;
         clearInterval(waitBoard);
         if(typeof window.tvLoaderDone === 'function') window.tvLoaderDone();
-        setTimeout(function(){ location.href = 'https://aec-flow.com/officedash' + (tk ? '?k=' + tk[1] : ''); }, (dw ? +dw[1] : 30) * 1000);
+        snapSave(); setInterval(snapSave, 10000);
+        // the 30 s count from the moment a board was on screen: the saved one if it was painted, else this one
+        var left = (dw ? +dw[1] : 30) * 1000 - (window.__tvSnapAt ? Date.now() - window.__tvSnapAt : 0);
+        setTimeout(function(){ snapSave(); location.href = 'https://aec-flow.com/officedash' + (tk ? '?k=' + tk[1] : ''); }, Math.max(0, left));
       }, 250);
     }
     // §TV-SIGNIN — on sigma-cms.com orders load only after sign-in. Until they do, give the screen back to
