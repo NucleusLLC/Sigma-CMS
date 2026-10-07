@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.653';
+var APP_VERSION = 'v2.654';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -92160,11 +92160,14 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     var acc = ''; try{ acc = localStorage.getItem('sigmaAds_accountId') || ''; }catch(e){}
     var url = SB_URL + '/functions/v1/meta-ads'; try{ var px = localStorage.getItem('sigmaAds_proxy'); if(px) url = px; }catch(e){}
     fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + SB_KEY, apikey:SB_KEY },
-                 body:JSON.stringify({ action:'overview', preset:'last_7d', daily:false, detail:true, accountId:acc }) })
+                 body:JSON.stringify(acc ? { action:'overview', preset:'maximum', daily:false, detail:true, accountId:acc } : { action:'overview', preset:'maximum', daily:false, detail:true }) })   // an empty accountId would stop the relay falling back to its META_AD_ACCOUNT_ID secret
       .then(function(r){ return r.json(); }).then(function(j){
         if(!j || !j.ok || !j.campaigns){ STATS.ads = null; statsPaint(); return; }
         var live = j.campaigns.filter(function(c){ return c.effective_status === 'ACTIVE' && !(c.stop_time && Date.parse(c.stop_time) < Date.now()); });
-        STATS.ads = { cur:j.currency || '', live:live.map(function(c){ var i = c.insights || {}; return { name:c.name, res:i.results, label:i.result_label, clicks:i.clicks, imp:i.impressions, spend:i.spend, ctr:i.ctr }; }) };
+        // Meta keeps a finished campaign "ACTIVE" after its stop_time; it only counts as running before that.
+        var shape = function(c){ var i = c.insights || {}; return { name:c.name, res:i.results, label:i.result_label, clicks:i.clicks, imp:i.impressions, reach:i.reach, spend:i.spend, stop:c.stop_time }; };
+        var last = j.campaigns.slice().sort(function(a, b){ return String(b.start_time || '').localeCompare(String(a.start_time || '')); })[0];
+        STATS.ads = { cur:(j.currency || ''), live:live.map(shape), last:last ? shape(last) : null };
         statsPaint();
       }, function(){ STATS.ads = null; statsPaint(); });
   }
@@ -92176,15 +92179,20 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     function it(k, v, cls, x){ items.push('<div class="tvs-it"><span class="k">' + esc(k) + '</span><span class="v' + (cls ? ' ' + cls : '') + '">' + esc(v) + '</span>' + (x ? '<span class="x">' + esc(x) + '</span>' : '') + '</div>'); }
     // 1. ad campaign(s) running now
     if(STATS.ads && STATS.ads.live.length){
-      STATS.ads.live.slice(0, 2).forEach(function(c){
-        var bits = [];
-        if(c.res != null) bits.push(statsNum(c.res) + ' ' + String(c.label || 'results').toLowerCase());
-        if(c.clicks != null) bits.push(statsNum(c.clicks) + ' clicks');
-        if(c.imp != null) bits.push(statsNum(c.imp) + ' views');
-        if(c.spend != null) bits.push((STATS.ads.cur ? STATS.ads.cur + ' ' : '') + Number(c.spend).toFixed(2) + ' spent');
-        it('Ad campaign running', c.name, 'gold', bits.length ? bits.join(' · ') + ' (7 days)' : '');
-      });
-    } else if(STATS.ads && !STATS.ads.live.length){ it('Ad campaign running', 'None right now', '', ''); }
+      STATS.ads.live.slice(0, 2).forEach(function(c){ it('Ad campaign running now', c.name, 'gold', adBits(c)); });
+    } else if(STATS.ads && STATS.ads.last){
+      var st = Date.parse(STATS.ads.last.stop || ''), ended = isFinite(st) ? ' (ended ' + new Date(st).getDate() + ' ' + MN[new Date(st).getMonth()] + ')' : '';
+      it('Last ad campaign' + ended, STATS.ads.last.name, 'gold', adBits(STATS.ads.last));
+    }
+    function adBits(c){
+      var bits = [];
+      if(c.imp != null) bits.push(statsNum(c.imp) + ' views');
+      if(c.reach != null) bits.push(statsNum(c.reach) + ' people reached');
+      if(c.res != null) bits.push(statsNum(c.res) + ' ' + String(c.label || 'results').toLowerCase());
+      if(c.clicks != null) bits.push(statsNum(c.clicks) + ' clicks');
+      if(c.spend != null) bits.push((STATS.ads.cur ? STATS.ads.cur + ' ' : '') + Number(c.spend).toFixed(2) + ' spent');
+      return bits.join(' · ');
+    }
     // 2. new appraisals this week
     var nw = A.filter(function(o){ return statsOrdered(o) >= ws; });
     it('New appraisals this week', String(nw.length), nw.length ? 'good' : '', nw.length ? nw.slice(0, 4).map(function(o){ return o.id; }).join(', ') + (nw.length > 4 ? ' …' : '') : '');
@@ -92326,7 +92334,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
   window.addEventListener('hashchange', function(){ if(parseHash()) start(); });
   function boot(){ if(parseHash()) start(); }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
-  try{ window._tvBoard = { render:render, refresh:refresh, state:TV, setNews:newsSet }; }catch(e){}
+  try{ window._tvBoard = { render:render, refresh:refresh, state:TV, setNews:newsSet, stats:function(){ return STATS; } }; }catch(e){}
 })();
 </script>
 
