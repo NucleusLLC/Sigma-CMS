@@ -22395,7 +22395,7 @@ function _unlockOrder(id){
 //   it can never fire, and nobody on an old build is ever told. That is exactly what
 //   happened between v2.462 and v2.464. tools/version-sync-check.mjs now fails the
 //   build if the two ever disagree; do not remove it.
-var APP_VERSION = 'v2.658';
+var APP_VERSION = 'v2.659';
 // §DASH-TODAY (v2.520) — the Dashboard subtitle said "Overview — March 28, 2026" and
 // Reports said "Live data · March 2026" for months: both dates were typed into the
 // HTML. Written from the device clock instead, and re-written every minute so an
@@ -74898,7 +74898,8 @@ async function restoreOrders() {
 // Call from the "↻ Live from DB" button or window.sbLiveOrders() in the console.
 window.sbLiveOrders = async function(opts){
   opts = opts || {};
-  var quiet = !!opts.quiet;
+  // §TV-QUIET (v2.659) — the office TV board never shows the "Supabase LIVE result" alert (it blocked the screen).
+  var quiet = !!opts.quiet || document.documentElement.classList.contains('tv-mode');
   // §LOAD-GUARD (v1.996) — throttle AUTOMATIC (quiet) refreshes so rapid Orders-tab
   //   navigation can't fire repeated full-table fetches. Manual "↻ Live from DB"
   //   (non-quiet) and the first-open authoritative load (rowLoader) always run.
@@ -92067,7 +92068,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     var n = (typeof ORDERS !== 'undefined' && ORDERS) ? ORDERS.length : 0;
     if(n || Date.now() - T0 < 20000 || Date.now() - lastRetry < 20000) return;
     lastRetry = Date.now();
-    try{ if(typeof window.sbLiveOrders === 'function') window.sbLiveOrders({ rowLoader:true }); }catch(e){ (window.__tvErr = window.__tvErr || []).push('retry: ' + e.message); }
+    try{ if(typeof window.sbLiveOrders === 'function') window.sbLiveOrders({ quiet:true, rowLoader:true }); }catch(e){ (window.__tvErr = window.__tvErr || []).push('retry: ' + e.message); }
   }
   // §TV-KEY (v2.649) — ASKED FOR: "for the calendar page sigma-cms.com/calendar do not request login and
   //   password". The board shows client names, phones and payment status, so it is not opened to anyone
@@ -92345,13 +92346,13 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
     render();
     // §TV-OFFICEDASH (v2.656) — asked for: "sigma-cms.com/officedash, allow no login, displays this 20 seconds,
     //   then goes to www.aec-flow.com/officedash". Same open board as /calendar; only /officedash hands over.
-    //   ?dwell=<seconds> overrides the 20 s for testing.
+    //   ?dwell=<seconds> overrides for testing. v2.659 — asked for: Sigma shows 30 s (was 20).
     if(/^\/officedash\/?$/i.test(location.pathname || '')){
       var dw = String(location.search).match(/[?&]dwell=(\d{1,4})/i);
       // §TV-KEY-RELAY (v2.658) — asked for: no login page on aec-flow.com/officedash. That board opens with its
       //   own secret key (?k=…); it arrives here in the URL and is passed straight back, never stored in this file.
       var tk = String(location.search).match(/[?&]k=([A-Za-z0-9_-]{16,200})/);
-      setTimeout(function(){ location.href = 'https://aec-flow.com/officedash' + (tk ? '?k=' + tk[1] : ''); }, (dw ? +dw[1] : 20) * 1000);
+      setTimeout(function(){ location.href = 'https://aec-flow.com/officedash' + (tk ? '?k=' + tk[1] : ''); }, (dw ? +dw[1] : 30) * 1000);
     }
     // §TV-SIGNIN — on sigma-cms.com orders load only after sign-in. Until they do, give the screen back to
     //   the normal login (with a note); the moment orders arrive, the board takes over. Sign in once with
@@ -92375,7 +92376,7 @@ html:not(.tv-mode) #sigmaTv{ display:none; }
         if(typeof _sb !== 'undefined' && _sb && Date.now() - lastKeyLoad > 15000){
           lastKeyLoad = Date.now();
           try{ if(typeof mfCloudPull === 'function') mfCloudPull(function(){}); }catch(e){}   // the firm's cost list (field work)
-          try{ if(typeof window.sbLiveOrders === 'function') window.sbLiveOrders({ rowLoader:true }); }catch(e){}
+          try{ if(typeof window.sbLiveOrders === 'function') window.sbLiveOrders({ quiet:true, rowLoader:true }); }catch(e){}
         }
       } else if(needAuth){
         document.documentElement.classList.remove('tv-mode');
