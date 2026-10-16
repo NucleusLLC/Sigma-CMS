@@ -13240,6 +13240,59 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
             <textarea id="roiChart" data-key="roiChart" style="display:none;"></textarea>
           </div>
         </div>
+        <!-- §T5-OP-AI (v2.689) — Type 5 only: Opinion - Assessment / Issues / Damages / Resolution.
+             Hidden (class t5op-only) until _t5OpGate opens a Type 5. Each textarea carries data-key,
+             so the generic section-12 capture/restore persists it (inspData.s12.<key>). The appraiser
+             types a few words; ✨ AI Write expands them (genT5Op). Less/More Text via _AI_LEN_FIELDS. -->
+        <div class="fg t5op-only" style="grid-column:1/-1;display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">1</span>Opinion - Assessment</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkT5opAssessment" onchange="_secInputToggle('t5opAssessment',this)" style="cursor:pointer;margin:0;"> Show on report</label>
+              <span id="t5opAssessmentStatus" style="font-size:11px;color:var(--muted);"></span>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="t5opAssessmentLessBtn" class="ai-len-btn" onclick="_aiTextResize('t5opAssessment',-10)">Less Text −</button><span class="ai-len-tgt" id="t5opAssessmentLenTgt" title="Target length in words">—</span><button type="button" id="t5opAssessmentMoreBtn" class="ai-len-btn" onclick="_aiTextResize('t5opAssessment',10)">More Text +</button></span>
+              <button type="button" id="t5opAssessmentBtn" onclick="genT5Op('t5opAssessment')" class="ai-sum-btn" title="Type a few words below, then let the AI write them out"><span>✨</span> AI Write</button>
+            </div>
+          </div>
+          <textarea id="t5opAssessmentText" data-key="t5opAssessment" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="A few words on your overall assessment (e.g. &quot;sound structure, roof near end of life&quot;) — AI Write turns them into the full opinion…"></textarea>
+        </div>
+        <div class="fg t5op-only" style="grid-column:1/-1;display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">2</span>Opinion - Issues</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkT5opIssues" onchange="_secInputToggle('t5opIssues',this)" style="cursor:pointer;margin:0;"> Show on report</label>
+              <span id="t5opIssuesStatus" style="font-size:11px;color:var(--muted);"></span>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="t5opIssuesLessBtn" class="ai-len-btn" onclick="_aiTextResize('t5opIssues',-10)">Less Text −</button><span class="ai-len-tgt" id="t5opIssuesLenTgt" title="Target length in words">—</span><button type="button" id="t5opIssuesMoreBtn" class="ai-len-btn" onclick="_aiTextResize('t5opIssues',10)">More Text +</button></span>
+              <button type="button" id="t5opIssuesBtn" onclick="genT5Op('t5opIssues')" class="ai-sum-btn" title="Type a few words below, then let the AI write them out"><span>✨</span> AI Write</button>
+            </div>
+          </div>
+          <textarea id="t5opIssuesText" data-key="t5opIssues" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="The issues in a few words (e.g. &quot;leaking gutter, no GFCI in kitchen&quot;) — AI Write turns them into the full opinion…"></textarea>
+        </div>
+        <div class="fg t5op-only" style="grid-column:1/-1;display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">3</span>Opinion - Damages</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkT5opDamages" onchange="_secInputToggle('t5opDamages',this)" style="cursor:pointer;margin:0;"> Show on report</label>
+              <span id="t5opDamagesStatus" style="font-size:11px;color:var(--muted);"></span>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="t5opDamagesLessBtn" class="ai-len-btn" onclick="_aiTextResize('t5opDamages',-10)">Less Text −</button><span class="ai-len-tgt" id="t5opDamagesLenTgt" title="Target length in words">—</span><button type="button" id="t5opDamagesMoreBtn" class="ai-len-btn" onclick="_aiTextResize('t5opDamages',10)">More Text +</button></span>
+              <button type="button" id="t5opDamagesBtn" onclick="genT5Op('t5opDamages')" class="ai-sum-btn" title="Type a few words below, then let the AI write them out"><span>✨</span> AI Write</button>
+            </div>
+          </div>
+          <textarea id="t5opDamagesText" data-key="t5opDamages" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="The damage in a few words (e.g. &quot;spalling carport column, water stain bedroom ceiling&quot;) — AI Write turns them into the full opinion…"></textarea>
+        </div>
+        <div class="fg t5op-only" style="grid-column:1/-1;display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <label style="font-weight:600;"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#c8922a;color:#0a0a0a;border-radius:50%;font-size:10px;font-weight:800;margin-right:6px;">4</span>Opinion - Resolution</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label class="sec-inc-chk" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;" title="Show this section on the report"><input type="checkbox" id="secChkT5opResolution" onchange="_secInputToggle('t5opResolution',this)" style="cursor:pointer;margin:0;"> Show on report</label>
+              <span id="t5opResolutionStatus" style="font-size:11px;color:var(--muted);"></span>
+              <span class="ai-len-grp" title="Rewrite the text below about 10 words longer or shorter — same facts, same findings, new length"><button type="button" id="t5opResolutionLessBtn" class="ai-len-btn" onclick="_aiTextResize('t5opResolution',-10)">Less Text −</button><span class="ai-len-tgt" id="t5opResolutionLenTgt" title="Target length in words">—</span><button type="button" id="t5opResolutionMoreBtn" class="ai-len-btn" onclick="_aiTextResize('t5opResolution',10)">More Text +</button></span>
+              <button type="button" id="t5opResolutionBtn" onclick="genT5Op('t5opResolution')" class="ai-sum-btn" title="Type a few words below, then let the AI write them out"><span>✨</span> AI Write</button>
+            </div>
+          </div>
+          <textarea id="t5opResolutionText" data-key="t5opResolution" style="height:120px;resize:vertical;border-left:3px solid var(--gold);" placeholder="How to resolve it in a few words (e.g. &quot;replace gutter, electrician for kitchen circuit&quot;) — AI Write turns them into the full opinion…"></textarea>
+        </div>
+
         <!-- §CONCL (v2.221) — Conclusion / Opinion (all appraisal types). Prints in the report on top of the Valuation section. -->
         <div class="fg" style="grid-column:1/-1;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
@@ -19121,9 +19174,13 @@ function _t5OpParts(order){
   if (intro && on('introNote')) out.push({ id:'introNote', key:'introductoryNote', text:intro });
   var b = pick(['opBuildingText']);                     if (b && on('buildingOpinion')) out.push({ id:'buildingOpinion', key:'secTitleBuildingOpinion', text:b });
   var lo = pick(['opLocationText', 'locationOpinion']); if (lo && on('locationOpinion')) out.push({ id:'locationOpinion', key:'secTitleLocationOpinion', text:lo });
-  var c = pick(['conclusionOpinion']);                  if (c && on('conclusion')) out.push({ id:'conclusion', key:'conclusionOpinion', text:c });
+  // §T5-OP-AI (v2.689) — Opinion - Assessment / Issues / Damages / Resolution, then the Conclusion.
+  _T5OP_KEYS.forEach(function(k){ var v = pick([k]); if (v && on(k)) out.push({ id:k, title:_T5OP_TITLES[k], text:v }); });
+  var c = pick(['conclusionOpinion']);                  if (c && on('conclusion')) out.push({ id:'conclusion', title:'Opinion - Conclusion', text:c });
   return out;
 }
+var _T5OP_KEYS = ['t5opAssessment', 't5opIssues', 't5opDamages', 't5opResolution'];
+var _T5OP_TITLES = { t5opAssessment:'Opinion - Assessment', t5opIssues:'Opinion - Issues', t5opDamages:'Opinion - Damages', t5opResolution:'Opinion - Resolution' };
 // §T5-OPINIONS (v2.685) — the facts the Conclusion AI gets on a Type 5, in place of the value
 //   lines: the assessor's overall condition + rationale and up to 8 recorded findings. Read from
 //   the saved assessment (inspData.s15._t5, with the open form's live model on top).
@@ -19144,7 +19201,7 @@ function _t5CnclLines(order){
 function _t5TocMeta(id, m, order){
   var doc = t5IsDocumentOnly(m);
   if (id === 't5op'){
-    var _lb = { introNote:'Introductory note', buildingOpinion:'Building', locationOpinion:'Location', conclusion:'Conclusion' };
+    var _lb = { introNote:'Introductory note', buildingOpinion:'Building', locationOpinion:'Location', t5opAssessment:'Assessment', t5opIssues:'Issues', t5opDamages:'Damages', t5opResolution:'Resolution', conclusion:'Conclusion' };
     var _ps = order ? _t5OpParts(order).map(function(p){ return _lb[p.id]; }) : [];
     return { t:'Opinions', d:(_ps.length ? _ps.join(' · ') : 'The appraiser’s opinions') };
   }
@@ -21432,6 +21489,15 @@ function _t5OpGate(order){
       box.removeAttribute('data-t5hid'); box.removeAttribute('data-t5disp');
     }
   });
+  // §T5-OP-AI (v2.689) — the four Type 5 opinion blocks show only on a Type 5, and the
+  //   Conclusion block reads "Opinion - Conclusion" there (its own label everywhere else).
+  try{
+    document.querySelectorAll('#isec-12 .t5op-only').forEach(function(b){ b.style.display = t5 ? '' : 'none'; });
+    var cl = document.getElementById('conclusionText'); cl = cl && cl.closest('.fg'); cl = cl && cl.querySelector('label');
+    var tn = cl && Array.prototype.filter.call(cl.childNodes, function(n){ return n.nodeType === 3 && n.nodeValue.trim(); }).pop();
+    if (tn){ if(!cl.getAttribute('data-orig')) cl.setAttribute('data-orig', tn.nodeValue); tn.nodeValue = t5 ? 'Opinion - Conclusion' : cl.getAttribute('data-orig'); }
+    _T5OP_KEYS.forEach(function(k){ var c = document.getElementById('secChk' + k.charAt(0).toUpperCase() + k.slice(1)); if(c) c.checked = _orderSecEnabled(order, k); });
+  }catch(e){}
 }
 try{ window._t5OpGate = _t5OpGate; }catch(e){}
 // Input-form checkbox handler: toggle a section on the CURRENTLY-open inspection order.
@@ -66047,7 +66113,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     if (_op5.length) {
       _t5Pg['t5op'] = _page5('t5op', 'Opinions', 'The appraiser’s opinions on the building, its location and the overall conclusion',
         _op5.map(function(p, i){
-          var _h = '<div class="sec-h" style="margin-top:' + (i ? '10px' : '2px') + ';margin-bottom:4px;">' + _secT(p.key) + '</div>';
+          var _h = '<div class="sec-h" style="margin-top:' + (i ? '10px' : '2px') + ';margin-bottom:4px;">' + (p.title ? esc(p.title) : _secT(p.key)) + '</div>';
           if (p.id === 'introNote') return _h + '<div class="rep-note" style="padding:7px 12px;background:rgba(200,146,42,.04);border-left:3px solid ' + RC.rcAccentColor + ';border-radius:0 6px 6px 0;">' + _opFmt(p.text) + '</div>';
           return _h + '<div style="border:1px solid #d4c9b0;border-left:3px solid ' + RC.rcAccentColor + ';padding:5px 8px;"><div class="rep-op">' + _opFmt(p.text) + '</div></div>';
         }).join(''));
@@ -89244,6 +89310,75 @@ var _AI_LEN_FIELDS = {
                  register:'formal building-inspection',
                  subject:'the "General Condition Statement" of an Aruba Building Inspection Report' }
 };
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §T5-OP-AI (v2.689) — Type 5 Opinions: Assessment · Issues · Damages ·         ║
+// ║  Resolution (+ the Conclusion, which keeps genAiConclusion). The assessor      ║
+// ║  types a few words; ✨ AI Write turns them into the finished opinion. The      ║
+// ║  typed words are the brief: every point in them is kept, nothing is invented. ║
+// ║  Facts = the assessment (condition, rationale, findings), the other opinions  ║
+// ║  already written, and the case file. No value is ever stated (a Type 5        ║
+// ║  states none). Written back through _aiLenPersist, so Generate and            ║
+// ║  Less/More Text share one write path into inspData.s12.<key>.                 ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var _T5OP_BRIEF = {
+  t5opAssessment: { what:'"Opinion - Assessment": the assessor’s overall professional assessment of the property and its condition within the scope of this assessment — what is sound, what is not, and how the property performs as a whole', seed:130 },
+  t5opIssues:     { what:'"Opinion - Issues": the issues identified — defects, deficiencies, safety or compliance concerns and maintenance shortfalls — each stated plainly with where it is and why it matters', seed:130 },
+  t5opDamages:    { what:'"Opinion - Damages": the damage observed — its nature, location and extent, and its probable cause (state a cause as suspected unless the facts say it is confirmed)', seed:130 },
+  t5opResolution: { what:'"Opinion - Resolution": how the issues and damage should be resolved — recommended repairs or works, their priority and timing, and which specialist investigations or trades are needed. Do not give cost figures unless they appear in the facts', seed:130 }
+};
+Object.keys(_T5OP_BRIEF).forEach(function(k){
+  _AI_LEN_FIELDS[k] = { ta:k + 'Text', btn:k + 'Btn', sta:k + 'Status', sect:12, keys:[k], orderKeys:[], mirror:[],
+    seed:_T5OP_BRIEF[k].seed,
+    role:'You are a certified building assessor in Aruba editing text that is ALREADY part of a live property Assessment Report (it states no value).',
+    register:'formal building-assessment',
+    subject:'the ' + _T5OP_BRIEF[k].what.split(':')[0] + ' section of an Aruba property Assessment Report' };
+});
+async function genT5Op(k){
+  var brief = _T5OP_BRIEF[k]; if(!brief) return;
+  var cfg = _AI_LEN_FIELDS[k];
+  var btn = document.getElementById(cfg.btn), sta = document.getElementById(cfg.sta), ta = document.getElementById(cfg.ta);
+  if(!btn || !ta) return;
+  var order = ORDERS.find(function(o){ return o.id === _inspOrderId; }) || {};
+  var _k = localStorage.getItem('appraisalSuite_anthKey_v1') || localStorage.getItem('appraisalApi_apiAnthropicKey') || '';
+  if(!_k.trim()){ _k = prompt('Enter Anthropic API Key:'); if(!_k) return; localStorage.setItem('appraisalSuite_anthKey_v1', _k.trim()); }
+  btn.disabled = true; btn.innerHTML = '<span class="ai-spin">⧗</span> Writing…'; if(sta){ sta.style.color = 'var(--muted)'; sta.textContent = ''; }
+  try{
+    var _s12 = {}; try{ var _r = localStorage.getItem('insp_' + _inspOrderId + '_12'); if(_r) _s12 = JSON.parse(_r); }catch(e){}
+    var _mrg = function(key){ var el = document.getElementById(key + 'Text'); var v = (el && el.value) || _s12[key] || (order.inspData && order.inspData.s12 && order.inspData.s12[key]) || ''; return String(v).trim(); };
+    var addr = (order.address || '') + (order.city ? ', ' + order.city : '');
+    var others = [];
+    Object.keys(_T5OP_BRIEF).forEach(function(o){ if(o !== k){ var t = _mrg(o); if(t) others.push(_T5OP_TITLES[o] + ': ' + t); } });
+    var bo = (document.getElementById('opBuildingText') || {}).value || '', lo = (document.getElementById('opLocationText') || {}).value || '';
+    if(bo.trim()) others.push('Building opinion: ' + bo.trim());
+    if(lo.trim()) others.push('Location opinion: ' + lo.trim());
+    var facts = ['Property: ' + (addr || '—'), 'Type: ' + ((typeof _orderPropTypeLabel === 'function') ? _orderPropTypeLabel(order) : (order.type || '—'))]
+      .concat(_t5CnclLines(order)).concat(others).join('\n');
+    var seed = (ta.value || '').trim();
+    var prompt = 'You are a certified building assessor in Aruba writing ' + brief.what + ', for a property ASSESSMENT report. '
+      + (seed
+          ? 'The assessor has typed the brief notes below. Write them out into a finished, professional paragraph (90-160 words). Keep EVERY point the assessor made, in their order of importance; you may explain and connect them using the facts, but add no defect, damage, cause or measurement that is not in the notes or the facts.\n\nAssessor’s notes: ' + seed
+          : 'Write a concise, professional paragraph (90-160 words) from the facts only; where the facts are silent, say so rather than invent.')
+      + '\n\nDo NOT state, estimate or imply any market value, price or valuation figure: this report states no value. Formal assessment language. Paragraph only, no headings, no bullet points.'
+      + '\n\nAssessment facts:\n' + facts;
+    var resp = await _fetchT('https://api.anthropic.com/v1/messages', { method:'POST', headers:{ 'Content-Type':'application/json', 'x-api-key':_k, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1024, messages:[{ role:'user', content:prompt + _opCaseFile(order) + _aiLangInstruction(_inspOrderId) }] }) }, 90000);
+    var data = await resp.json();
+    if(data.error) throw new Error(data.error.message);
+    var raw = (data.content || []).filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('');
+    var text = (typeof _aiWhole === 'function') ? _aiWhole(data, raw) : raw.trim();
+    if(!text) throw new Error('Empty answer');
+    _aiLenPersist(cfg, text, ta);
+    try{ _aiLenSync(k); }catch(e){}
+    if(sta){ sta.style.color = '#39ff6e'; sta.textContent = '✓ Written'; }
+    btn.innerHTML = '<span>✨</span> Rewrite';
+  }catch(err){
+    if(sta){ sta.style.color = 'var(--red)'; sta.textContent = '⚠ ' + (err.message || 'Failed'); }
+    btn.innerHTML = '<span>✨</span> Try Again';
+  }
+  btn.disabled = false;
+}
+try{ window.genT5Op = genT5Op; }catch(e){}
 
 function _aiLenWords(s){ var m=String(s||'').match(/\S+/g); return m?m.length:0; }
 function _aiLenClamp(n){ return Math.max(_AI_LEN_MIN, Math.min(_AI_LEN_MAX, Math.round(n))); }
