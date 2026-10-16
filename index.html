@@ -51484,18 +51484,35 @@ async function _hpnTakenWhy(num, code){
   // 3. the server — every job, also ones this browser has not loaded
   if(typeof _sb === 'undefined' || !_sb) throw new Error('the server is not reachable, so the number cannot be checked');
   var chk = function(r){ if(!r || r.error) throw new Error((r && r.error && r.error.message) || 'the number could not be checked'); return r.data || []; };
+  // Every matching row, page by page: the server caps one answer (max-rows, 1000 on Supabase)
+  //   whatever .limit() asks, so a single read could silently stop short. The server's exact
+  //   count says when all rows are in; a count that is missing or never reached refuses.
+  var all_ = async function(table, cols, filt, key){
+    var PG = 500, out = [], total = null;
+    for(var guard = 0; guard < 200; guard++){
+      var q = filt(_sb.schema('public').from(table).select(cols, { count:'exact' }));
+      var r = await _finRace(q.order(key, { ascending:true }).range(out.length, out.length + PG - 1), 20000, 'checking the number');
+      var part = chk(r);
+      if(typeof r.count !== 'number') throw new Error('the server did not say how many jobs there are');
+      total = r.count;
+      out = out.concat(part);
+      if(out.length >= total) return out;
+      if(!part.length) break;
+    }
+    throw new Error('only ' + out.length + ' of ' + total + ' jobs could be read');
+  };
   var base = (/^\d{4}-/.test(k)) ? k.slice(0, 5) : k;   // year shape: every number of that year, padding aside
   var pat = base.replace(/[%_\\]/g, '\\$&') + '%';
-  var rows = chk(await _finRace(_sb.schema('public').from('orders').select('order_id,extra_data').ilike('order_id', pat).limit(5000), 20000, 'checking the number'));
-  var rows2 = chk(await _finRace(_sb.schema('public').from('orders').select('order_id,extra_data')
-    .or('extra_data->>apprNoCustom.ilike.' + JSON.stringify(pat) + ',extra_data->>projectNumber.ilike.' + JSON.stringify(pat)).limit(5000), 20000, 'checking the number'));
+  var rows = await all_('orders', 'order_id,extra_data', function(q){ return q.ilike('order_id', pat); }, 'order_id');
+  var rows2 = await all_('orders', 'order_id,extra_data', function(q){
+    return q.or('extra_data->>apprNoCustom.ilike.' + JSON.stringify(pat) + ',extra_data->>projectNumber.ilike.' + JSON.stringify(pat)); }, 'order_id');
   var all = rows.concat(rows2);
   for(var i = 0; i < all.length; i++){
     var x = all[i].extra_data; if(typeof x === 'string'){ try{ x = JSON.parse(x); }catch(e){ x = {}; } }
     if(_hpnRowKeys(all[i].order_id, x || {}).indexOf(k) >= 0) return 'job ' + all[i].order_id;
   }
   // 4. BLU appraisal numbers reserved before they become a job
-  var blu = chk(await _finRace(_sb.schema('public').from('blu_appraisal_requests').select('appraisal_number').ilike('appraisal_number', pat).limit(5000), 20000, 'checking the number'));
+  var blu = await all_('blu_appraisal_requests', 'appraisal_number', function(q){ return q.ilike('appraisal_number', pat); }, 'appraisal_number');
   for(var j = 0; j < blu.length; j++){
     var an = String(blu[j].appraisal_number || '');
     if(_hpnRowKeys(an, null).indexOf(k) >= 0) return 'BLU request ' + an;
