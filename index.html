@@ -26411,6 +26411,9 @@ function removeDoc(btn, idx) {
       //   so without this the detached doc resurrects on the next save/reload. Clearing
       //   it here makes the detach actually stick (and removes it from the report).
       if (ord && ord.inspData && ord.inspData._docs) { try { delete ord.inspData._docs[idx]; } catch(e2){} }
+      // §DOCS-PAUSED-READ — remember the detach for this session, so the server-refs read
+      //   that runs while Cloud Sync is paused does not bring the detached document back.
+      if (ord) { try { if(!ord._docDetached) ord._docDetached = {}; ord._docDetached[idx] = Date.now(); } catch(e3){} }
       // §SP/FP-THUMB-INVALIDATE (v2.151) — also clear the rasterised thumb cache so a
       //   re-attached plan re-rasterises instead of resurrecting the detached one.
       if (ord) { if(idx==2) delete ord._spThumbCache; if(idx==3) delete ord._fpThumbCache; }
@@ -75877,6 +75880,55 @@ function _rebuildInspFromLocal(ord, orderId){
     return found;
   }catch(e){ return false; }
 }
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §DOCS-PAUSED-READ — REPORTED: "Patrick's Documents cards are empty" while   ║
+// ║  his browser had Cloud Sync paused. The documents WERE on the server         ║
+// ║  (bucket + insp_data._docs). Paused, _ensureInspData skipped the server and  ║
+// ║  rebuilt from this browser's doc_<id>_<n> keys only; on a full storage those ║
+// ║  were missing, so the cards had nothing to show. The pause exists to stop    ║
+// ║  heavy DB traffic and WRITES, not to hide what the server already holds.     ║
+// ║  Now, while paused, the order's insp_data row is READ (raw handle, past the  ║
+// ║  pause wrapper) and ONLY its _docs refs are merged into the order in memory: ║
+// ║   · a slot this browser already holds is never replaced (it may be newer);   ║
+// ║   · a slot detached in this session (ord._docDetached) is not brought back;  ║
+// ║   · nothing is written: not to the server, not to localStorage.              ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+function _docsPausedRead(ord, orderId){
+  try{
+    if(!ord || !orderId) return Promise.resolve(0);
+    var q = (typeof _sbOrdersRaw === 'function') ? _sbOrdersRaw() : null;
+    if(!q || typeof q.select !== 'function') return Promise.resolve(0);
+    // insp_data is stored as a JSON STRING on most rows, so a JSON-path select (insp_data->_docs)
+    //   returns null there: read the one row and take only its _docs (and s11._docs) from it.
+    return Promise.resolve(q.select('order_id,insp_data').eq('order_id', orderId).limit(1)).then(function(res){
+      if(!res || res.error || !res.data || !res.data.length) return 0;
+      var d = res.data[0] && res.data[0].insp_data;
+      if(typeof d === 'string'){ try{ d = JSON.parse(d); }catch(e){ d = null; } }
+      if(!d || typeof d !== 'object') return 0;
+      var srv = Object.assign({}, (d.s11 && d.s11._docs && typeof d.s11._docs === 'object') ? d.s11._docs : {}, (d._docs && typeof d._docs === 'object') ? d._docs : {});
+      if(!Object.keys(srv).length) return 0;
+      if(!ord.inspData) ord.inspData = {};
+      if(!ord.inspData._docs) ord.inspData._docs = {};
+      var cur = ord.inspData._docs, gone = ord._docDetached || {}, added = 0;
+      Object.keys(srv).forEach(function(k){
+        var s = srv[k];
+        if(!s || typeof s !== 'object' || !(s.storagePath || s.data)) return;
+        if(gone[k]) return;
+        var c = cur[k];
+        if(c && (c.storagePath || c.data)) return;
+        cur[k] = Object.assign({}, c || {}, s);
+        added++;
+      });
+      ord._docsPausedReadAt = Date.now();
+      if(added) try{ console.log('[DOCS-PAUSED-READ] ' + orderId + ': ' + added + ' document reference(s) read from the server while Cloud Sync is paused.'); }catch(e){}
+      // The section restore paints the Documents cards only when this browser holds an s11
+      //   copy; repaint them here (after that restore) so the refs show either way.
+      setTimeout(function(){ try{ if(typeof _inspOrderId !== 'undefined' && _inspOrderId === orderId && typeof docRestoreFileUI === 'function') docRestoreFileUI(orderId); }catch(e){} }, 0);
+      return added;
+    }, function(){ return 0; });
+  }catch(e){ return Promise.resolve(0); }
+}
+try{ window._docsPausedRead = _docsPausedRead; }catch(e){}
 function _ensureInspData(orderId, force){
   return new Promise(function(resolve){
     // §LAZY-INSP-TIMEOUT (v1.953) — never let a stalled Supabase query hang the
@@ -75890,7 +75942,14 @@ function _ensureInspData(orderId, force){
       // §REPORT-OFFLINE (v2.007) — no Supabase / Cloud Sync paused → build the report
       //   from the LOCAL cache so it still generates (was returning with no data).
       if(!orderId || typeof _sb==='undefined' || !_sb){ clearTimeout(_to); try{ _rebuildInspFromLocal(_ordLocal, orderId); }catch(e){} _finish(false); return; }
-      if(typeof window.isSbPaused==='function' && window.isSbPaused()){ clearTimeout(_to); try{ if(_rebuildInspFromLocal(_ordLocal, orderId) && _ordLocal) _ordLocal._inspLoaded=true; }catch(e){} _finish(true); return; }
+      if(typeof window.isSbPaused==='function' && window.isSbPaused()){
+        try{ if(_rebuildInspFromLocal(_ordLocal, orderId) && _ordLocal) _ordLocal._inspLoaded=true; }catch(e){}
+        // §DOCS-PAUSED-READ — the local rebuild only knows documents whose doc_<id>_<n> key
+        //   survived on this browser. Fetch the server's document references too (a read,
+        //   small, never a write) so the Documents cards are not empty while paused.
+        _docsPausedRead(_ordLocal, orderId).then(function(){ clearTimeout(_to); _finish(true); }, function(){ clearTimeout(_to); _finish(true); });
+        return;
+      }
       var ord = _ordLocal;
       // §HYDRATE-FORCE (v2.241) — callers pass force=true (report generation) to BYPASS a stale
       //   _inspLoaded flag. That flag can get stuck true on a BLANK blob (a throttle or an old-version
@@ -86919,22 +86978,55 @@ var _alRenderTimer  = null;
       if(/violation|passive|deprecated|favicon|cross.origin/i.test(msg))return;
       if(typeof appLog==='function') appLog('WARN','JS',msg.substring(0,300));}catch(e){}
   };
-  // Quota-safe setItem — auto-evicts blobs on QuotaExceededError
+  // §LS-WRAP-SAFE — this second, older wrapper sits OUTSIDE the quota patch
+  //   (§LS-PATCH-ALIVE, _installLsQuotaPatch, which is the inner _origSetItem for
+  //   localStorage). On a full storage it used to REMOVE EVERY insp_*, doc_* and
+  //   editDraft_* key — the inspection sections, attached documents and Project Data
+  //   drafts of every order on this computer, synced or not — and then swallow the
+  //   error. While Cloud Sync is paused those keys are the ONLY copy of the user's work.
+  //   The inner patch already does the safe things in order (strip bytes from documents
+  //   that are on the server, hold report settings in memory, give up old activity-log
+  //   days, red notice). This layer now only adds caches the app rebuilds from the
+  //   server by itself (order thumbnails, the CADASTER document probe, the TV snapshot),
+  //   biggest first, and NEVER removes user work. If the write still does not fit it
+  //   is recorded in window._lsLastFail and logged; the error stays swallowed as it
+  //   always was, so callers that never expected a throw keep working.
   Storage.prototype._origSetItem = Storage.prototype.setItem;
+  var _lwsQuota = function(e){ return !!e && (e.name==='QuotaExceededError' || e.code===22 || e.code===1014); };
+  var _lwsRebuildable = function(k){ return k.indexOf('ordthumb_')===0 || k==='sigma_syn_docs_v1' || k==='sigma_tv_snap_v1'; };
+  var _lwsBusy = false;
+  function _lwsEvictCaches(store, key, value){
+    var cands = [];
+    for (var i=store.length-1; i>=0; i--) {
+      var k = store.key(i);
+      if (!k || k===key || !_lwsRebuildable(k)) continue;
+      var n = 0; try { n = (Storage.prototype.getItem.call(store, k) || '').length; } catch(_g){}
+      cands.push({ k:k, n:n });
+    }
+    cands.sort(function(a, b){ return b.n - a.n; });
+    for (var c=0; c<cands.length; c++) {
+      try { Storage.prototype.removeItem.call(store, cands[c].k); } catch(_r){ continue; }
+      try { Storage.prototype._origSetItem.call(store, key, value); return c + 1; }
+      catch(e2){ if (!_lwsQuota(e2)) return 0; }
+    }
+    return 0;
+  }
   Storage.prototype.setItem = function(key, value) {
     try { Storage.prototype._origSetItem.call(this, key, value); }
     catch(e) {
-      if (e.name==='QuotaExceededError' || e.code===22 || e.code===1014) {
-        try {
-          for (var _ei=this.length-1; _ei>=0; _ei--) {
-            var _ek=this.key(_ei);
-            if (_ek && _ek!==key &&
-                (_ek.startsWith('insp_')||_ek.startsWith('doc_')||_ek.startsWith('editDraft_')))
-              this.removeItem(_ek);
-          }
-          Storage.prototype._origSetItem.call(this, key, value);
-        } catch(e2) {
-          try{if(typeof appLog==='function')appLog('ERROR','STORAGE','setItem failed after eviction: '+key);}catch(e3){}
+      if (_lwsQuota(e)) {
+        if (this === window.localStorage && !_lwsBusy) {
+          _lwsBusy = true;
+          var _freed = 0;
+          try { _freed = _lwsEvictCaches(this, String(key), String(value)); } catch(_x){}
+          _lwsBusy = false;
+          if (_freed) { try { console.warn('[LS-WRAP-SAFE] storage full — cleared ' + _freed + ' rebuildable cache item(s) to save ' + key + '.'); } catch(_c){} return; }
+        }
+        try { window._lsLastFail = { key:String(key), size:String(value).length, at:new Date().toISOString(), session:(this !== window.localStorage) }; } catch(_f){}
+        if (!_lwsBusy) {
+          _lwsBusy = true;
+          try{if(typeof appLog==='function')appLog('ERROR','STORAGE','setItem did not fit — storage full, no saved work was removed: '+key);}catch(e3){}
+          _lwsBusy = false;
         }
       } else {
         try{if(typeof appLog==='function')appLog('ERROR','STORAGE','setItem failed: '+key+' — '+(e.message||e));}catch(e2){}
