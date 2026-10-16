@@ -17272,7 +17272,12 @@ try {
 
 // §TYPE5 (v2.554) — Assessment Report: Classification, Photos, Documents, Sign-Off. The
 //   Assessment section itself (index 15) is added to this list when its form exists.
-var SECS_T5=[0,15,10,11,13];   // Classification · Assessment · Photos · Documents · Sign-Off
+// §T5-OPINIONS (v2.685) — section 12 (Opinions) joins Type 5, straight after the Assessment.
+//   Inspect Data still hides the Opinions tab (§OP-QV): it is reached through the QV Opinion
+//   button, which shows for any type whose list carries 12. On a Type 5 only the narrative
+//   blocks are offered (Introductory Note, Building, Location, Conclusion) — the valuation
+//   blocks (R.O.P.V., Renovation, HOA, Analytics, R.O.I.) are hidden by _t5OpGate.
+var SECS_T5=[0,15,12,10,11,13];   // Classification · Assessment · Opinions · Photos · Documents · Sign-Off
 var SECS_T4=[0,1,2,3,4,5,6,7,8,9,10,11,14,13]   /* §T4-TABORDER (v2.458) — the checklist sits between Documents (11) and Sign-Off (13), i.e. last thing before signing. Order here is TAB order only; it does not touch the report. */;   // 0 Classification · 14 the checklist · then the rest
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -19091,15 +19096,58 @@ function _t5CoverTitle(s){
  * schedule only when there are findings, the cost schedule only when it is enabled. The findings
  * page always prints, because "no defects observed within scope" is itself the finding.
  */
-function _t5PageIds(m){
+function _t5PageIds(m, order){
   var ids = ['t5sum', 't5assign', 't5scope', 't5cond', 't5find'];
   if (m && t5LiveFindings(m).length) ids.push('t5act');
   if (m && m.costs && m.costs.enabled) ids.push('t5cost');
+  if (order && _t5OpParts(order).length) ids.push('t5op');   // §T5-OPINIONS (v2.685) — only when something was written
   ids.push('t5concl');
   return ids;
 }
-function _t5TocMeta(id, m){
+// §T5-OPINIONS (v2.685) — the Opinions a Type 5 prints, in order, each only when it holds text
+//   and its Show-on-report tick is on (§SEC-ENABLE, default on). Same sources the appraisal
+//   report reads: order.internalNotes (Introductory Note) and section 12 (inspData.s12, with the
+//   unsynced local copy insp_<id>_12 on top). order.notes is NOT a fallback here: on a Type 5 it
+//   is the booking note, never a report text. Valuation blocks are never part of a Type 5.
+function _t5OpParts(order){
+  if (!order) return [];
+  var d = {};
+  try { var s = order.inspData && order.inspData.s12; if (s && typeof s === 'object') d = Object.assign({}, s); } catch(e){}
+  try { var l = localStorage.getItem('insp_' + order.id + '_12'); if (l) Object.assign(d, JSON.parse(l)); } catch(e){}
+  var pick = function(keys){ for (var i = 0; i < keys.length; i++){ var v = String(d[keys[i]] || order[keys[i]] || '').trim(); if (v) return v; } return ''; };
+  var on = function(id){ try { return (typeof _orderSecEnabled !== 'function') || _orderSecEnabled(order, id); } catch(e){ return true; } };
+  var out = [];
+  var intro = String(order.internalNotes || '').trim();
+  if (intro && on('introNote')) out.push({ id:'introNote', key:'introductoryNote', text:intro });
+  var b = pick(['opBuildingText']);                     if (b && on('buildingOpinion')) out.push({ id:'buildingOpinion', key:'secTitleBuildingOpinion', text:b });
+  var lo = pick(['opLocationText', 'locationOpinion']); if (lo && on('locationOpinion')) out.push({ id:'locationOpinion', key:'secTitleLocationOpinion', text:lo });
+  var c = pick(['conclusionOpinion']);                  if (c && on('conclusion')) out.push({ id:'conclusion', key:'conclusionOpinion', text:c });
+  return out;
+}
+// §T5-OPINIONS (v2.685) — the facts the Conclusion AI gets on a Type 5, in place of the value
+//   lines: the assessor's overall condition + rationale and up to 8 recorded findings. Read from
+//   the saved assessment (inspData.s15._t5, with the open form's live model on top).
+function _t5CnclLines(order){
+  var m = null;
+  try { if (typeof _t5Live !== 'undefined' && _t5Live && String(_t5LiveOrder) === String(order.id)) m = _t5Live; } catch(e){}
+  try { if (!m) m = t5Normalize(order.inspData && order.inspData.s15 && order.inspData.s15._t5); } catch(e){ m = null; }
+  if (!m) return ['Assessment: not recorded yet'];
+  var out = ['Overall condition: ' + (t5Label(T5_CONDITIONS, m.conclusion && m.conclusion.overall) || '—')];
+  if (t5Str(m.conclusion && m.conclusion.rationale)) out.push('Assessor rationale: ' + t5Str(m.conclusion.rationale));
+  var live = t5LiveFindings(m), key = t5KeyFindings(m);
+  out.push('Findings recorded: ' + live.length + (key.length ? (' (' + key.length + ' urgent or high severity)') : ''));
+  (key.length ? key : live).slice(0, 8).forEach(function(f){
+    out.push('Finding ' + (f.ref || '') + ': ' + [f.component, f.location, f.observation, f.action ? ('action: ' + f.action) : ''].filter(function(x){ return t5Str(x); }).join(' — '));
+  });
+  return out;
+}
+function _t5TocMeta(id, m, order){
   var doc = t5IsDocumentOnly(m);
+  if (id === 't5op'){
+    var _lb = { introNote:'Introductory note', buildingOpinion:'Building', locationOpinion:'Location', conclusion:'Conclusion' };
+    var _ps = order ? _t5OpParts(order).map(function(p){ return _lb[p.id]; }) : [];
+    return { t:'Opinions', d:(_ps.length ? _ps.join(' · ') : 'The appraiser’s opinions') };
+  }
   return ({
     t5sum:    { t:'Executive Summary',                 d:'Purpose, scope, overall conclusion, key findings and limitations' },
     t5assign: { t:'Assignment and Property',           d:'Client, intended use, property identification, areas and their sources' },
@@ -21365,7 +21413,27 @@ function _secInputSync(order){
     var cs=document.getElementById('condoResearchSection'); if(cs) cs.style.display=_secCondoAvail(order)?'':'none';
     var cc=document.getElementById('secChkCondo'); if(cc) cc.checked=_secCondoOn(order);
   }catch(e){}
+  try{ _t5OpGate(order); }catch(e){}
 }
+// §T5-OPINIONS (v2.685) — on a Type 5 the Opinions panel offers only the narrative blocks.
+//   R.O.P.V., Renovation Notes, HOA Fees, Condominium Analytics and R.O.I. are valuation
+//   material (a Type 5 states no value), so their blocks are hidden, and so is the Conclusion's
+//   "must have valuation first" note. Only what this gate hid is shown again on another type,
+//   so the blocks _secInputSync manages keep their own rule.
+function _t5OpGate(order){
+  var t5 = Number(order && order.apprType) === 5;
+  ['opRopvText','renovNotesText','hoaFeeNote','condoResearchText','roiText','conclusionNote'].forEach(function(id){
+    var el = document.getElementById(id); if(!el) return;
+    var box = (id === 'conclusionNote') ? el : (el.closest('.fg') || el);
+    if (t5){ if(box.getAttribute('data-t5hid') !== '1'){ box.setAttribute('data-t5hid','1'); box.setAttribute('data-t5disp', box.style.display || ''); } box.style.display = 'none'; }
+    else if (box.getAttribute('data-t5hid') === '1'){
+      // Renovation + Analytics: _secInputSync has just set their display — leave it.
+      if (id !== 'renovNotesText' && id !== 'condoResearchText') box.style.display = box.getAttribute('data-t5disp') || '';
+      box.removeAttribute('data-t5hid'); box.removeAttribute('data-t5disp');
+    }
+  });
+}
+try{ window._t5OpGate = _t5OpGate; }catch(e){}
 // Input-form checkbox handler: toggle a section on the CURRENTLY-open inspection order.
 // §OP-FORMAT (v2.321) — order-level flag driving _opFmt in generateReport.
 function _opFmtToggle(cb){
@@ -62047,7 +62115,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   function _pgSignoff(){ if(!_secMovedSignoff) return _pg('signoff'); var _kk=''; for(var _k in _soLay){ if(_soLay[_k] && _soLay[_k].indexOf('signoff')>=0){ _kk=_k; break; } } return _kk ? _pg(_secPhysId(_kk)) : _pg('signoff'); }
   var _pgList=[];
   // §T5-REPORT (v2.554) — Type 5 page list: the SAME array the render and the Contents walk.
-  if (_isT5) { if(RC.rcPageCover!==false) _pgList.push('cover'); if(RC.rcPageTOC!==false) _pgList.push('toc'); _t5PageIds(_t5M).forEach(function(_id){ _pgList.push(_id); }); if(RC.rcPageSignoff!==false && !_secMovedSignoff) _pgList.push('signoff'); if(RC.rcPageDocs!==false) _pgList.push('p7'); if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false) _pgList.push('p8'); if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false && RC.rcPagePhotos2!==false){ for(var _csiT5=1; _csiT5<_csPagesPre; _csiT5++) _pgList.push(_csPageId(_csiT5)); } } else
+  if (_isT5) { if(RC.rcPageCover!==false) _pgList.push('cover'); if(RC.rcPageTOC!==false) _pgList.push('toc'); _t5PageIds(_t5M, order).forEach(function(_id){ _pgList.push(_id); }); if(RC.rcPageSignoff!==false && !_secMovedSignoff) _pgList.push('signoff'); if(RC.rcPageDocs!==false) _pgList.push('p7'); if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false) _pgList.push('p8'); if(RC.rcPageDocs!==false && RC.rcPagePhotos1!==false && RC.rcPagePhotos2!==false){ for(var _csiT5=1; _csiT5<_csPagesPre; _csiT5++) _pgList.push(_csPageId(_csiT5)); } } else
   if (_isT4) {
     // Cover · Contents · Scope · Summary · Construction and Condition · Findings ·
     // Limitations · General · Sign-off · Documents · Photographs. No valuation, no
@@ -63043,7 +63111,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     function _cadDescT2(){ return _cadPgCnt > 0 ? (_rt('descOfficialCadastral') + _cadPgCnt + _rfPages(_cadPgCnt)) : _rt('noCadasterUploaded'); }
     var _tocEntries;
     // §T5-REPORT (v2.554) — Contents from the same page ids the render emits.
-    if (_isT5) { _tocEntries = _t5PageIds(_t5M).map(function(id, i){ var m = _t5TocMeta(id, _t5M); return { n:String(i + 1), id:id, title:m.t, pg:_pg(id), desc:m.d }; }); if (RC.rcPageSignoff!==false && !_secMovedSignoff) _tocEntries.push({n:String(_tocEntries.length+1), id:'signoff', title:'Declaration and Sign-Off', pg:_pg('signoff'), desc:'Declaration · limitations · signatory'}); if (RC.rcPageDocs!==false) _tocEntries.push({n:String(_tocEntries.length+1), id:'p7', title:_rt('attachedDocuments'), pg:_pg('p7'), desc:_attachedDocsDesc}); if (RC.rcPageDocs!==false && RC.rcPagePhotos1!==false) _tocEntries.push({n:String(_tocEntries.length+1), id:'p8', title:'__CS_TITLE__', pg:_pg('p8'), desc:'__CS_DESC__'}); } else
+    if (_isT5) { _tocEntries = _t5PageIds(_t5M, order).map(function(id, i){ var m = _t5TocMeta(id, _t5M, order); return { n:String(i + 1), id:id, title:m.t, pg:_pg(id), desc:m.d }; }); if (RC.rcPageSignoff!==false && !_secMovedSignoff) _tocEntries.push({n:String(_tocEntries.length+1), id:'signoff', title:'Declaration and Sign-Off', pg:_pg('signoff'), desc:'Declaration · limitations · signatory'}); if (RC.rcPageDocs!==false) _tocEntries.push({n:String(_tocEntries.length+1), id:'p7', title:_rt('attachedDocuments'), pg:_pg('p7'), desc:_attachedDocsDesc}); if (RC.rcPageDocs!==false && RC.rcPagePhotos1!==false) _tocEntries.push({n:String(_tocEntries.length+1), id:'p8', title:'__CS_TITLE__', pg:_pg('p8'), desc:'__CS_DESC__'}); } else
     if (_isT4) {
       // §T4-TOC-ORDER (v2.480) — the Contents is built from the SAME array as the pages.
       //   It used to be a hardcoded list in the default order, with only its page NUMBERS
@@ -65936,6 +66004,20 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
         + '<div class="rep-note" style="margin-top:6px;">These figures are indicative assessment estimates for planning, subject to the stated scope, basis and exclusions and to verification. Actual costs depend on detailed investigation, specification and tendering.</div>');
     }
 
+    // ── §T5-OPINIONS (v2.685) — the appraiser's Opinions (section 12) ─────────
+    //   Printed only when _t5OpParts finds text (the page list asks the same helper, so the
+    //   Contents and the pages agree). Same box as the appraisal report's opinion blocks; the
+    //   Introductory Note keeps its note styling. No value is stated anywhere on this page.
+    var _op5 = _t5OpParts(order);
+    if (_op5.length) {
+      _t5Pg['t5op'] = _page5('t5op', 'Opinions', 'The appraiser’s opinions on the building, its location and the overall conclusion',
+        _op5.map(function(p, i){
+          var _h = '<div class="sec-h" style="margin-top:' + (i ? '10px' : '2px') + ';margin-bottom:4px;">' + _secT(p.key) + '</div>';
+          if (p.id === 'introNote') return _h + '<div class="rep-note" style="padding:7px 12px;background:rgba(200,146,42,.04);border-left:3px solid ' + RC.rcAccentColor + ';border-radius:0 6px 6px 0;">' + _opFmt(p.text) + '</div>';
+          return _h + '<div style="border:1px solid #d4c9b0;border-left:3px solid ' + RC.rcAccentColor + ';padding:5px 8px;"><div class="rep-op">' + _opFmt(p.text) + '</div></div>';
+        }).join(''));
+    }
+
     // ── Professional assessment and limitations ───────────────────────────────
     _t5Pg['t5concl'] = _page5('t5concl', 'Professional Assessment', 'Conclusion, rationale and scope-specific limitations',
       _kv5([['Overall condition', _l5(T5_CONDITIONS, _t5.conclusion.overall)]])
@@ -65949,7 +66031,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
           : '')
       + '<div class="rep-note" style="margin-top:8px;">This report does not certify structural safety, compliance with any building code or regulation, insurability, or fitness for occupation. Any such question requires investigation by an appropriately qualified specialist.</div>');
 
-    _t5PageIds(_t5).forEach(function(_id){ if (_t5Pg[_id]) html += _t5Pg[_id]; });
+    _t5PageIds(_t5, order).forEach(function(_id){ if (_t5Pg[_id]) html += _t5Pg[_id]; });
   }
 
   // §SEC-ADDPAGE (v2.252) — placeholder for user-added overflow pages. They physically sit
@@ -88412,7 +88494,9 @@ async function genAiConclusion() {
   //   generates nothing. "Filled" = a current OR presumable V1/V2/V3 holding a real figure (_cnclSet:
   //   a digit 1-9, so 'AWG —' / 0 / blank are empty).
   var _cvd=order.valData||{}, _cpd=_cvd.presumData||{};
-  if(![_cvd.v1,_cvd.v2,_cvd.v3,_cpd.v1,_cpd.v2,_cpd.v3].some(_cnclSet)){ alert('⚠ Must have valuation first Filled out'); return; }
+  // §T5-OPINIONS (v2.685) — a Type 5 Assessment states no value, so it never waits for one.
+  var _isT5c = Number(order.apprType) === 5;
+  if(!_isT5c && ![_cvd.v1,_cvd.v2,_cvd.v3,_cpd.v1,_cpd.v2,_cpd.v3].some(_cnclSet)){ alert('⚠ Must have valuation first Filled out'); return; }
   var _k=localStorage.getItem('appraisalSuite_anthKey_v1')||'';
   if(!_k){ _k=prompt('Enter Anthropic API Key:'); if(!_k) return; localStorage.setItem('appraisalSuite_anthKey_v1',_k.trim()); }
   btn.disabled=true; btn.innerHTML='<span class="ai-spin">⧗</span> Writing…'; if(sta){ sta.style.color='var(--muted)'; sta.textContent=''; }
@@ -88429,9 +88513,11 @@ async function genAiConclusion() {
       'Location opinion: '+(_mrg('opLocationText')||'—')
     // §CONCL-PRESUM (v2.346) — the value lines now cover the CURRENT and the PRESUMABLE
     //   valuation. Byte-identical to the single old line on a current-only order.
-    ].concat(_cnclValueLines(order,vd)).join('\n');
+    ].concat(_isT5c ? _t5CnclLines(order) : _cnclValueLines(order,vd)).join('\n');
     var seed=(ta.value||'').trim();
-    var prompt='You are a certified real estate appraiser in Aruba writing the final "Conclusion / Opinion" of an appraisal report. Write a concise, professional closing paragraph (90-140 words) that synthesises the property, its condition, the location and marketability, and states the appraiser’s overall opinion of value with any key caveats or assumptions. Formal appraisal language. Paragraph only, no headings.'+_cnclValueGuide(order,vd)+(seed?('\n\nIncorporate and refine the appraiser’s draft: '+seed):'')+'\n\nAppraisal facts:\n'+facts;
+    var prompt=_isT5c
+      ? ('You are a certified building assessor in Aruba writing the "Conclusion / Opinion" of a property ASSESSMENT report. Write a concise, professional closing paragraph (90-140 words) that synthesises the property, its recorded condition, the key findings and the location. Do NOT state, estimate or imply any market value, price or valuation figure: this report states no value. Do not invent findings that are not in the facts. Formal language. Paragraph only, no headings.'+(seed?('\n\nIncorporate and refine the assessor’s draft: '+seed):'')+'\n\nAssessment facts:\n'+facts)
+      : 'You are a certified real estate appraiser in Aruba writing the final "Conclusion / Opinion" of an appraisal report. Write a concise, professional closing paragraph (90-140 words) that synthesises the property, its condition, the location and marketability, and states the appraiser’s overall opinion of value with any key caveats or assumptions. Formal appraisal language. Paragraph only, no headings.'+_cnclValueGuide(order,vd)+(seed?('\n\nIncorporate and refine the appraiser’s draft: '+seed):'')+'\n\nAppraisal facts:\n'+facts;
     var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
