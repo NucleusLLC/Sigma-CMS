@@ -51678,6 +51678,19 @@ function _spSaleParse(txt){
 // What the Sale amount box says, as a number (0 = empty or unreadable).
 function _spSaleNum(){ var el = document.getElementById('spSale'); return el ? _spSaleParse(el.value) : 0; }
 try{ window._spSaleParse = _spSaleParse; window._spSaleNum = _spSaleNum; }catch(_e){}
+// §TOUSD-LABEL — the two toUSD() helpers (QuickView valuation cards, report valuation page)
+//   kept only digits and dots, so "AWG. 459,656.00" became ".459656.00" → 0.46 → "≈ US$ 0",
+//   and a Dutch report's own "AWG 350.000" read back as 350. v2.637 patched one call site
+//   (the cost band); this fixes the reader itself. A number is taken as is; a string loses
+//   its currency label, then its first figure is read by _spSaleParse (comma- or dot-grouped,
+//   decimal comma or point). Anything without a figure is 0 — callers print no USD line.
+function _awgAmountNum(v){
+  if(typeof v === 'number') return (isFinite(v) && v > 0) ? v : 0;
+  var t = String(v == null ? '' : v).replace(/(awg|afl|florins?|fl|usd|us\$)\.?/gi, ' ').replace(/[ƒ$€]/g, ' ');
+  var m = /\d(?:[\d.,]*\d)?/.exec(t);
+  return m ? _spSaleParse(m[0]) : 0;
+}
+try{ window._awgAmountNum = _awgAmountNum; }catch(_e){}
 function _spSaleNote(o){
   var s = _spSaleFromVal(o), el = document.getElementById('spSaleNote'); if(!el) return s;
   if(s.raw && !s.num){ el.style.color = '#fbbf24'; el.textContent = 'Valuation page says “' + s.raw + '” — type the amount as a plain number (e.g. 350000).'; }
@@ -54056,6 +54069,14 @@ function _editLocalSave() {
 function _editApplyToOrder(idx,snap){
   if(!snap||idx===-1)return;
   var o=ORDERS[idx];
+  // §PARCEL-CLEAR — REPORTED: a Parcel field (Legal Description, APN, Owner) could not be
+  //   cleared: `snap.eLegal || o.legal` put the old value back whenever the box was empty.
+  //   Free-text boxes now follow the §FLAG-OTHER rule: key ABSENT (an older draft that
+  //   predates the field) keeps the order's value; key PRESENT, even empty, is what is saved.
+  //   Selects, dates, numbers, the address and the client's first/last name (o.client and
+  //   the Contact Book link hang off them) keep their old rule. _fromRow reads these keys
+  //   back unconditionally, so a cleared value stays cleared after a refresh.
+  var _eTxt = function(k, cur){ return (snap[k] != null) ? String(snap[k]) : (cur || ''); };
   o.status      = snap.eStatus     || o.status;
   // Appraiser reassignment (General tab — all types)
   if (snap.eAppraiser && snap.eAppraiser !== '') o.appraiser = snap.eAppraiser;
@@ -54076,16 +54097,16 @@ function _editApplyToOrder(idx,snap){
   if (typeof snap._clientUseCompany === 'boolean') o.clientUseCompany = snap._clientUseCompany;
   var _person = ((snap.eClientFirst||'')+' '+(snap.eClientLast||'')).trim();
   o.client      = (o.clientUseCompany && o.clientCompany) ? o.clientCompany : (_person||o.client||'');
-  o.clientWork  = snap.eClientWork || o.clientWork ||'';
-  o.clientCell  = snap.eClientCell || o.clientCell ||'';
-  o.clientEmail = snap.eEmail      || o.clientEmail||'';
-  o.clientAddr  = snap.eClientAddr || o.clientAddr ||'';
+  o.clientWork  = _eTxt('eClientWork', o.clientWork);   // §PARCEL-CLEAR
+  o.clientCell  = _eTxt('eClientCell', o.clientCell);
+  o.clientEmail = _eTxt('eEmail',      o.clientEmail);
+  o.clientAddr  = _eTxt('eClientAddr', o.clientAddr);
   var city=(snap.eCity||'').trim(), st=(snap.eStateZip||'').trim();
   o.city        = city?(city+(st?', '+st:'')):o.city;
   o.stateZip    = st;
-  o.country     = snap.eCountry    || o.country    ||'';
-  o.zip         = snap.eZip        || o.zip        ||'';
-  o.hearFrom    = snap.eHearFrom   || o.hearFrom   ||'';
+  o.country     = _eTxt('eCountry',    o.country);
+  o.zip         = _eTxt('eZip',        o.zip);
+  o.hearFrom    = _eTxt('eHearFrom',   o.hearFrom);
   // §CLIENT-LANG (v2.366) — the language the CLIENT asked for. Written the §FLAG-OTHER
   //   way: key ABSENT ⇢ keep what the order has (an old draft snapshot that predates this
   //   field can never wipe it); key PRESENT AND EMPTY ⇢ clear, so setting the field back
@@ -54098,9 +54119,9 @@ function _editApplyToOrder(idx,snap){
   o.propCategory      = snap.ePropCategory      || o.propCategory      ||''; // §PROP-TYPE (v2.216)
   o.propCategoryOther = (snap.ePropCategoryOther != null ? snap.ePropCategoryOther : (o.propCategoryOther||'')); // §PROP-TYPE (v2.216)
   o.ropvZone    = snap.eRopvZone   || o.ropvZone   ||'';
-  o.legal       = snap.eLegal      || o.legal      ||'';
-  o.apn         = snap.eAPN        || o.apn        ||'';
-  o.owner       = snap.eOwner      || o.owner      ||'';
+  o.legal       = _eTxt('eLegal',      o.legal);   // §PARCEL-CLEAR
+  o.apn         = _eTxt('eAPN',        o.apn);
+  o.owner       = _eTxt('eOwner',      o.owner);
   var lot=parseFloat(snap.eLotSize);  if(!isNaN(lot))o.parcel=lot;
   // Financial
   o.purpose     = snap.ePurpose    || o.purpose    ||'';
@@ -54129,8 +54150,8 @@ function _editApplyToOrder(idx,snap){
   // Building
   o.buildType   = snap.eBuildType  || o.buildType  ||'';
   o.bldgStyle   = (snap.eBldgStyle != null ? String(snap.eBldgStyle).trim() : (o.bldgStyle || ''));   // §BLDG-STYLE (v2.624)
-  o.compDate    = snap.eCompDate   || o.compDate   ||'';
-  o.builder     = snap.eBuilder    || o.builder    ||'';
+  o.compDate    = _eTxt('eCompDate',   o.compDate);   // §PARCEL-CLEAR
+  o.builder     = _eTxt('eBuilder',    o.builder);
   var gla=parseFloat(snap.eGLA);     if(!isNaN(gla))o.gla=gla;
   var yr=parseInt(snap.eYearBuilt);  if(!isNaN(yr))o.year=yr;
   var beds=parseFloat(snap.eBeds);   if(!isNaN(beds))o.beds=beds;
@@ -54153,9 +54174,9 @@ function _editApplyToOrder(idx,snap){
   //   #eInternalNotes from another order would land here. Preserved, never captured.
   o.internalNotes= o.internalNotes||'';
   o.notes        = o.notes        ||'';
-  o.revision     = snap.eRevision     ||o.revision     ||'';
-  o.assignNotes  = snap.eAssignNotes  ||o.assignNotes  ||'';
-  o.comps        = snap.eComps        ||o.comps        ||'';
+  o.revision     = _eTxt('eRevision',    o.revision);   // §PARCEL-CLEAR
+  o.assignNotes  = _eTxt('eAssignNotes', o.assignNotes);
+  o.comps        = _eTxt('eComps',       o.comps);
   // Sync cost checklist items back to order
   if (snap._costItems && typeof snap._costItems === 'object') {
     o.costItems = snap._costItems;
@@ -57809,8 +57830,8 @@ function openQV(order) {
     // Convert AWG values to USD (1 AWG = 0.556 USD approx)
     function toUSD(awgStr) {
       if (!awgStr || awgStr === '\u2014') return '\u2014';
-      var num = parseFloat(String(awgStr).replace(/[^\d.]/g,''));
-      if (isNaN(num)) return '\u2014';
+      var num = _awgAmountNum(awgStr);   // \u00a7TOUSD-LABEL
+      if (!num) return '\u2014';
       var usd = (num * 0.556).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
       return '$ ' + usd;
     }
@@ -61502,8 +61523,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   // USD conversion (AWG fixed peg: 1 USD = 1.75 AWG)
   var AWG_RATE = 1.75;
   function toUSD(awgStr) {
-    var n = parseFloat(String(awgStr).replace(/[^0-9.]/g,''));
-    if (!n || isNaN(n)) return '';
+    var n = _awgAmountNum(awgStr);   // §TOUSD-LABEL — was digits+dots only: "AWG. 459,656.00" → 0
+    if (!n) return '';
     var usd = Math.round(n / AWG_RATE);
     return '≈ US$ ' + usd.toLocaleString(_rfLoc(undefined), {minimumFractionDigits:0});
   }
@@ -61552,9 +61573,9 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   var _crcvNum = ((subTotalNum - _parcelNum) + _netNum) * 1.10;
   // Override the headline display strings (were esc(vd.v1/2/3), which can be stale).
   if (subTotalNum > 0) {
-    v1 = _awgStr(_cfmvNum);  v1usd = toUSD(String(_cfmvNum));
-    v2 = _awgStr(_cevNum);   v2usd = toUSD(String(_cevNum));
-    v3 = _awgStr(_crcvNum);  v3usd = toUSD(String(_crcvNum));
+    v1 = _awgStr(_cfmvNum);  v1usd = toUSD(_cfmvNum);
+    v2 = _awgStr(_cevNum);   v2usd = toUSD(_cevNum);
+    v3 = _awgStr(_crcvNum);  v3usd = toUSD(_crcvNum);
   }
   // CRCV (V3) breakdown — base + 10% uplift, derived from the recomputed CRCV so
   // the two card rows always add up to the displayed Re-Construction Value.
@@ -61643,7 +61664,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     if (!active) return '';
     var net = add + ded;
     var fin = base + net;
-    var finUsd = toUSD(String(fin));
+    var finUsd = toUSD(fin);
     var pct = base > 0 ? (net / base * 100) : 0;
     var netStr = (net >= 0 ? '+' : '\u2212') + Math.round(Math.abs(net)).toLocaleString(_rfLoc(undefined), {minimumFractionDigits:0});
     var finStr = 'AWG ' + Math.round(fin).toLocaleString(_rfLoc(undefined), {minimumFractionDigits:0});
@@ -65207,7 +65228,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   page per the approved illustration. Wrapped in try/catch: any runtime error
   //   falls back to the standard block so report generation can NEVER break.
   var _t3lbl=function(t,c){ return '<div style="font-family:Sora,sans-serif;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:'+c+';margin:'+(_valNH2L?'1px 0 4px':'3px 0 5px')+';padding-bottom:3px;border-bottom:2px solid '+c+';">'+t+'</div>'; };   // §VAL-TIGHT (v2.199)
-  if(_vmMode==='income') return _incomeValHtml(vd, _RLANG, function(n){ return toUSD(String(Math.round(n||0))).replace(/^≈\s*/,''); });   // §VAL-INCOME (v2.614)
+  if(_vmMode==='income') return _incomeValHtml(vd, _RLANG, function(n){ return toUSD(Math.round(n||0)).replace(/^≈\s*/,''); });   // §VAL-INCOME (v2.614)
   if(_vmMode==='current') return _std;   // §VAL-MODE (v2.029) — "Current" choice keeps the standard valuation layout
   try {
   var _GOLD='#c8922a';
@@ -65248,10 +65269,10 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   }
   // ── CURRENT VALUATION (land only) ──
   var _cfmvStr=_parcelNum>0?_awgStr(_parcelNum):'—';
-  var _cfmvUsd=_parcelNum>0?toUSD(String(_parcelNum)):'';
+  var _cfmvUsd=_parcelNum>0?toUSD(_parcelNum):'';
   var _cevCur=_parcelNum*(_execNum/100);
   var _cevCurStr=_cevCur>0?_awgStr(_cevCur):'—';
-  var _cevCurUsd=_cevCur>0?toUSD(String(_cevCur)):'';
+  var _cevCurUsd=_cevCur>0?toUSD(_cevCur):'';
   // §DEVCOST-SRC (v2.208) — the Total Construction Development Cost can be entered in
   //   EITHER the Type-3 block (constrDevCost) OR the independent Presumable calculator
   //   (presumData.devCost). Prefer the presumable field when it holds a value (this
@@ -65289,7 +65310,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
       var _cb=_costRaw.replace(/(awg|afl|florins?|fl)\.?/gi,'').replace(/ƒ/g,'').replace(/\s+/g,'');
       if(/^\d+(\.\d{1,2})?$/.test(_cb) || /^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(_cb)){
         var _cn=parseFloat(_cb.replace(/,/g,''));
-        _costUsd=(!isNaN(_cn)&&_cn>0)?toUSD(String(Math.round(_cn))):'';
+        _costUsd=(!isNaN(_cn)&&_cn>0)?toUSD(Math.round(_cn)):'';
       } else if(_costRaw) _costUsd='';
     }catch(_ce){}
   })();
@@ -65337,7 +65358,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   var _pdNonEmpty=function(rows){ return !!(rows && rows.some(function(r){ return r && (parseFloat(r.area)>0); })); };   // §VAL-PRESUM-BUILD-FIX (v2.197)
   var _pdHas=_pd && ((_pd.parcel&&_pd.parcel.length)||(_pd.build&&_pd.build.length)||(_pd.custom&&_pd.custom.length));
   var _pNum=function(s){ var n=parseFloat(String(s==null?'':s).replace(/[^0-9.]/g,'')); return isNaN(n)?0:n; };
-  var _pUsd=function(s){ var n=_pNum(s); return n>0?toUSD(String(n)):''; };
+  var _pUsd=function(s){ return toUSD(s); };   // §TOUSD-LABEL — _pNum read a Dutch "AWG 350.000" (from _awgStr) as 350
   var _fullRows,_presHero,_presHeroUsd,_pV1,_pV1u,_pV2,_pV2u,_pV3,_pV3u,_pErTxt,_adj,_presSubStr;
   if(_pdHas){
     // §VAL-PRESUM-BUILD-FIX (v2.197) — the Presumable section uses its INDEPENDENT rows
@@ -65381,7 +65402,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     //   behaviour is kept verbatim so nothing outside the actual defect can move.
     var _pHeroFix=(subTotalNum>0);
     _presHero=_pHeroFix?v1:subTotalStr;
-    _presHeroUsd=_pHeroFix?v1usd:(subTotalNum>0?toUSD(String(subTotalNum)):''); _pErTxt=er;
+    _presHeroUsd=_pHeroFix?v1usd:(subTotalNum>0?toUSD(subTotalNum):''); _pErTxt=er;
     _adj=adjBlock(undefined, undefined, 'Presumable Free Market Value (PFMV)');
     _presSubStr=(_pHeroFix&&_adj)?subTotalStr:_presHero;
   }
@@ -65449,7 +65470,7 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
   //   _pUsd(_npSaleStr) read the printed string back), keeping a sale price with cents on the
   //   same dollar it showed before — but taken from the number, so a Dutch report cannot read
   //   its own "AWG 350.000" back as 350.
-  var _npSaleUsd=(_npSaleNum>0)?toUSD(String(Math.round(_npSaleNum))):'';
+  var _npSaleUsd=(_npSaleNum>0)?toUSD(Math.round(_npSaleNum)):'';
   // §NP-SALES-PRICE-ANYTPL — the SALES PRICE box is the FIRST field of the shared Presumable
   //   section (#vmPresumSection, index.html:12987-13001): it is offered on EVERY order the
   //   valuation chooser puts in Presumable / Both mode — which is every Type-3 order by
@@ -75230,16 +75251,16 @@ function _fromRow(row, order) {
       if (x.inspTime)       order.inspTime       = x.inspTime;
       if (x.inspAssignee)   order.inspAssignee   = x.inspAssignee;
       if (x.reportDue)      order.reportDue      = x.reportDue;
-      if (x.assignNotes)    order.assignNotes    = x.assignNotes;
+      if (typeof x.assignNotes === 'string') order.assignNotes = x.assignNotes;   // §PARCEL-CLEAR — a cleared value stays cleared
       // §T4-PERSIST (v2.480) — and back again. The read is the matching whitelist; a key
       //   written but not read here is lost on the next hydrate from Supabase.
       if (Array.isArray(x.t4Order)) order.t4Order = x.t4Order;
       // §T4-PAGE-SHOW (v2.506) — read back unconditionally: showing a page again stops
       //   writing the key, so a stale value must not keep it hidden.
       order.t4Hidden = Array.isArray(x.t4Hidden) ? x.t4Hidden : [];
-      if (x.apn)            order.apn            = x.apn;
-      if (x.owner)          order.owner          = x.owner;
-      if (x.legal)          order.legal          = x.legal;
+      if (typeof x.apn === 'string') order.apn = x.apn;   // §PARCEL-CLEAR — a cleared value stays cleared
+      if (typeof x.owner === 'string') order.owner = x.owner;   // §PARCEL-CLEAR — a cleared value stays cleared
+      if (typeof x.legal === 'string') order.legal = x.legal;   // §PARCEL-CLEAR — a cleared value stays cleared
       if (x.purpose)        order.purpose        = x.purpose;
       if (x.finInst)        order.finInst        = x.finInst;
       if (x.ropvZone)       order.ropvZone       = x.ropvZone;
@@ -75251,23 +75272,23 @@ function _fromRow(row, order) {
       if (x.mapViewLat != null && x.mapViewLat !== '') order.mapViewLat = x.mapViewLat;
       if (x.mapViewLng != null && x.mapViewLng !== '') order.mapViewLng = x.mapViewLng;
       // §EDIT-PERSIST2 (v2.131) — restore the now-persisted Project-Data fields.
-      if (x.compDate)       order.compDate       = x.compDate;
-      if (x.builder)        order.builder        = x.builder;
+      if (typeof x.compDate === 'string') order.compDate = x.compDate;   // §PARCEL-CLEAR — a cleared value stays cleared
+      if (typeof x.builder === 'string') order.builder = x.builder;   // §PARCEL-CLEAR — a cleared value stays cleared
       if (x.dueRaw)         order.dueRaw         = x.dueRaw;
       if (x.clientFirst)    order.clientFirst    = x.clientFirst;
       if (x.clientLast)     order.clientLast     = x.clientLast;
-      if (x.clientWork)     order.clientWork     = x.clientWork;
-      if (x.clientCell)     order.clientCell     = x.clientCell;
+      if (typeof x.clientWork === 'string') order.clientWork = x.clientWork;   // §PARCEL-CLEAR — a cleared value stays cleared
+      if (typeof x.clientCell === 'string') order.clientCell = x.clientCell;   // §PARCEL-CLEAR — a cleared value stays cleared
       order.clientCompany = (typeof x.clientCompany === 'string') ? x.clientCompany : '';
       order.clientUseCompany = (x.clientUseCompany === true);   // §CLIENT-AS-COMPANY (v2.605)   // §CLIENT-COMPANY (v2.602) — read back unconditionally so a cleared name stays cleared
-      if (x.clientEmail)    order.clientEmail    = x.clientEmail;
+      if (typeof x.clientEmail === 'string') order.clientEmail = x.clientEmail;   // §PARCEL-CLEAR — a cleared value stays cleared
       if (x.textFormat === true) order.textFormat = true;   // §OP-FORMAT (v2.321)
       if (x.draftMode === true) order.draftMode = true;     // §DRAFT (v2.327)
-      if (x.clientAddr)     order.clientAddr     = x.clientAddr;
+      if (typeof x.clientAddr === 'string') order.clientAddr = x.clientAddr;   // §PARCEL-CLEAR — a cleared value stays cleared
       if (x.stateZip)       order.stateZip       = x.stateZip;
-      if (x.country)        order.country        = x.country;
-      if (x.zip)            order.zip            = x.zip;
-      if (x.hearFrom)       order.hearFrom       = x.hearFrom;
+      if (typeof x.country === 'string') order.country = x.country;   // §PARCEL-CLEAR — a cleared value stays cleared
+      if (typeof x.zip === 'string') order.zip = x.zip;   // §PARCEL-CLEAR — a cleared value stays cleared
+      if (typeof x.hearFrom === 'string') order.hearFrom = x.hearFrom;   // §PARCEL-CLEAR — a cleared value stays cleared
       // §CLIENT-LANG (v2.366) — set UNCONDITIONALLY (the §COST-DISCOUNT precedent):
       //   clearing the field STOPS writing the key, so reading the row back has to clear
       //   the value rather than let a stale in-memory one resurrect a language request the
@@ -75383,8 +75404,8 @@ function _fromRow(row, order) {
       if (x.archivedLabel) order._archivedLabel = x.archivedLabel;
       if (x.loanAmt)        order.loanAmt        = x.loanAmt;
       if (x.internalNotes)  order.internalNotes  = x.internalNotes;
-      if (x.revision)       order.revision       = x.revision;
-      if (x.comps)          order.comps          = x.comps;
+      if (typeof x.revision === 'string') order.revision = x.revision;   // §PARCEL-CLEAR
+      if (typeof x.comps === 'string') order.comps = x.comps;   // §PARCEL-CLEAR
       if (x.flag)           order.flag           = x.flag;
       if (x.flagOther)      order.flagOther      = x.flagOther;
       if (x.propCategory)      order.propCategory      = x.propCategory;
