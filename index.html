@@ -78598,8 +78598,65 @@ function rctSaveStore(arr){
       if(m) f[id]=m; else delete f[id];
     }); }
   }catch(e){}
-  try{ localStorage.setItem(RCT_KEY, JSON.stringify(arr)); }catch(e){ console.warn('[rcTpl] localStorage save failed:', e); }
+  // §TPL-NO-EMBED — a template whose signature / stamp image is the firm's shared one is stored
+  //   without the image (flag rcSigImgShared / rcStampImgShared instead), so the device copy is
+  //   not 8 × 290 K of the same picture.
+  var _store=arr;
+  try{ _store=arr.map(function(t){ if(!t || !t.config) return t; var c=_tplStripShared(t.config); return (c===t.config) ? t : Object.assign({}, t, { config:c }); }); }catch(e){ _store=arr; }
+  try{ localStorage.setItem(RCT_KEY, JSON.stringify(_store)); }catch(e){ console.warn('[rcTpl] localStorage save failed:', e); }
 }
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §TPL-NO-EMBED — templates REFERENCE the firm's signature + stamp images.     ║
+// ║  Every template saved with rcCollect() embedded the device's signature       ║
+// ║  (≈290 K) and stamp (≈89 K): 8 copies of the same pictures filled browser    ║
+// ║  storage (§BRAND-DEVICE, §LS-PATCH-ALIVE). The shared copies are the server  ║
+// ║  rows: signature = __active_config__.rcSigImgData, stamp =                   ║
+// ║  __appraiser_stamp__.img (else __active_config__.rcStampImgData).            ║
+// ║  An embedded image that is an EXACT duplicate of the shared one is dropped    ║
+// ║  and the template marked rcSigImgShared / rcStampImgShared: true; applying it ║
+// ║  installs the shared image. A template with its OWN, different image keeps   ║
+// ║  it. Nothing is stripped before the server copy has been read this session.  ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+function _tplSharedImgs(){
+  var s = window._rcActiveServer, st = null;
+  try{ st = (typeof _stampServer !== 'undefined') ? _stampServer : null; }catch(e){ st = null; }
+  var sig = (s && s.has && typeof s.sig === 'string') ? s.sig : '';
+  var stamp = (st && typeof st.img === 'string' && st.img) ? st.img : ((s && s.has && typeof s.stamp === 'string') ? s.stamp : '');
+  return { sig: sig, stamp: stamp };
+}
+var _TPL_IMG_SLOTS = [ ['rcSigImgData', 'rcSigImgShared', 'sig'], ['rcStampImgData', 'rcStampImgShared', 'stamp'] ];
+function _tplStripShared(cfg, shared){
+  if(!cfg || typeof cfg !== 'object') return cfg;
+  var sh = shared || _tplSharedImgs(), out = cfg;
+  _TPL_IMG_SLOTS.forEach(function(p){
+    var v = cfg[p[0]];
+    if(typeof v !== 'string' || !v) return;
+    if(sh[p[2]] && v === sh[p[2]]){ if(out === cfg) out = Object.assign({}, cfg); delete out[p[0]]; out[p[1]] = true; }
+    else if(cfg[p[1]]){ if(out === cfg) out = Object.assign({}, cfg); delete out[p[1]]; }   // its own image wins
+  });
+  return out;
+}
+// rcApplyToUI: a template that references the shared image puts the shared image on this device.
+function _tplApplyShared(cfg){
+  if(!cfg || typeof cfg !== 'object') return;
+  var sh = _tplSharedImgs();
+  try{ if(!cfg.rcSigImgData && cfg.rcSigImgShared && sh.sig && !window._sigImgRemoved && localStorage.getItem('appraisalSuite_apprSig') !== sh.sig){ localStorage.setItem('appraisalSuite_apprSig', sh.sig); if(typeof rcLogoShowN === 'function' && document.getElementById('rcApprSigPreviewImg')) rcLogoShowN('rcApprSig', sh.sig); } }catch(e){}
+  try{ if(!cfg.rcStampImgData && cfg.rcStampImgShared && sh.stamp && !window._stampImgRemoved && localStorage.getItem('appraisalSuite_stampImg') !== sh.stamp){ localStorage.setItem('appraisalSuite_stampImg', sh.stamp); if(typeof rcLogoShowN === 'function' && document.getElementById('rcStampPreviewImg')) rcLogoShowN('rcStamp', sh.stamp); } }catch(e){}
+}
+// The template list is usually saved (from the server) BEFORE the shared copies have been read,
+//   so nothing could be stripped then. Once a shared copy is known, the stored list is stripped
+//   in place. Only the device copy changes; the server rows are not touched.
+function _tplRestripStore(){
+  try{
+    var raw = localStorage.getItem(RCT_KEY); if(!raw) return 0;
+    var arr = JSON.parse(raw); if(!Array.isArray(arr)) return 0;
+    var sh = _tplSharedImgs(), n = 0;
+    var next = arr.map(function(t){ if(!t || !t.config) return t; var c = _tplStripShared(t.config, sh); if(c === t.config) return t; n++; return Object.assign({}, t, { config:c }); });
+    if(n){ localStorage.setItem(RCT_KEY, JSON.stringify(next)); try{ console.log('[rcTpl] ' + n + ' template(s) now reference the shared signature / stamp instead of carrying a copy'); }catch(e){} }
+    return n;
+  }catch(e){ return 0; }
+}
+try{ window._tplStripShared = _tplStripShared; window._tplSharedImgs = _tplSharedImgs; window._tplApplyShared = _tplApplyShared; window._tplRestripStore = _tplRestripStore; }catch(e){}
 function rctGenId(){ return 'rct_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
 
 // §T4-TEMPLATE (v2.449) — the Building Inspection's own report template.
@@ -78672,7 +78729,7 @@ function rctPushToSb(rec){
   if(typeof _sb==='undefined' || !_sb || !rec || !rec.id) return;
   try{
     _sb.schema('public').from('report_templates')
-      .upsert({ id:rec.id, name:rec.name, config:JSON.stringify(rec.config),
+      .upsert({ id:rec.id, name:rec.name, config:JSON.stringify(_tplStripShared(rec.config)),   // §TPL-NO-EMBED
                 created_at:new Date(rec.created_at).toISOString(),
                 updated_at:new Date(rec.updated_at||rec.created_at).toISOString() },
               { onConflict:'id', ignoreDuplicates:false })
@@ -78728,7 +78785,7 @@ async function rctPushAllToSb(){
     var t=local[i]; if(!t||!t.id) continue;
     try{
       var res=await _sb.schema('public').from('report_templates')
-        .upsert({ id:t.id, name:t.name||'Untitled', config:JSON.stringify(t.config||{}),
+        .upsert({ id:t.id, name:t.name||'Untitled', config:JSON.stringify(_tplStripShared(t.config||{})),   // §TPL-NO-EMBED
                   created_at:new Date(t.created_at||Date.now()).toISOString(),
                   updated_at:new Date(t.updated_at||Date.now()).toISOString() },
                 { onConflict:'id', ignoreDuplicates:false });
@@ -78796,6 +78853,8 @@ function _rcSyncActiveConfigPush(){
     else cfg = JSON.parse(localStorage.getItem(RC_KEY)||'{}');
   }catch(e){ cfg = {}; }
   if(!cfg || !Object.keys(cfg).length) return;
+  // §TPL-NO-EMBED — the firm config IS the shared copy: it never carries the reference flags.
+  try{ cfg=Object.assign({}, cfg); delete cfg.rcSigImgShared; delete cfg.rcStampImgShared; }catch(e){}
   // §BRAND-DEVICE (v2.669) — a device that holds nothing but the built-in defaults never
   //   publishes them over the firm's saved settings, and a device that does not hold the
   //   signature / stamp image does not publish the settings without them.
@@ -78837,6 +78896,7 @@ function _rcSyncActiveConfigPull(){
         //   has none. They used to arrive only when the settings screen was open or a template
         //   that happened to carry them was applied, so a new computer printed no stamp at all.
         window._rcActiveServer={ has:true, sig:(typeof cfg.rcSigImgData==='string'?cfg.rcSigImgData:''), stamp:(typeof cfg.rcStampImgData==='string'?cfg.rcStampImgData:'') };
+        try{ if(typeof _tplRestripStore==='function') _tplRestripStore(); }catch(e){}   // §TPL-NO-EMBED
         try{ if(cfg.rcSigImgData && !localStorage.getItem('appraisalSuite_apprSig')) localStorage.setItem('appraisalSuite_apprSig', cfg.rcSigImgData); }catch(e){}
         try{ if(cfg.rcStampImgData && !localStorage.getItem('appraisalSuite_stampImg')) localStorage.setItem('appraisalSuite_stampImg', cfg.rcStampImgData); }catch(e){}
         // §RC-RACE-FIX (v2.592) — landing mid-build would replace the order's template
@@ -81776,6 +81836,7 @@ function rcApplyToUI(cfg) {
   //   (an empty value never wipes a locally-set signature).
   try { if(cfg.rcSigImgData){ localStorage.setItem('appraisalSuite_apprSig', cfg.rcSigImgData); if(typeof rcLogoShowN==='function' && document.getElementById('rcApprSigPreviewImg')) rcLogoShowN('rcApprSig', cfg.rcSigImgData); } } catch(e){}
   // §APPRAISER-STAMP (v2.121) — restore the embedded stamp image from the template config.
+  try { if(typeof _tplApplyShared==='function') _tplApplyShared(cfg); } catch(e){}   // §TPL-NO-EMBED — a template that references the shared images
   try { if(cfg.rcStampImgData){ localStorage.setItem('appraisalSuite_stampImg', cfg.rcStampImgData); if(typeof rcLogoShowN==='function' && document.getElementById('rcStampPreviewImg')) rcLogoShowN('rcStamp', cfg.rcStampImgData); } } catch(e){}
   // §SIG-PLACE (v1.980) — mirror the signature placement into the dedicated key so a
   //   loaded template's X/Y/scale applies at render (override-proof vs per-order tpl).
@@ -82092,6 +82153,7 @@ function csConfigSave() {
   cfg.rcCSPhotoSize = (_csPhEl && _csPhEl.value) || 'fill';
   console.log('[csConfigSave]', cfg.rcCSCols+'x'+cfg.rcCSRows, cfg.rcCSOrient, cfg.rcCSPhotoSize, '→ CS_KEY');
   try{ localStorage.setItem(CS_KEY, JSON.stringify({rcCSCols:cfg.rcCSCols,rcCSRows:cfg.rcCSRows,rcCSOrient:cfg.rcCSOrient,rcCSPhotoSize:cfg.rcCSPhotoSize})); }catch(e){}
+  try{ if(typeof _layoutChanged==='function') _layoutChanged('csConfig'); }catch(e){}   // §CS-SIG-ROAM — csConfigSave runs only from the selectors
   csUpdatePageCount();
 }
 function csUpdatePageCount() {
@@ -86079,7 +86141,8 @@ function _sigLocNorm(v){
   v = String(v == null ? '' : v);
   return v.indexOf('Left') >= 0 ? 'Left' : (v.indexOf('Center') >= 0 ? 'Center' : 'Right');
 }
-function _sigPlaceSync(){
+function _sigPlaceSync(opts){
+  var _spBefore=null; try{ _spBefore=localStorage.getItem('appraisalSuite_sigPlace_v1'); }catch(e){}
   try{
     var loc=_sigLocNorm((document.getElementById('rcSigImgLocation')||{}).value);
     var x=parseFloat((document.getElementById('rcSigX')||{}).value)||0;
@@ -86092,6 +86155,9 @@ function _sigPlaceSync(){
     //   rather than double-correcting (see §SIG-LINE-MIGRATE in _sigLineHtml). Scale is kept
     //   in both cases — how big the signature is has nothing to do with where it is anchored.
     localStorage.setItem('appraisalSuite_sigPlace_v1', JSON.stringify({loc:loc,x:x,y:y,scale:s,anchor:'line'}));
+    // §CS-SIG-ROAM — a placement the user CHANGED goes to every computer; the panel writing back
+    //   what it just displayed (opts.init) is not a change and is never sent.
+    if(!(opts && opts.init) && localStorage.getItem('appraisalSuite_sigPlace_v1')!==_spBefore && typeof _layoutChanged==='function') _layoutChanged('sigPlace');
   }catch(e){}
 }
 function rcLogosLoad(){
@@ -86238,7 +86304,7 @@ function _apprSigInit(){
     var sy=document.getElementById('rcSigY'); if(sy) sy.value=_yVal;
     var ssc=document.getElementById('rcSigScale'); if(ssc){ ssc.value=_scVal; var sv=document.getElementById('rcSigScale_val'); if(sv) sv.textContent=_scVal+'%'; }
     // Keep the dedicated key consistent with the (now correctly-populated) controls.
-    if(typeof _sigPlaceSync==='function') _sigPlaceSync();
+    if(typeof _sigPlaceSync==='function') _sigPlaceSync({init:true});   // §CS-SIG-ROAM — not a user change
   }catch(e){}
 }
 
@@ -86317,6 +86383,7 @@ function _stampDbPull(){
       if(typeof bundle==='string'){ try{ bundle=JSON.parse(bundle); }catch(e){ return false; } }   // a twice-encoded row
       bundle=(bundle && typeof bundle==='object')?bundle:{};
       _stampServer=bundle;
+      try{ if(typeof _tplRestripStore==='function') _tplRestripStore(); }catch(e){}   // §TPL-NO-EMBED
       var _localPlace={}; try{ _localPlace=JSON.parse(localStorage.getItem('appraisalSuite_stampPlace_v1')||'{}')||{}; }catch(e){ _localPlace={}; }
       if(!_stampHasPlace(bundle.place)){
         if(_stampHasPlace(_localPlace)){ try{ console.log('[stamp] the server has no placement — saving this device\'s for every computer'); }catch(e){} return _stampDbPush().then(function(){ return true; }); }
@@ -86410,7 +86477,8 @@ function _brandBeforeReport(){
   var st = window._brandLast = { logos: null, stamp: null, timedOut: false };
   var work = Promise.all([
     Promise.resolve().then(_brandPull).then(function(ok){ st.logos = (ok !== false); }).catch(function(){ st.logos = false; }),
-    Promise.resolve().then(function(){ return (typeof _stampDbPull === 'function') ? _stampDbPull() : null; }).then(function(ok){ st.stamp = (ok !== false); }).catch(function(){ st.stamp = false; })
+    Promise.resolve().then(function(){ return (typeof _stampDbPull === 'function') ? _stampDbPull() : null; }).then(function(ok){ st.stamp = (ok !== false); }).catch(function(){ st.stamp = false; }),
+    Promise.resolve().then(function(){ return (typeof _layoutPull === 'function') ? _layoutPull() : null; }).then(function(ok){ st.layout = (ok !== false); }).catch(function(){ st.layout = false; })   // §CS-SIG-ROAM
   ]);
   return Promise.race([ work, new Promise(function(r){ setTimeout(function(){ if(st.logos === null || st.stamp === null) st.timedOut = true; r(); }, 5000); }) ]);
 }
@@ -86425,10 +86493,88 @@ function _brandReportWarning(){
   return 'The firm\'s ' + miss.join(', ') + ' could not be fetched from the server' + (st.timedOut ? ' in time' : '') + ', so this report uses what this computer already had. Check the logo and the stamp before sending it; if they are wrong, check the connection and generate again.';
 }
 try{ window._brandPull = _brandPull; window._brandLogoChanged = _brandLogoChanged; window._brandBeforeReport = _brandBeforeReport; window._brandReportWarning = _brandReportWarning; }catch(e){}
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §CS-SIG-ROAM — signature placement + photo contact-sheet grid roam.         ║
+// ║  Both lived only in the browser that set them (appraisalSuite_sigPlace_v1,   ║
+// ║  appraisalSuite_csConfig_v1): the owner's computer printed a 2×4 contact     ║
+// ║  sheet and its own placement, every other computer 3×4 and Right/0/0/100.    ║
+// ║  Now one shared record, report_templates id "__report_layout__"              ║
+// ║  {sigPlace, csConfig, at}, same rules as §BRAND-SYNC / §BRAND-DEVICE:        ║
+// ║  pulled once signed in (retried) and before every report (≤ 5 s); the        ║
+// ║  server's value replaces the device's; a device holding a NON-DEFAULT value  ║
+// ║  the server lacks seeds it; a blank / unreadable value is never sent; a      ║
+// ║  user change (selector, signature control) is sent, merged into the record.  ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var LAYOUT_ROW = '__report_layout__';
+var _layoutServer = null;
+var LAYOUT_SLOTS = [
+  { k:'sigPlace', key:'appraisalSuite_sigPlace_v1',
+    valid:function(v){ return !!(v && typeof v === 'object' && typeof v.loc === 'string' && v.loc); },
+    isDefault:function(v){ return _sigLocNorm(v.loc) === 'Right' && !parseFloat(v.x) && !parseFloat(v.y) && (v.scale == null || parseFloat(v.scale) === 100); } },
+  { k:'csConfig', key:'appraisalSuite_csConfig_v1',
+    valid:function(v){ return !!(v && typeof v === 'object' && parseInt(v.rcCSCols) > 0 && parseInt(v.rcCSRows) > 0); },
+    isDefault:function(v){ return parseInt(v.rcCSCols) === 3 && parseInt(v.rcCSRows) === 4 && (!v.rcCSOrient || v.rcCSOrient === 'portrait') && (!v.rcCSPhotoSize || v.rcCSPhotoSize === 'fill'); } }
+];
+function _layoutLocal(slot){ try{ var r = localStorage.getItem(slot.key); return r ? JSON.parse(r) : null; }catch(e){ return null; } }
+function _layoutApplyLocal(slot, v){
+  try{ localStorage.setItem(slot.key, JSON.stringify(v)); }catch(e){ try{ console.warn('[layout] could not store ' + slot.k + ' on this device', e); }catch(_){} }
+  // Open screens show the value that will print.
+  try{ if(slot.k === 'csConfig' && typeof csLoadConfig === 'function' && document.getElementById('csColsSel')) csLoadConfig(); }catch(e){}
+  try{
+    if(slot.k === 'sigPlace' && document.getElementById('rcSigImgLocation')){
+      var nw = (v.anchor === 'line');
+      document.getElementById('rcSigImgLocation').value = _sigLocNorm(v.loc);
+      var sx = document.getElementById('rcSigX'); if(sx) sx.value = (nw && v.x != null) ? v.x : 0;
+      var sy = document.getElementById('rcSigY'); if(sy) sy.value = (nw && v.y != null) ? v.y : 0;
+      var sc = document.getElementById('rcSigScale'); if(sc && v.scale != null){ sc.value = v.scale; var sv = document.getElementById('rcSigScale_val'); if(sv) sv.textContent = v.scale + '%'; }
+    }
+  }catch(e){}
+}
+function _layoutRead(){
+  return _sb.schema('public').from('report_templates').select('config').eq('id', LAYOUT_ROW).limit(1).then(function(res){
+    if(res.error) throw res.error;
+    var rec = {}; if(res.data && res.data.length){ try{ rec = (typeof res.data[0].config === 'string') ? JSON.parse(res.data[0].config) : (res.data[0].config || {}); }catch(e){ rec = {}; } }
+    if(typeof rec === 'string'){ try{ rec = JSON.parse(rec); }catch(e){ rec = {}; } }   // a twice-encoded row
+    return (rec && typeof rec === 'object') ? rec : {};
+  });
+}
+function _layoutWrite(rec){
+  var now = new Date().toISOString(); rec.at = now;
+  return _sb.schema('public').from('report_templates')
+    .upsert({ id: LAYOUT_ROW, name: 'Report Layout', config: JSON.stringify(rec), created_at: now, updated_at: now }, { onConflict: 'id', ignoreDuplicates: false })
+    .then(function(res){ if(res && res.error){ try{ console.warn('[layout] push error:', res.error.message); }catch(_){} return false; } _layoutServer = rec; try{ console.log('[layout] signature placement / contact sheet saved for every computer'); }catch(_){} return true; });
+}
+function _layoutPull(){
+  if(!_brandReady()) return Promise.resolve(false);
+  return _layoutRead().then(function(rec){
+    var seed = false;
+    LAYOUT_SLOTS.forEach(function(s){
+      var srv = rec[s.k], loc = _layoutLocal(s);
+      if(s.valid(srv)){ if(JSON.stringify(loc) !== JSON.stringify(srv)) _layoutApplyLocal(s, srv); }
+      else if(s.valid(loc) && !s.isDefault(loc)){ rec[s.k] = loc; seed = true; }   // the server never had it: this device seeds it
+    });
+    _layoutServer = rec;
+    if(seed) return _layoutWrite(rec);
+    return true;
+  }).catch(function(e){ try{ console.warn('[layout] pull failed', e); }catch(_){} return false; });
+}
+// A user change: re-read the record (so the other half is never blanked), set this half, save.
+var _layoutTimers = {};
+function _layoutChanged(k){
+  var slot = LAYOUT_SLOTS.filter(function(s){ return s.k === k; })[0]; if(!slot) return;
+  try{ clearTimeout(_layoutTimers[k]); }catch(e){}
+  _layoutTimers[k] = setTimeout(function(){
+    var v = _layoutLocal(slot);
+    if(!slot.valid(v) || !_brandReady()) return;   // blank never sent
+    _layoutRead().then(function(rec){ rec[k] = v; return _layoutWrite(rec); })
+      .catch(function(e){ try{ console.warn('[layout] save failed', e); }catch(_){} });
+  }, 1000);
+}
+try{ window._layoutPull = _layoutPull; window._layoutChanged = _layoutChanged; }catch(e){}
 // Boot: once the database client AND a signed-in user are there (checked every second, up to 5 minutes).
 (function _brandBoot(n){
   var ready = _brandReady() && (typeof _authUser !== 'undefined' && _authUser);
-  if(ready){ _brandPull(); try{ if(typeof _stampDbPull === 'function') _stampDbPull(); }catch(e){}
+  if(ready){ _brandPull(); try{ if(typeof _stampDbPull === 'function') _stampDbPull(); }catch(e){} try{ if(typeof _layoutPull === 'function') _layoutPull(); }catch(e){}   // §CS-SIG-ROAM
     // §BRAND-DEVICE (v2.669) — the firm's report settings are fetched once, 1.7 s after the page
     //   loads; if the database client was not up yet that fetch did nothing and was never retried.
     try{ if(!window._rcActiveServer && typeof _rcSyncActiveConfigPull === 'function') _rcSyncActiveConfigPull(); }catch(e){}
