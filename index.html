@@ -27944,6 +27944,33 @@ function _fpMissingMsg(oid, idx) {
 }
 
 // Toggle the include state and update the bar style
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §FP-OP-CLIP — an AI reply cut off by its token limit is never stored as is  ║
+// ║                                                                              ║
+// ║  2026-112: the Opinion of Floor Plan printed "…(4,14 m²), alsm" — cut       ║
+// ║  mid-word. The report was faithful: the STORED text (insp_data.s11.s11f3,   ║
+// ║  1,048 chars) ends there. genFloorplanOpinion asked for max_tokens 350 and   ║
+// ║  Dutch prose with figures runs ~3 chars a token, so the reply stopped at the ║
+// ║  limit (stop_reason "max_tokens") and the half-word was saved. Every report ║
+// ║  text generator had the same 300-600 ceiling and no check.                   ║
+// ║  Now: ceilings raised to 1024 (the prompts set the length, not the ceiling)  ║
+// ║  and every reply passes _aiWhole: when the API says it stopped at the limit, ║
+// ║  the text is cut back to its last complete sentence. Texts already stored    ║
+// ║  cut off must be regenerated or finished by hand.                            ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+function _aiWhole(data, text){
+  text = String(text == null ? '' : text).trim();
+  try { window._aiLastCut = false; } catch(e){}
+  if (!data || data.stop_reason !== 'max_tokens' || !text) return text;
+  try { window._aiLastCut = true; } catch(e){}
+  // last sentence end: . ! ? … (optionally closed by a quote or bracket) followed by space or the end
+  var re = /[.!?\u2026]["'\u201d\u2019)\]]*(?=\s|$)/g, m, end = -1;
+  while ((m = re.exec(text))) end = m.index + m[0].length;
+  try { console.warn('[ai-whole] reply hit max_tokens - trimmed to the last full sentence (' + text.length + ' -> ' + (end > 0 ? end : text.length) + ' chars)'); } catch(e){}
+  return end > 0 ? text.slice(0, end).trim() : text;
+}
+try { window._aiWhole = _aiWhole; } catch(e){}
+
 async function genFloorplanOpinion() {
   var btn    = document.getElementById('btnFpAI');
   var ta     = document.getElementById('fpOpinionText');
@@ -27998,7 +28025,7 @@ async function genFloorplanOpinion() {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 350,
+        max_tokens: 1024,   // §FP-OP-CLIP — was 350: a Dutch reply stopped mid-word (2026-112)
         messages: [{
           role: 'user',
           content: [
@@ -28024,7 +28051,7 @@ async function genFloorplanOpinion() {
 
     var data = await resp.json();
     if (data.error) throw new Error(data.error.message || 'API error');
-    var opinion = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '';
+    var opinion = _aiWhole(data, (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '');   // §FP-OP-CLIP
     if (!opinion) throw new Error('No response from AI');
 
     ta.value = opinion;
@@ -54412,7 +54439,7 @@ function genIntroNote() {
         "anthropic-version": "2023-06-01",
         "anthropic-dangerous-direct-browser-access": "true"
       },
-      body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens: 320,
+      body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens: 1024,   /* §FP-OP-CLIP — was 320 */
         messages:[{ role:"user", content:msgContent }] })
     })
     .then(function(resp) {
@@ -54420,7 +54447,7 @@ function genIntroNote() {
       return resp.json();
     })
     .then(function(data) {
-      var text=(data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("").trim();
+      var text=_aiWhole(data,(data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join(""));   /* §FP-OP-CLIP */
       if(!text) throw new Error("Empty response");
       _putNote(text);
       if(status){status.style.color="#16a34a";status.textContent="✓ Generated with Claude AI";}
@@ -59754,6 +59781,7 @@ async function _sigmaPublishReportPDF_raster(orderId, reportHtml, _seq){
       if (_ready.length) await Promise.race([ Promise.all(_ready), new Promise(function(r){setTimeout(r,6000);}) ]);
     } catch(e){}
     await new Promise(function(r){ setTimeout(r,500); });
+    try { if (iframe.contentWindow.__sigmaStampClear) iframe.contentWindow.__sigmaStampClear(); } catch(e){}   // §STAMP-CLEAR — on the sheets as photographed
     var pages = idoc.querySelectorAll('.page');
     if (!pages.length) { _sigmaPdfStatus('No printable pages found — PDF not published', true); return; }
     // §PDF-TOC-LINKS (v2.146) — map each page anchor id (page-<id>, injected by
@@ -67776,6 +67804,127 @@ function _pgSpillRuntime(OPT) {
     try { console.warn('[pg-spill] failed, report left exactly as it was:', e); } catch (_) {}
   }
 }
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  §STAMP-CLEAR — the Appraiser Stamp never sits on top of text            ║
+// ║                                                                          ║
+// ║  Reported on 2026-112: Bottom-Right at 65 % printed the firm card over   ║
+// ║  the Floorplan opinion (p3) and the Inspection Details grid (p4). The    ║
+// ║  stamp is an absolute overlay at z-index 60, placed from Settings with   ║
+// ║  no knowledge of what the page holds, so on any full page it covered the ║
+// ║  last lines.                                                             ║
+// ║                                                                          ║
+// ║  Runs on the FINAL sheets (after pagination, combined fit, retitle) and  ║
+// ║  again on relay / beforeprint; it only moves the overlay, never content, ║
+// ║  so it can run any number of times and never changes the page count.    ║
+// ║  Per sheet:                                                              ║
+// ║   1. Put the stamp back where Settings puts it (idempotent restart).     ║
+// ║   2. Ink = text line boxes + images/svg/canvas + tables and framed or    ║
+// ║      shaded boxes, minus the page chrome                                 ║
+// ║      (header, footer, page number, draft mark, the stamp itself).        ║
+// ║   3. No TEXT under it → leave it (over a photo or a box, as before).     ║
+// ║   4. Else the nearest BLANK spot (no text, image or box) in the body     ║
+// ║      band, same size, scanning                                           ║
+// ║      up from its own place, then leftwards (2 mm steps).                 ║
+// ║   5. No clear spot (a full sheet) → keep its place but paint it BEHIND   ║
+// ║      the content (z-index -1 inside the sheet's own stacking context),   ║
+// ║      so the text is drawn over the stamp, never under it.                ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+function _stampClearRuntime(O){
+  try{
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;left:-99999px;top:0;width:1mm;height:100mm;';
+    document.body.appendChild(probe);
+    var MM = (probe.getBoundingClientRect().height || 377.95) / 100;
+    probe.parentNode.removeChild(probe);
+    var CHROME = /(^|\s)(pg-hdr|pg-ftr|pg-ftr-fixed|pg-num|sigma-stamp|sigma-draft-wm)(\s|$)/;
+    var inChrome = function(el, page){
+      for (var e = el; e && e !== page; e = e.parentElement){
+        var c = (e.className && typeof e.className === 'string') ? e.className : (e.getAttribute && e.getAttribute('class')) || '';
+        if (CHROME.test(c)) return true;
+      }
+      return false;
+    };
+    var hits = function(a, b){ return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; };
+    var moved = 0, under = 0, clear = 0;
+    [].forEach.call(document.querySelectorAll('.page'), function(page){
+      var st = page.querySelector(':scope > .sigma-stamp') || page.querySelector('.sigma-stamp');
+      if (!st) return;
+      // 1. restart from the configured place
+      if (!st.hasAttribute('data-st-orig')) st.setAttribute('data-st-orig', st.style.cssText);
+      st.style.cssText = st.getAttribute('data-st-orig');
+      st.removeAttribute('data-stamp-clear');
+      if (page.getAttribute('data-st-z') === '1'){ page.style.zIndex = ''; page.removeAttribute('data-st-z'); }
+      var pr = page.getBoundingClientRect();
+      var sr = st.getBoundingClientRect();
+      if (!(sr.width > 1 && sr.height > 1)) return;
+      // 2. the ink on this sheet, in page coordinates, padded by O.padMm
+      var pad = (O.padMm || 0) * MM, ink = [], textInk = null;
+      var add = function(r){
+        if (!r || r.width < 0.5 || r.height < 0.5) return;
+        ink.push({ left:r.left - pr.left - pad, right:r.right - pr.left + pad, top:r.top - pr.top - pad, bottom:r.bottom - pr.top + pad });
+      };
+      var tw = document.createTreeWalker(page, NodeFilter.SHOW_TEXT, null);
+      for (var n = tw.nextNode(); n; n = tw.nextNode()){
+        if (!/\S/.test(n.nodeValue || '')) continue;
+        var pe = n.parentElement; if (!pe || inChrome(pe, page)) continue;
+        var cs = getComputedStyle(pe); if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+        var rg = document.createRange(); rg.selectNodeContents(n);
+        [].forEach.call(rg.getClientRects(), add);
+      }
+      textInk = ink.slice();   // text only: the ONLY thing that makes the stamp move
+      [].forEach.call(page.querySelectorAll('img,svg,canvas'), function(el){ if (!inChrome(el, page)) add(el.getBoundingClientRect()); });
+          // boxes count too (tables, framed or shaded blocks): a stamp parked inside a table reads as a misprint.
+          //   Wrappers that hold most of the sheet are skipped, or nothing would ever be free.
+          [].forEach.call(page.querySelectorAll('*'), function(el){
+            if (inChrome(el, page)) return;
+            var r = el.getBoundingClientRect(); if (r.height < 1 || r.height > pr.height * 0.7) return;
+            var cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'absolute' || cs.position === 'fixed') return;
+            var bg = cs.backgroundColor, shaded = bg && bg !== 'transparent' && !/rgba\([^)]*,\s*0\)$/.test(bg);
+            var framed = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0) + (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0) > 0;
+            if (el.tagName === 'TABLE' || shaded || framed) add(r);
+          });
+      var box0 = { left:sr.left - pr.left, right:sr.right - pr.left, top:sr.top - pr.top, bottom:sr.bottom - pr.top };
+      var free = function(b, list){ list = list || ink; for (var i = 0; i < list.length; i++){ if (hits(b, list[i])) return false; } return true; };
+      // 3. no TEXT under it: leave it exactly as Settings put it (over a photo or a box, as always)
+      if (free(box0, textInk)){ st.setAttribute('data-stamp-clear', 'clear'); clear++; return; }
+      // 4. nearest clear spot inside the body band (below the header, above the footer)
+      var top = O.topMm * MM, bottom = pr.height - O.bottomMm * MM;
+      [].forEach.call(page.querySelectorAll('.pg-hdr'), function(h){ var r = h.getBoundingClientRect(); if (r.height && r.top - pr.top < pr.height * 0.5) top = Math.max(top, r.bottom - pr.top + MM); });
+      [].forEach.call(page.querySelectorAll('.pg-ftr-fixed, .pg-num'), function(f){ var r = f.getBoundingClientRect(); if (r.height && r.top - pr.top > pr.height * 0.5) bottom = Math.min(bottom, r.top - pr.top - MM); });
+      bottom = Math.max(bottom, box0.bottom);   // never pushed lower than Settings put it
+      var w = box0.right - box0.left, h = box0.bottom - box0.top;
+      var left = O.sideMm * MM, right = pr.width - O.sideMm * MM;
+      var step = O.stepMm * MM, best = null;
+      for (var y = Math.min(box0.top, bottom - h); y >= top; y -= step){
+        for (var x = Math.min(box0.left, right - w); x >= left; x -= step){
+          var b = { left:x, right:x + w, top:y, bottom:y + h };
+          if (!free(b)) continue;
+          var d = Math.abs(box0.top - y) + Math.abs(box0.left - x);
+          if (!best || d < best.d) best = { x:x, y:y, d:d };
+          break;   // further left on this row is only further away
+        }
+        if (best && (box0.top - y) > best.d) break;   // nothing higher can be nearer
+      }
+      if (best){
+        var dx = Math.round((best.x - box0.left) * 10) / 10, dy = Math.round((best.y - box0.top) * 10) / 10;
+        st.style.transform = 'translate(' + dx + 'px,' + dy + 'px) ' + (st.style.transform || '');
+        st.setAttribute('data-stamp-clear', 'moved');
+        moved++;
+        return;
+      }
+      // 5. a full sheet: behind the content, in place
+      if (getComputedStyle(page).position === 'static') page.style.position = 'relative';
+      if (getComputedStyle(page).zIndex === 'auto'){ page.style.zIndex = '0'; page.setAttribute('data-st-z', '1'); }
+      st.style.zIndex = '-1';
+      st.setAttribute('data-stamp-clear', 'under');
+      under++;
+    });
+    try{ document.documentElement.setAttribute('data-stamp-clear', clear + '/' + moved + '/' + under); }catch(e){}
+    if (moved || under){ try{ console.log('[stamp-clear] clear ' + clear + ', moved ' + moved + ', behind text ' + under); }catch(e){} }
+    return moved + under;
+  }catch(e){ try{ console.warn('[stamp-clear]', e); }catch(_){} return 0; }
+}
+
 try {
   // §PG-SPILL-DISABLED (hard off) — the pagination pass is switched off at the
   // injection site rather than through RC.rcPageSpill, deliberately: a saved report
@@ -68786,6 +68935,28 @@ try {
     try { console.log('[PG-SPILL] pagination pass embedded'); } catch (e) {}
   }
 } catch (_spErr) { try { console.warn('[PG-SPILL] injection failed, report unchanged', _spErr); } catch (e) {} }
+// §STAMP-CLEAR — move the Appraiser Stamp off the text (or behind it) on the FINAL sheets.
+//   Injected after the PG-SPILL script so its timers and its beforeprint listener run after
+//   the paginator's. Idempotent: every run restarts from the Settings position.
+try {
+  if (_stampHtml) {
+    var _stampScript = '<scr' + 'ipt>(function(){'
+      + 'var S=' + _stampClearRuntime.toString() + ';'
+      + 'var O=' + JSON.stringify({ padMm: 0.6, topMm: 10, bottomMm: 16, sideMm: 10, stepMm: 2 }) + ';'
+      + 'var run=function(){ try{ return S(O); }catch(e){ return 0; } };'
+      + 'window.__sigmaStampClear=run;'
+      + 'var waits=[];'
+      + 'try{ if(document.fonts && document.fonts.ready) waits.push(document.fonts.ready); }catch(e){}'
+      + 'if(document.readyState!=="complete"){ waits.push(new Promise(function(r){ addEventListener("load",r,{once:true}); })); }'
+      + 'try{ [].forEach.call(document.images, function(im){ if(!im.complete){ waits.push(new Promise(function(r){ im.addEventListener("load",r,{once:true}); im.addEventListener("error",r,{once:true}); })); } }); }catch(e){}'
+      + 'try{ (waits.length?Promise.all(waits):Promise.resolve()).then(function(){ setTimeout(run,60); }); }catch(e){ setTimeout(run,60); }'
+      + 'setTimeout(run,1700); setTimeout(run,5300); setTimeout(run,20300);'   // after the paginator's relays and its 20 s backstop
+      + 'addEventListener("beforeprint",run);'
+      + '})();</scr' + 'ipt>';
+    if (/<\/body>/i.test(html)) html = html.replace(/<\/body>(?![\s\S]*<\/body>)/i, _stampScript + '</body>');
+    else html = html + _stampScript;
+  }
+} catch (_stErr) { try { console.warn('[stamp-clear] injection failed, report unchanged', _stErr); } catch (e) {} }
 
 // §NO-PREOPEN (v1.963) — store the finished HTML and let the caller open the
 //   window on a user click. This is what removes the annoying blank pop-up that
@@ -88582,10 +88753,10 @@ async function genAiBuildingOpinion() {
   try{
     var inspSum=(document.getElementById('aiSummaryText')||{}).value||'';
     var prompt='You are a certified real estate appraiser in Aruba. Write a professional appraisal paragraph (80-110 words) for the Opinions of the Building, Equipment & Finishes section. Cover: construction quality, interior finishes, equipment condition, overall building standard. Formal language. Paragraph only.\nProperty: '+(order.address||'')+(order.city?', '+order.city:'')+'\nType: '+(order.type||'residential')+(inspSum?'\nInspection findings: '+inspSum.substring(0,300):'');
-    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
+    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
-    var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
+    var text=_aiWhole(data,(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join(''));   /* §FP-OP-CLIP */
     ta.value=text;ta.dispatchEvent(new Event('input',{bubbles:true}));
     var idx=ORDERS.findIndex(function(o){return o.id===_inspOrderId;});
     if(idx!==-1){
@@ -88759,10 +88930,10 @@ async function genAiConclusion() {
     var prompt=_isT5c
       ? ('You are a certified building assessor in Aruba writing the "Conclusion / Opinion" of a property ASSESSMENT report. Write a concise, professional closing paragraph (90-140 words) that synthesises the property, its recorded condition, the key findings and the location. Do NOT state, estimate or imply any market value, price or valuation figure: this report states no value. Do not invent findings that are not in the facts. Formal language. Paragraph only, no headings.'+(seed?('\n\nIncorporate and refine the assessor’s draft: '+seed):'')+'\n\nAssessment facts:\n'+facts)
       : 'You are a certified real estate appraiser in Aruba writing the final "Conclusion / Opinion" of an appraisal report. Write a concise, professional closing paragraph (90-140 words) that synthesises the property, its condition, the location and marketability, and states the appraiser’s overall opinion of value with any key caveats or assumptions. Formal appraisal language. Paragraph only, no headings.'+_cnclValueGuide(order,vd)+(seed?('\n\nIncorporate and refine the appraiser’s draft: '+seed):'')+'\n\nAppraisal facts:\n'+facts;
-    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
+    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
-    var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
+    var text=_aiWhole(data,(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join(''));   /* §FP-OP-CLIP */
     ta.value=text; ta.dispatchEvent(new Event('input',{bubbles:true}));
     var idx=ORDERS.findIndex(function(o){return o.id===_inspOrderId;});
     if(idx!==-1){
@@ -88875,11 +89046,11 @@ async function genAiT4General() {
     var _lang=_aiLangInstruction(_inspOrderId);   /* §ORDER-LANG (v2.367) */
     // The language instructions name appraisal vocabulary; on a Building Inspection that is wrong.
     if(_lang) _lang+='\nThis text is for a building inspection report (bouwkundige keuring / informe de inspección de edificación), not an appraisal: use building-inspection vocabulary and do not mention value.';
-    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:prompt+_lang}]})},90000);
+    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:prompt+_lang}]})},90000);
     var data=await resp.json();
     if(data.error) throw new Error(data.error.message||'API error');
     if(!resp.ok) throw new Error('HTTP '+resp.status);
-    var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
+    var text=_aiWhole(data,(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join(''));   /* §FP-OP-CLIP */
     if(!text) throw new Error('Empty response');
     _aiLenPersist(_AI_LEN_FIELDS.t4General, text, ta);
     if(sta){ sta.style.color='#39ff6e'; sta.textContent='✓ Generated from '+F.walked+' findings — check and edit before signing'; }
@@ -88914,10 +89085,10 @@ async function genAiRenovationNotes() {
       'Appraiser notes: '+(((order.internalNotes||order.notes||'')+'').trim()||'—')
     ].join('\n');
     var prompt='You are a certified real estate appraiser in Aruba writing the "Renovation Notes & Remarks" section of a Type 3 (renovation / new-construction) appraisal report. Write a professional paragraph (90-140 words) covering the scope and quality of the renovation works, materials and finishes, workmanship, stage of completion, and their impact on value. Formal appraisal language. Paragraph only, no headings.'+(seed?('\n\nIncorporate and refine the appraiser’s draft notes: '+seed):'')+'\n\nProperty facts:\n'+facts;
-    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
+    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
-    var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
+    var text=_aiWhole(data,(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join(''));   /* §FP-OP-CLIP */
     ta.value=text; ta.dispatchEvent(new Event('input',{bubbles:true}));
     var idx=ORDERS.findIndex(function(o){return o.id===_inspOrderId;});
     if(idx!==-1){
@@ -88973,10 +89144,10 @@ async function genAiLocationOpinion() {
     btn.innerHTML='<span class="ai-spin">⧗</span> Writing…';
     var addr=(order.address||'')+(order.city?', '+order.city:'');
     var prompt='You are a certified real estate appraiser in Aruba. Write a professional appraisal paragraph (90-120 words) for the Opinion of the Location section. Cover: neighbourhood character, amenities, distances to Oranjestad and San Nicolas, beach access, location quality. Formal language. Paragraph only.\nProperty: '+addr+'\nGPS: '+lat.toFixed(5)+', '+lng.toFixed(5)+'\nCity distances: '+cityLines+'\nNearby (1.5km): '+(poiLines.join('; ')||'Limited OSM data.');
-    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
+    var resp=await _fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:prompt+_opCaseFile(order)+_aiLangInstruction(_inspOrderId)}]})},90000);   /* §ORDER-LANG (v2.367) */
     var data=await resp.json();
     if(data.error)throw new Error(data.error.message);
-    var text=(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').trim();
+    var text=_aiWhole(data,(data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join(''));   /* §FP-OP-CLIP */
     ta.value=text;ta.dispatchEvent(new Event('input',{bubbles:true}));
     var opEl=document.getElementById('inspOpinion');if(opEl){opEl.value=text;opEl.dispatchEvent(new Event('input',{bubbles:true}));}
     var idx=ORDERS.findIndex(function(o){return o.id===_inspOrderId;});
@@ -89216,7 +89387,7 @@ async function _aiTextResize(k, delta){
     var data=await resp.json();
     if(data.error) throw new Error(data.error.message||'API error');
     if(!resp.ok) throw new Error('HTTP '+resp.status);
-    var text=(data.content||[]).filter(function(b){ return b.type==='text'; }).map(function(b){ return b.text; }).join('').trim();
+    var text=_aiWhole(data,(data.content||[]).filter(function(b){ return b.type==='text'; }).map(function(b){ return b.text; }).join(''));   /* §FP-OP-CLIP */
     if(!text) throw new Error('Empty response');
 
     _aiLenPersist(cfg, text, ta);
