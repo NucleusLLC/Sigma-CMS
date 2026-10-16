@@ -67242,6 +67242,12 @@ function _pgSpillRuntime(OPT) {
       for (var i = 0; i < kids.length; i++) {
         var k = kids[i];
         if (isChrome(k) || isOutOfFlow(k)) continue;
+        // §MATRIX-KEEP — <colgroup>/<col> are not content, but Chrome gives a column box the
+        //   full height of its table, so a table crossing the limit "straddled" through its
+        //   <colgroup>, the split landed on a <col>, and every following sibling of it —
+        //   the header row AND all body rows — was carried off. That left the heading and an
+        //   empty table at the foot of the sheet: the Condition Assessment Matrix stranding.
+        if (k.tagName === 'COLGROUP' || k.tagName === 'COL') continue;
         var r = k.getBoundingClientRect();
         var top = r.top - pageTop, bot = r.bottom - pageTop;
         if (bot <= limit) continue;
@@ -67249,6 +67255,9 @@ function _pgSpillRuntime(OPT) {
         // §PG-KEEP — never open a kept block. §PG-BR — never descend into a paragraph
         // whose only elements are inline: its text lives in text nodes, so descending
         // finds a <br> and moves nothing.
+        // §MATRIX-KEEP — a table row is atomic: descending into it moved its CELLS, so a
+        //   straddling row printed its first cells on one sheet and the rest on the next.
+        if (k.tagName === 'TR') return { node: k, parent: container };
         if (k.children.length && !isKept(k) && !isInlineHost(k)) {
           var deeper = findSplit(k, limit, pageTop);
           if (deeper) return deeper;
@@ -67687,6 +67696,72 @@ function _pgSpillRuntime(OPT) {
       return keep;
     }
 
+    // §MATRIX-KEEP — A TABLE HEADER IS NOT ALLOWED TO END A SHEET.
+    //
+    //   Inside a table `findSplit` stops at the first row (or <tbody>) that crosses the
+    //   limit. When that was the FIRST body row, everything above it stayed: the section
+    //   heading, its subtitle and the header row — on the Condition Assessment Matrix the
+    //   six rotated condition labels — printed alone at the foot of the sheet, and the
+    //   rows began the next sheet with no header over them (measured on 2026-105 with the
+    //   matrix pushed down: 17 of 50 positions stranded it). The same happened one level
+    //   down to a group-title row ("SHELL", "INTERIOR") whose items all moved on.
+    //
+    //   So a split inside a table is moved back to a row boundary that leaves at least
+    //   MIN_BODY real body rows behind; group-title rows directly above the split travel
+    //   with their items; and when fewer real rows than that would stay, the whole table
+    //   moves — and with it, through `pullTrailingHeadings`, the heading above it. Unless
+    //   that would leave the sheet empty, in which case the row-level split stands.
+    //   Generic to every table, not only the matrix: a group-title row is a row of ONE cell
+    //   spanning several columns; header rows are <thead> rows or all-<th> rows.
+    var MIN_BODY = 2;
+    function isGroupRow(tr) {
+      return tr.cells.length === 1 && tr.cells[0].colSpan > 1;
+    }
+    function isHeaderRow(tr) {
+      if (tr.parentNode && tr.parentNode.tagName === 'THEAD') return true;
+      for (var i = 0; i < tr.cells.length; i++) if (tr.cells[i].tagName !== 'TH') return false;
+      return tr.cells.length > 0;
+    }
+    // A table continued on another sheet is rebuilt from `cloneNode(false)`, i.e. with no
+    //   <colgroup> and no <thead>: the matrix's fixed layout then fell back to equal
+    //   columns and its rows arrived with no condition labels over them. The <colgroup> is
+    //   layout, not content; the header row is repeated the way the Type 4 reflow and every
+    //   print document in this file (thead{display:table-header-group}) already do. Neither
+    //   is a `.sec-h`, so no Contents anchor or heading is ever duplicated.
+    function tableFrame(src, clone) {
+      if (!src || src.tagName !== 'TABLE') return;
+      for (var i = 0; i < src.children.length; i++) {
+        var c = src.children[i];
+        if (c.tagName !== 'COLGROUP' && c.tagName !== 'THEAD') continue;
+        var cc = c.cloneNode(true);
+        [].forEach.call(cc.querySelectorAll('[id]'), function (x) { x.removeAttribute('id'); });
+        if (c.tagName === 'THEAD') cc.setAttribute('data-spill-head', '1');
+        clone.appendChild(cc);
+      }
+    }
+    function tableKeep(hit, inner) {
+      var n = hit.node;
+      if (!n || !n.closest || n.tagName === 'TABLE') return hit;
+      var tbl = n.closest('table');
+      if (!tbl || !inner.contains(tbl)) return hit;
+      var row = null;
+      if (n.tagName === 'TR') row = n;
+      else if (n.tagName === 'TBODY' || n.tagName === 'TFOOT') row = n.rows[0] || null;
+      else if (n.tagName !== 'THEAD') row = n.closest('tr');
+      if (row && row.closest('table') !== tbl) return hit;   // a nested table: leave it alone
+      if (row && row.parentNode.tagName === 'THEAD') row = null;
+      var rows = [].slice.call(tbl.rows);
+      var at = row ? rows.indexOf(row) : -1;
+      // a group title directly above the split is a label for rows that are leaving
+      while (at > 0 && isGroupRow(rows[at - 1]) && !isHeaderRow(rows[at - 1])) at--;
+      var real = 0;
+      for (var i = 0; i < at; i++) if (!isHeaderRow(rows[i]) && !isGroupRow(rows[i])) real++;
+      var rowHit = at >= 0 ? { node: rows[at], parent: rows[at].parentNode } : null;
+      if (rowHit && real >= MIN_BODY) return rowHit;
+      if (remainderWorthPrinting(inner, tbl)) return { node: tbl, parent: tbl.parentNode };
+      return (rowHit && real >= 1) ? rowHit : hit;   // moving it all would empty the sheet
+    }
+
     var pages = [].slice.call(document.querySelectorAll('.page'));
     var spilled = 0, refused = 0, examined = 0, pushed = 0, declined = 0, probes = [];
 
@@ -67720,6 +67795,7 @@ function _pgSpillRuntime(OPT) {
         }
 
         var hit = findSplit(inner, limit, pageRect.top);
+        if (hit) hit = tableKeep(hit, inner);   // §MATRIX-KEEP
 
         // A leaf too tall to fit on ANY sheet is split here rather than moved whole:
         // moving it only carries the overrun onto the next page. Only when it genuinely
@@ -67778,6 +67854,7 @@ function _pgSpillRuntime(OPT) {
             for (var pw = 0; pw < pChain.length; pw++) {
               var pClone = pChain[pw].cloneNode(false);
               pClone.removeAttribute('id');
+              tableFrame(pChain[pw], pClone);   // §MATRIX-KEEP — column widths + header row
               if (pw === 0) { pOuter = pClone; pt.host.insertBefore(pClone, pt.before); }
               else pSink.appendChild(pClone);
               pSink = pClone;
@@ -67840,6 +67917,7 @@ function _pgSpillRuntime(OPT) {
         var sinkParent = sInner, sink = sInner, sOuter = null;
         for (var w = 0; w < chain.length; w++) {
           var clone = chain[w].cloneNode(false);
+          tableFrame(chain[w], clone);   // §MATRIX-KEEP — column widths + header row
           if (w === 0) sOuter = clone;   // §PG-SPILL-KEEP (v2.502) — the level a climbed heading belongs at
           sinkParent.appendChild(clone);
           sinkParent = clone;
