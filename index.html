@@ -51447,25 +51447,59 @@ async function _hpnUnlock(){
 }
 // Why a custom number cannot be used — '' when it is free. Checks the jobs in memory,
 //   then the server (record ids and other custom numbers).
+//   Fails CLOSED: no server, or a server read that errors, means the number is not given.
+//   Compared without case, and a series-shaped number without its padding (2026-45 = 2026-045).
+function _hpnNorm(s){
+  var k = String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  var m = /^(\d{4})-0*(\d+)([A-Z]{0,3})$/.exec(k);
+  return m ? m[1] + '-' + String(+m[2]).padStart(3, '0') + m[3] : k;
+}
+// What a row PRINTS (and is known by), normalised: record id, id without project letters,
+//   custom number, typed projectNumber.
+function _hpnRowKeys(id, x){
+  var out = [], idS = String(id || '');
+  out.push(_hpnNorm(idS));
+  var m = /^(\d{4}-\d+)[A-Z]{1,3}$/i.exec(idS); if(m) out.push(_hpnNorm(m[1]));
+  if(x && x.apprNoCustom) out.push(_hpnNorm(x.apprNoCustom));
+  if(x && x.projectNumber) out.push(_hpnNorm(x.projectNumber));
+  return out;
+}
 async function _hpnTakenWhy(num, code){
-  var k = String(num || '').trim().toUpperCase();
-  var hit = _hpNumTaken(k, null);
+  var k = _hpnNorm(num);
+  // 1. jobs in memory (archived included)
+  var hit = null;
+  (ORDERS || []).some(function(o){
+    if(!o) return false;
+    if(_hpnRowKeys(o.id, o).concat([_hpnNorm(_hpApprNo(o))]).indexOf(k) >= 0){ hit = o; return true; }
+    return false;
+  });
   if(hit) return 'job ' + hit.id;
-  // A number of this year's series that has not been issued yet would be printed again by a future job.
+  // 2. a number of a year's series that has not been issued yet would be printed again by a future job
   var m = /^(\d{4})-(\d+)$/.exec(k);
   if(m){
     var hi = 0;
     try{ hi = parseInt(String(_localOrderNumberFallback(+m[1])).split('-')[1], 10) - 1; }catch(e){}
     if(+m[2] > hi) return 'the normal series (it has not been issued yet — a future job would get it)';
   }
-  if(typeof _sb === 'undefined' || !_sb) return '';
-  var ids = [k]; var mm = /^(\d{4}-\d+)$/.exec(k); if(mm && code) ids.push(k + String(code).toUpperCase());
-  var r1 = await _finRace(_sb.schema('public').from('orders').select('order_id').in('order_id', ids).limit(1), 15000, 'checking the number');
-  if(r1 && r1.error) throw new Error(r1.error.message || 'the number could not be checked');
-  if(r1 && r1.data && r1.data.length) return 'job ' + r1.data[0].order_id;
-  var r2 = await _finRace(_sb.schema('public').from('orders').select('order_id').eq('extra_data->>apprNoCustom', String(num).trim()).limit(1), 15000, 'checking the number');
-  if(r2 && r2.error) throw new Error(r2.error.message || 'the number could not be checked');
-  if(r2 && r2.data && r2.data.length) return 'job ' + r2.data[0].order_id;
+  // 3. the server — every job, also ones this browser has not loaded
+  if(typeof _sb === 'undefined' || !_sb) throw new Error('the server is not reachable, so the number cannot be checked');
+  var chk = function(r){ if(!r || r.error) throw new Error((r && r.error && r.error.message) || 'the number could not be checked'); return r.data || []; };
+  var base = (/^\d{4}-/.test(k)) ? k.slice(0, 5) : k;   // year shape: every number of that year, padding aside
+  var pat = base.replace(/[%_\\]/g, '\\$&') + '%';
+  var rows = chk(await _finRace(_sb.schema('public').from('orders').select('order_id,extra_data').ilike('order_id', pat).limit(5000), 20000, 'checking the number'));
+  var rows2 = chk(await _finRace(_sb.schema('public').from('orders').select('order_id,extra_data')
+    .or('extra_data->>apprNoCustom.ilike.' + JSON.stringify(pat) + ',extra_data->>projectNumber.ilike.' + JSON.stringify(pat)).limit(5000), 20000, 'checking the number'));
+  var all = rows.concat(rows2);
+  for(var i = 0; i < all.length; i++){
+    var x = all[i].extra_data; if(typeof x === 'string'){ try{ x = JSON.parse(x); }catch(e){ x = {}; } }
+    if(_hpnRowKeys(all[i].order_id, x || {}).indexOf(k) >= 0) return 'job ' + all[i].order_id;
+  }
+  // 4. BLU appraisal numbers reserved before they become a job
+  var blu = chk(await _finRace(_sb.schema('public').from('blu_appraisal_requests').select('appraisal_number').ilike('appraisal_number', pat).limit(5000), 20000, 'checking the number'));
+  for(var j = 0; j < blu.length; j++){
+    var an = String(blu[j].appraisal_number || '');
+    if(_hpnRowKeys(an, null).indexOf(k) >= 0) return 'BLU request ' + an;
+  }
   return '';
 }
 function _hpCopyAddr(){
