@@ -64711,7 +64711,8 @@ rcHeaderText:'', rcHeaderLogo:'None', rcHeaderLogoSize:22, rcHeaderLogoOffsetY:0
     return ''
       // Signature block moved RIGHT (v1.852). Empty 1fr cell on the left pushes the signature
       // into the right 2/3; Date column removed (date is captured on cover + report metadata).
-      +'<div style="border-top:1px solid #e8e0d4;padding-top:22px;">'
+      // §SIG-LAST (v2.705) — data-sig-tail marks the signature for §PG-SPILL: nothing may follow it on its sheet.
+      +'<div data-sig-tail="1" style="border-top:1px solid #e8e0d4;padding-top:22px;">'
       +'<div style="display:grid;grid-template-columns:1fr 2fr'+(_lastStampOn?' 88px':'')+';gap:32px;align-items:start;">'
       +'<div></div>'
       +'<div>'
@@ -68553,7 +68554,13 @@ function _pgSpillRuntime(OPT) {
         // a page that declined inflow, and without this the only evidence is a wasted
         // sheet on paper - which is how §PG-SPILL-INFLOW went unnoticed for three
         // versions. The log line below reports it on every real report.
-        var _canFlow = !!(nextPg && !nextPg.hasAttribute('data-spill') && acceptsInflow(nextPg));
+        // §SIG-LAST (v2.705) — REPORTED (2026-164): "nothing else comes behind the sign, on the
+        //   same page". The sheet holding the appraiser's signature (the Sign-Off page, a moved
+        //   Sign-Off block, or a continuation of either) never continues onto the sheet that
+        //   follows it: its tail gets its own continuation sheet, so whatever section comes next
+        //   still opens on a clean page and nothing prints under the signature.
+        var _sigHere = source.id === 'page-signoff' || !!source.querySelector('[data-sig-tail]');
+        var _canFlow = !!(nextPg && !_sigHere && !nextPg.hasAttribute('data-spill') && acceptsInflow(nextPg));
         if (nextPg && !_canFlow) declined++;
         if (_canFlow) {
           var pt = inflowPoint(nextPg);
@@ -68705,9 +68712,9 @@ function _pgSpillRuntime(OPT) {
 // ║   4. Else the nearest BLANK spot (no text, image or box) in the body     ║
 // ║      band, same size, scanning                                           ║
 // ║      up from its own place, then leftwards (2 mm steps).                 ║
-// ║   5. No clear spot (a full sheet) → keep its place but paint it BEHIND   ║
-// ║      the content (z-index -1 inside the sheet's own stacking context),   ║
-// ║      so the text is drawn over the stamp, never under it.                ║
+// ║   5. §STAMP-ON-TOP (v2.705): smaller sizes (down to 40 %) on clear       ║
+// ║      paper only; no clear spot → the stamp is left off that sheet.       ║
+// ║      It is NEVER painted behind content, nor over a table or picture.    ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 function _stampClearRuntime(O){
   try{
@@ -68733,6 +68740,7 @@ function _stampClearRuntime(O){
       if (!st.hasAttribute('data-st-orig')) st.setAttribute('data-st-orig', st.style.cssText);
       st.style.cssText = st.getAttribute('data-st-orig');
       st.removeAttribute('data-stamp-clear');
+      st.removeAttribute('data-stamp-scale');
       if (page.getAttribute('data-st-z') === '1'){ page.style.zIndex = ''; page.removeAttribute('data-st-z'); }
       var pr = page.getBoundingClientRect();
       var sr = st.getBoundingClientRect();
@@ -68765,42 +68773,66 @@ function _stampClearRuntime(O){
           });
       var box0 = { left:sr.left - pr.left, right:sr.right - pr.left, top:sr.top - pr.top, bottom:sr.bottom - pr.top };
       var free = function(b, list){ list = list || ink; for (var i = 0; i < list.length; i++){ if (hits(b, list[i])) return false; } return true; };
-      // 3. no TEXT under it: leave it exactly as Settings put it (over a photo or a box, as always)
+      // 3. no TEXT under it: leave it exactly as Settings put it, drawn on top (over a photo,
+      //   a plan or a box it stays visible, as it always has).
       if (free(box0, textInk)){ st.setAttribute('data-stamp-clear', 'clear'); clear++; return; }
       // 4. nearest clear spot inside the body band (below the header, above the footer)
       var top = O.topMm * MM, bottom = pr.height - O.bottomMm * MM;
       [].forEach.call(page.querySelectorAll('.pg-hdr'), function(h){ var r = h.getBoundingClientRect(); if (r.height && r.top - pr.top < pr.height * 0.5) top = Math.max(top, r.bottom - pr.top + MM); });
       [].forEach.call(page.querySelectorAll('.pg-ftr-fixed, .pg-num'), function(f){ var r = f.getBoundingClientRect(); if (r.height && r.top - pr.top > pr.height * 0.5) bottom = Math.min(bottom, r.top - pr.top - MM); });
       bottom = Math.max(bottom, box0.bottom);   // never pushed lower than Settings put it
-      var w = box0.right - box0.left, h = box0.bottom - box0.top;
+      var w0 = box0.right - box0.left, h0 = box0.bottom - box0.top;
       var left = O.sideMm * MM, right = pr.width - O.sideMm * MM;
-      var step = O.stepMm * MM, best = null;
-      for (var y = Math.min(box0.top, bottom - h); y >= top; y -= step){
-        for (var x = Math.min(box0.left, right - w); x >= left; x -= step){
-          var b = { left:x, right:x + w, top:y, bottom:y + h };
-          if (!free(b)) continue;
-          var d = Math.abs(box0.top - y) + Math.abs(box0.left - x);
-          if (!best || d < best.d) best = { x:x, y:y, d:d };
-          break;   // further left on this row is only further away
+      var step = O.stepMm * MM;
+      // the nearest spot for a stamp scaled by sc that touches nothing in `list`
+      var spot = function(sc, list){
+        var w = w0 * sc, h = h0 * sc, best = null;
+        var yStart = Math.min(box0.bottom - h, bottom - h), xStart = Math.min(box0.right - w, right - w);
+        for (var y = yStart; y >= top; y -= step){
+          for (var x = xStart; x >= left; x -= step){
+            var b = { left:x, right:x + w, top:y, bottom:y + h };
+            if (!free(b, list)) continue;
+            var d = Math.abs(yStart - y) + Math.abs(xStart - x);
+            if (!best || d < best.d) best = { x:x, y:y, d:d, sc:sc };
+            break;   // further left on this row is only further away
+          }
+          if (best && (yStart - y) > best.d) break;   // nothing higher can be nearer
         }
-        if (best && (box0.top - y) > best.d) break;   // nothing higher can be nearer
-      }
+        return best;
+      };
+      // §STAMP-ON-TOP (v2.705) — REPORTED: "stamp goes under the text and graphics". Step 5
+      //   used to paint the stamp BEHIND a full sheet's content (z-index -1), so tables and
+      //   text covered it. The stamp is now never put behind anything:
+      //   4a. full size, a spot with no text, picture or box (as before);
+      //   4b. the same, smaller (85 %, 70 %, 55 %, 40 %) — still only on clear paper. A spot
+      //       that merely avoids the words (between two table cells, beside a heading rule)
+      //       was tried and rejected: it puts the stamp over the table, which is the
+      //       "graphics" half of the complaint;
+      //   5.  no clear spot on a full sheet: the stamp is left off that one sheet — covering
+      //       the text was the original complaint, and hiding behind it is this one.
+      var SCALES = [1, 0.85, 0.7, 0.55, 0.4], best = null, i;
+      for (i = 0; i < SCALES.length && !best; i++) best = spot(SCALES[i], ink);
       if (best){
-        var dx = Math.round((best.x - box0.left) * 10) / 10, dy = Math.round((best.y - box0.top) * 10) / 10;
-        st.style.transform = 'translate(' + dx + 'px,' + dy + 'px) ' + (st.style.transform || '');
+        // The configured transform (and its transform-origin) is kept as it is: the extra scale
+        //   goes on the end, the rendered box is measured, and ONE leading translate (parent
+        //   space, so a pure shift) carries that box onto the spot that was found.
+        var baseT = st.style.transform || '', tail = (best.sc < 1 ? ' scale(' + best.sc + ')' : '');
+        st.style.transform = (baseT + tail).trim() || 'none';
+        var r1 = st.getBoundingClientRect();
+        var dx = Math.round((best.x - (r1.left - pr.left)) * 10) / 10, dy = Math.round((best.y - (r1.top - pr.top)) * 10) / 10;
+        st.style.transform = 'translate(' + dx + 'px,' + dy + 'px) ' + baseT + tail;
         st.setAttribute('data-stamp-clear', 'moved');
+        if (best.sc < 1) st.setAttribute('data-stamp-scale', String(best.sc));
         moved++;
         return;
       }
-      // 5. a full sheet: behind the content, in place
-      if (getComputedStyle(page).position === 'static') page.style.position = 'relative';
-      if (getComputedStyle(page).zIndex === 'auto'){ page.style.zIndex = '0'; page.setAttribute('data-st-z', '1'); }
-      st.style.zIndex = '-1';
-      st.setAttribute('data-stamp-clear', 'under');
+      // 5. a full sheet: no stamp on this sheet (never behind, never over text)
+      st.style.display = 'none';
+      st.setAttribute('data-stamp-clear', 'hidden');
       under++;
     });
     try{ document.documentElement.setAttribute('data-stamp-clear', clear + '/' + moved + '/' + under); }catch(e){}
-    if (moved || under){ try{ console.log('[stamp-clear] clear ' + clear + ', moved ' + moved + ', behind text ' + under); }catch(e){} }
+    if (moved || under){ try{ console.log('[stamp-clear] clear ' + clear + ', moved ' + moved + ', left off (full sheet) ' + under); }catch(e){} }
     return moved + under;
   }catch(e){ try{ console.warn('[stamp-clear]', e); }catch(_){} return 0; }
 }
