@@ -15635,6 +15635,30 @@ Aruba is exceptionally well-suited to solar-driven energy efficiency: fixed-tilt
     .qv-miss-it:hover::after{opacity:1;}
     .miss-flash{outline:2px solid #ca8a04 !important;box-shadow:0 0 0 5px rgba(250,204,21,.45) !important;border-radius:6px;transition:box-shadow .3s;}
     .qv-miss-unk{margin-top:10px;font-size:11px;font-style:italic;opacity:.75;}
+    /* §MISS-CLEAR + §LEGACY-PAY (v2.753) */
+    .qv-miss-row{display:flex;align-items:flex-start;gap:6px;}
+    .qv-miss-row .qv-miss-it{flex:1;min-width:0;}
+    .qv-miss-acts{display:inline-flex;gap:5px;flex-shrink:0;}
+    .qv-miss-btn{all:unset;cursor:pointer;font:700 10.5px/1 inherit;padding:4px 9px;border-radius:6px;border:1.5px solid #422006;color:#422006;white-space:nowrap;}
+    .qv-miss-btn:hover,.qv-miss-btn:focus-visible{background:#422006;color:#fde047;}
+    .qv-miss-btn.solid{background:#422006;color:#fde047;}
+    .qv-miss-btn.solid:hover,.qv-miss-btn.solid:focus-visible{background:#78350f;}
+    .qv-miss-btn[disabled]{opacity:.5;cursor:default;}
+    .qv-miss:not(.on) .qv-miss-foot .qv-miss-btn{color:inherit;border-color:currentColor;}
+    .qv-miss:not(.on) .qv-miss-foot .qv-miss-btn:hover,.qv-miss:not(.on) .qv-miss-foot .qv-miss-btn:focus-visible{background:rgba(127,127,127,.25);color:inherit;}
+    .qv-miss-foot{padding:6px 14px 10px;font-size:11px;font-weight:600;}
+    .qv-miss-list .qv-miss-foot{padding:10px 0 0;margin-top:10px;border-top:1px solid rgba(161,98,7,.35);}
+    .qv-miss-done{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0;}
+    .qv-miss-form{margin:10px 14px 12px;padding:10px 12px;border-radius:8px;background:#fff;color:#1c1917;border:1.5px solid #ca8a04;font-size:12px;}
+    .qv-miss-list .qv-miss-form{margin:10px 0 0;}
+    .qv-miss-form h5{margin:0 0 3px;font-size:12px;font-weight:800;}
+    .qv-miss-form p{margin:0 0 8px;font-size:11px;line-height:1.4;color:#57534e;}
+    .qv-miss-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px;}
+    .qv-miss-form label{display:block;font-size:10px;font-weight:700;color:#57534e;}
+    .qv-miss-form input,.qv-miss-form select{display:block;width:100%;box-sizing:border-box;margin-top:2px;padding:6px 8px;border:1px solid #d6d3d1;border-radius:6px;background:#fff;color:#1c1917;font:inherit;font-size:12px;}
+    .qv-miss-form .qv-miss-btn{border-color:#422006;}
+    .qv-miss-formbtns{display:flex;align-items:center;gap:7px;margin-top:9px;}
+    .qv-miss-err{flex:1;font-size:11px;font-weight:700;color:#b91c1c;}
     </style>
     <div class="qv-miss" id="qvMissing" hidden></div>
 
@@ -23278,7 +23302,7 @@ function _ordInvoiceStage(o){
              h:'Marked a DELINQUENT account' + (o.delinquentBy ? ' by ' + o.delinquentBy : '') + '. Final notice / collection stage.' };
   if(!p) return { t:'…', c:'wait', h:'The invoices for this job have not been read yet.' };
   var cur = function(v){ return (typeof _synMoney === 'function') ? _synMoney(v, p.cur) : String(v); };
-  if(p.st === 'paid')     return { t:'Paid', c:'done', h:'Paid in full — ' + cur(p.total) + '.' };
+  if(p.st === 'paid')     return { t:'Paid', c:'done', h:(p.legacy ? 'Paid before invoicing — ' : 'Paid in full — ') + cur(p.total) + '.' };
   if(p.st === 'part'){
     var pct = p.total > 0 ? Math.max(1, Math.min(99, Math.round(p.paid / p.total * 100))) : 0;
     return { t:'Partial ' + pct + '%', c:'warn', pct:pct,
@@ -23370,17 +23394,19 @@ function _missInsp(o){
 }
 
 function _missItems(o){
-  var out = { groups:[], n:0, unknown:[] };
+  var out = { groups:[], n:0, unknown:[], cleared:[], canLog:false };
   if(!o || !o.id || o.archived === true) return out;
   // §MISS-CLICK (v2.741) — ASKED FOR: "on the MISSING yellow screen allow the user to click on
   //   the item, to try to solve it." Each item carries its target: the Quick View button that
   //   opens the screen (go), and on that screen the Project Data tab + field, or the Inspect
   //   Data section, to land on. _missFix() does the clicking.
   var add = function(grp, go, txt, sub, at){
+    var _k = _missKey(grp, txt), _c = (o.missCleared && typeof o.missCleared === 'object') ? o.missCleared[_k] : null;   // §MISS-CLEAR (v2.753)
+    if(_c){ out.cleared.push({ k:_k, g:grp, t:txt, by:_c.by || '', at:_c.at || '' }); return; }
     var g = null;
     for(var i = 0; i < out.groups.length; i++) if(out.groups[i].name === grp) g = out.groups[i];
     if(!g){ g = { name:grp, go:go, items:[] }; out.groups.push(g); }
-    var it = { t:txt, s:sub || '' };
+    var it = { t:txt, s:sub || '', k:_k };
     if(go) it.at = Object.assign({ go:go }, at || {});
     g.items.push(it); out.n++;
   };
@@ -23447,7 +23473,7 @@ function _missItems(o){
     var p = null; try{ p = (typeof _synPay === 'function') ? _synPay(o) : null; }catch(e){}
     var cur = function(v){ return (typeof _synMoney === 'function') ? _synMoney(v, p.cur) : String(v); };
     if(!p) out.unknown.push('Invoice');
-    else if(p.st === 'none')  add('Invoice', 'fin', 'No invoice raised');
+    else if(p.st === 'none'){ add('Invoice', 'fin', 'No invoice raised'); out.canLog = true; }
     else if(p.st === 'draft') add('Invoice', 'fin', 'Invoice still a draft — not issued');
     else if(p.st === 'unpaid' || p.st === 'over' || p.st === 'part')
       add('Invoice', 'fin', (p.st === 'over' ? 'Overdue — ' : 'Balance open — ') + cur(p.bal));
@@ -23550,12 +23576,131 @@ function _missFix(el){
   try{ appLog('ACTION', 'MISSING', 'Go fix: ' + (el.textContent || '').trim().slice(0, 80) + ' → ' + at.go + (at.tab ? ' / ' + at.tab : '') + (at.field ? ' / ' + at.field : '') + (at.sec != null ? ' / section ' + (Number(at.sec) + 1) : '')); }catch(e){}
 }
 
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  §MISS-CLEAR + §LEGACY-PAY (v2.753)                                          ║
+// ║  ASKED FOR (2026-079): the client paid before the invoice system existed, so  ║
+// ║  MISSING said No invoice raised for good. An Administrator can now log that   ║
+// ║  payment, and clear any MISSING item, with their password.                   ║
+// ║  order.legacyPay {amount,currency,date,method,note,by,at} is NOT in the       ║
+// ║  Finance ledger: no invoice, no receipt, no revenue. A real invoice wins.     ║
+// ║  order.missCleared {key:{t,by,at}} only hides the line from MISSING.          ║
+// ║  Both are extra_data keys. In-page form on purpose, never confirm()/prompt(). ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+var _missForm = null;
+// Figures change (a balance, a section count), so the key ignores them.
+function _missKey(grp, txt){ return String(grp) + '|' + String(txt).replace(/\d[\d.,]*/g, '#'); }
+function _missWho(){ try{ return (_authUser && (_authUser.email || _authUser.name)) || 'unknown'; }catch(e){ return 'unknown'; } }
+function _missDay(iso){ return String(iso || '').slice(0, 10); }
+function _missFootHtml(o, m){
+  var rows = '', lp = o.legacyPay;
+  if(lp && Number(lp.amount) > 0){
+    var mon = (typeof _synMoney === 'function') ? _synMoney(Number(lp.amount), lp.currency || 'AWG') : String(lp.amount);
+    rows += '<div class="qv-miss-done"><span>Paid before invoicing: ' + _apqEsc(mon) + (lp.date ? ' on ' + _apqEsc(lp.date) : '') + ' · logged by ' + _apqEsc(lp.by || '') + '</span>'
+      + '<button type="button" class="qv-miss-btn" onclick="_missAsk(\'unpay\')">Remove</button></div>';
+  }
+  (m.cleared || []).forEach(function(c){
+    rows += '<div class="qv-miss-done"><span>Cleared: ' + _apqEsc(c.t) + ' · by ' + _apqEsc(c.by) + ' ' + _apqEsc(_missDay(c.at)) + '</span>'
+      + '<button type="button" class="qv-miss-btn" data-k="' + _apqEsc(c.k) + '" data-t="' + _apqEsc(c.t) + '" onclick="_missAsk(\'restore\',this)">Restore</button></div>';
+  });
+  return rows ? '<div class="qv-miss-foot">' + rows + '</div>' : '';
+}
+function _missFee(o){
+  var n = parseFloat(String((o && (o.totalFee || o.invoicedFee || o.fee)) || '').replace(/[^\d.]/g, ''));
+  return (n > 0) ? String(n) : '';
+}
+function _missFormHtml(o){
+  var f = _missForm; if(!f || f.id !== String(o.id)) return '';
+  var head = { pay:'Log payment made before invoicing', clear:'Clear from MISSING', restore:'Put back on MISSING', unpay:'Remove the logged payment' }[f.kind];
+  var note = { pay:'For a client who paid before the invoice system existed. This clears the Invoice line and shows the job as paid. It does not raise an invoice or receipt, and it is not in the Finance totals.',
+    clear:'“' + _apqEsc(f.t) + '” leaves this list. Nothing else on the job changes.',
+    restore:'“' + _apqEsc(f.t) + '” comes back on the list if it is still missing.',
+    unpay:'The job goes back to No invoice raised.' }[f.kind];
+  var h = '<div class="qv-miss-form"><h5>' + head + '</h5><p>' + note + '</p>';
+  if(f.kind === 'pay'){
+    h += '<div class="qv-miss-grid">'
+      + '<label>Amount paid<input id="missPayAmt" inputmode="decimal" value="' + _apqEsc(_missFee(o)) + '"></label>'
+      + '<label>Currency<select id="missPayCur"><option value="AWG">AWG</option><option value="USD">USD</option></select></label>'
+      + '<label>Date paid (if known)<input id="missPayDate" type="date"></label>'
+      + '<label>How paid<select id="missPayMethod"><option>Bank transfer</option><option>Cash</option><option>Cheque</option><option>Card</option><option>Other</option></select></label>'
+      + '</div><label style="margin-bottom:8px;">Note or reference (optional)<input id="missPayNote" maxlength="200"></label>';
+  }
+  return h + '<label>Administrator password<input id="missPwd" type="password" autocomplete="current-password" onkeydown="if(event.key===\'Enter\'){event.preventDefault();_missConfirm();}"></label>'
+    + '<div class="qv-miss-formbtns"><span class="qv-miss-err" id="missErr" role="alert"></span>'
+    + '<button type="button" class="qv-miss-btn" onclick="_missCancel()">Cancel</button>'
+    + '<button type="button" class="qv-miss-btn solid" id="missOk" onclick="_missConfirm()">Confirm</button></div></div>';
+}
+function _missAsk(kind, el){
+  var p = document.getElementById('qvMissing'); var id = p && p.getAttribute('data-oid'); if(!id) return;
+  _missForm = { id:id, kind:kind, k:el ? el.getAttribute('data-k') : '', t:el ? el.getAttribute('data-t') : '' };
+  _missShown[id] = true;
+  var o = _byId(id); if(!o) return;
+  _missQV(o, true);
+  try{ var first = document.getElementById(kind === 'pay' ? 'missPayAmt' : 'missPwd'); if(first){ first.scrollIntoView({ block:'center' }); first.focus(); } }catch(e){}
+}
+function _missCancel(){
+  var id = _missForm && _missForm.id; _missForm = null;
+  var o = id && _byId(id); if(o) _missQV(o, true);
+}
+async function _missConfirm(){
+  var f = _missForm; if(!f) return;
+  var o = _byId(f.id), err = document.getElementById('missErr'), btn = document.getElementById('missOk'), pw = document.getElementById('missPwd');
+  var say = function(t){ if(err) err.textContent = t; };
+  if(!o){ say('This job is not loaded.'); return; }
+  var pay = null;
+  if(f.kind === 'pay'){
+    var amt = parseFloat(String((document.getElementById('missPayAmt') || {}).value || '').replace(/,/g, ''));
+    if(!(amt > 0)){ say('Enter the amount paid.'); return; }
+    var day = (document.getElementById('missPayDate') || {}).value || '';
+    if(day && day > new Date().toISOString().slice(0, 10)){ say('The date paid is in the future.'); return; }
+    pay = { amount:amt, currency:(document.getElementById('missPayCur') || {}).value || 'AWG', date:day,
+      method:(document.getElementById('missPayMethod') || {}).value || '', note:String((document.getElementById('missPayNote') || {}).value || '').trim() };
+  }
+  var pwd = (pw && pw.value) || '';
+  if(!pwd){ say('Enter your Administrator password.'); return; }
+  if(!mfIsAdmin()){ say('Only an Administrator can do this.'); return; }
+  if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
+  var ok = false, bad = '';
+  try{ ok = await _hpnCheckAdminPwd(pwd); }catch(e){ bad = 'The password could not be checked. Check the connection and try again.'; }
+  if(pw) pw.value = '';
+  if(!ok){
+    if(btn){ btn.disabled = false; btn.textContent = 'Confirm'; }
+    say(bad || 'Incorrect password. Nothing was changed.');
+    try{ appLog('ACTION', 'MISSING', f.kind + ' on ' + f.id + ': password refused for ' + _missWho()); }catch(e){}
+    return;
+  }
+  if(btn) btn.textContent = 'Saving…';
+  var oldC = o.missCleared ? JSON.parse(JSON.stringify(o.missCleared)) : null, oldP = o.legacyPay || null, stamp = new Date().toISOString(), who = _missWho();
+  if(f.kind === 'clear'){ o.missCleared = oldC ? JSON.parse(JSON.stringify(oldC)) : {}; o.missCleared[f.k] = { t:f.t, by:who, at:stamp }; }
+  if(f.kind === 'restore'){ var c = oldC ? JSON.parse(JSON.stringify(oldC)) : {}; delete c[f.k]; o.missCleared = Object.keys(c).length ? c : null; }
+  if(f.kind === 'pay'){ pay.by = who; pay.at = stamp; o.legacyPay = pay; }
+  if(f.kind === 'unpay'){ o.legacyPay = null; }
+  var res = null, why = '';
+  try{ res = await persistOrders(o.id); }catch(e){ why = (e && e.message) || String(e); }
+  if(why || (res && res.ok === false)){
+    o.missCleared = oldC; o.legacyPay = oldP;
+    // persistOrders writes the browser cache BEFORE the server call, so the refused change is in it: rewrite it.
+    try{ localStorage.setItem(LS_KEY, _ordersCacheJson(ORDERS)); localStorage.setItem(LS_KEY + '_ts', Date.now().toString()); }catch(e){}
+    if(btn){ btn.disabled = false; btn.textContent = 'Confirm'; }
+    say('Not saved: ' + (why || res.error || 'the server refused') + '. Nothing was changed.');
+    return;
+  }
+  try{ appLog('ACTION', 'MISSING', f.kind + ' on ' + f.id + ' by ' + who + ': ' + (f.kind === 'pay' ? (pay.currency + ' ' + pay.amount + (pay.date ? ' on ' + pay.date : '') + ' / ' + pay.method) : f.t)); }catch(e){}
+  _missForm = null;
+  _missQV(o, true);
+  try{ _missPaint(); }catch(e){}
+  try{ _synPayRepaint(); }catch(e){}
+  try{ _sgToast({ pay:'Payment logged on ', clear:'Cleared from MISSING on ', restore:'Back on MISSING on ', unpay:'Logged payment removed from ' }[f.kind] + o.id); }catch(e){}
+}
+try{ window._missAsk = _missAsk; window._missCancel = _missCancel; window._missConfirm = _missConfirm; }catch(e){}
+
 // Quick View panel. Yellow while anything is missing; normal colours when the list is empty.
-function _missQV(order){
+function _missQV(order, _force){
   var p = document.getElementById('qvMissing');
   if(!p || !order || !order.id) return;
   var m = _missItems(order), id = String(order.id);
   if(order.archived === true){ p.hidden = true; return; }
+  // §MISS-CLEAR (v2.753) — a repaint (payment probe, list refresh) must not wipe a half-typed form.
+  if(!_force && _missForm && _missForm.id === id && p.querySelector('.qv-miss-form')) return;
   p.hidden = false;
   p.setAttribute('data-oid', id);
   p.classList.toggle('on', m.n > 0);
@@ -23563,7 +23708,8 @@ function _missQV(order){
   if(!m.n){
     p.innerHTML = '<div class="qv-miss-head qv-miss-none"><span class="qv-miss-ok">✓</span>'
       + '<span class="qv-miss-ttl">MISSING</span><span class="qv-miss-cnt">Nothing — ready to wrap up'
-      + (m.unknown.length ? ' (not read yet: ' + _apqEsc(m.unknown.join(', ')) + ')' : '') + '</span></div>';
+      + (m.unknown.length ? ' (not read yet: ' + _apqEsc(m.unknown.join(', ')) + ')' : '') + '</span></div>'
+      + _missFootHtml(order, m) + _missFormHtml(order);
     return;
   }
   var h = '<button type="button" class="qv-miss-head" aria-expanded="' + (_missShown[id] ? 'true' : 'false') + '" onclick="_missToggle()"'
@@ -23575,14 +23721,18 @@ function _missQV(order){
       + (g.go ? '<button type="button" class="qv-miss-go" onclick="_missGo(\'' + g.go + '\')">Open ›</button>' : '') + '</div><ul>';
     g.items.forEach(function(it){
       var body = _apqEsc(it.t) + (it.s ? '<div class="qv-miss-sub">' + _apqEsc(it.s) + '</div>' : '');
-      h += it.at
-        ? '<li><button type="button" class="qv-miss-it" data-at="' + _apqEsc(JSON.stringify(it.at)) + '" onclick="_missFix(this)" title="Click to go and fix this">' + body + '</button></li>'   // §MISS-CLICK (v2.741)
-        : '<li>' + body + '</li>';
+      var acts = '<span class="qv-miss-acts">'   // §MISS-CLEAR + §LEGACY-PAY (v2.753)
+        + ((m.canLog && it.t === 'No invoice raised') ? '<button type="button" class="qv-miss-btn solid" onclick="_missAsk(\'pay\')" title="Client paid before invoicing existed: record it with your Administrator password">Log payment</button>' : '')
+        + '<button type="button" class="qv-miss-btn" data-k="' + _apqEsc(it.k) + '" data-t="' + _apqEsc(it.t) + '" onclick="_missAsk(\'clear\',this)" title="Take this off the MISSING list with your Administrator password">Clear</button>'
+        + '</span>';
+      h += '<li><div class="qv-miss-row">' + (it.at
+        ? '<button type="button" class="qv-miss-it" data-at="' + _apqEsc(JSON.stringify(it.at)) + '" onclick="_missFix(this)" title="Click to go and fix this">' + body + '</button>'   // §MISS-CLICK (v2.741)
+        : '<div style="flex:1;min-width:0;">' + body + '</div>') + acts + '</div></li>';
     });
     h += '</ul></div>';
   });
   if(m.unknown.length) h += '<div class="qv-miss-unk">Not read yet: ' + _apqEsc(m.unknown.join(', ')) + ' — checked as soon as the job’s data arrives.</div>';
-  p.innerHTML = h + '</div>';
+  p.innerHTML = h + _missFootHtml(order, m) + _missFormHtml(order) + '</div>';
 }
 try{ window._missItems = _missItems; window._missOpen = _missOpen; window._missToggle = _missToggle; window._missGo = _missGo; window._missPaint = _missPaint; window._missFix = _missFix; }catch(e){}
 
@@ -46339,7 +46489,17 @@ function _synPayShape(r){
 }
 
 // The resolver. Returns null for "not read" — the caller then renders nothing.
+// §LEGACY-PAY (v2.753) — a payment logged for a job with no invoice reads as paid everywhere the
+//   payment state is shown. A real invoice always wins, so it can never hide money owed.
 function _synPay(o){
+  var r = _synPayRaw(o), lp = o && o.legacyPay;
+  if(lp && Number(lp.amount) > 0 && (!r || r.st === 'none')){
+    var a = Number(lp.amount);
+    return { st:'paid', late:false, total:a, paid:a, bal:0, cur:lp.currency || 'AWG', num:'', legacy:lp };
+  }
+  return r;
+}
+function _synPayRaw(o){
   if(!o || !o.id) return null;
   var id = String(o.id);
   try{
@@ -46378,7 +46538,7 @@ function _synPayText(p){
   if(p.st === 'none')     return 'No invoice has been raised for this job order yet.';
   if(p.st === 'draft')    return 'Invoice ' + p.num + ' is still a DRAFT — it has not been issued to the client, so nothing is owed yet. Total ' + _synMoney(p.total, p.cur) + '.';
   if(p.st === 'credited') return 'Invoice ' + p.num + ' has been credited.';
-  if(p.st === 'paid')     return 'Invoice ' + p.num + ' is paid in full — ' + _synMoney(p.total, p.cur) + '.';
+  if(p.st === 'paid')     return p.legacy ? ('Paid before invoicing — ' + _synMoney(p.total, p.cur) + (p.legacy.date ? ' on ' + p.legacy.date : '') + '. No invoice or receipt in the system.') : ('Invoice ' + p.num + ' is paid in full — ' + _synMoney(p.total, p.cur) + '.');
   if(p.st === 'part')     return 'Invoice ' + p.num + ' is PART PAID: ' + _synMoney(p.paid, p.cur)
                                + ' received of ' + _synMoney(p.total, p.cur) + ', '
                                + _synMoney(p.bal, p.cur) + ' still outstanding.'
@@ -77864,6 +78024,8 @@ function _toRow(o) {
       ropvZone:o.ropvZone||'', propType:o.propType||'',
       buildType:o.buildType||'',
       bldgStyle:(o.bldgStyle || undefined),   // §BLDG-STYLE (v2.624) — written only when set
+      missCleared:(o.missCleared&&typeof o.missCleared==='object'&&Object.keys(o.missCleared).length)?o.missCleared:undefined,   // §MISS-CLEAR (v2.753)
+      legacyPay:(o.legacyPay&&typeof o.legacyPay==='object'&&Number(o.legacyPay.amount)>0)?o.legacyPay:undefined,   // §LEGACY-PAY (v2.753)
       spacaForm:(o.spacaForm&&typeof o.spacaForm==='object'&&Object.keys(o.spacaForm).length)?o.spacaForm:undefined,   // §SPACA-SAVE (v2.673) — Contract Generator dialog overrides, only when any
       // §MAP-VIEW (v2.171) — the EXACT map viewport (centre) the user framed on the Map
       //   tab, so reopening restores their precise pan/zoom (not just a pin-centred view).
@@ -78200,6 +78362,8 @@ function _fromRow(row, order) {
       if (x.propType)       order.propType       = x.propType;
       if (x.buildType)      order.buildType      = x.buildType;
       order.bldgStyle = (typeof x.bldgStyle === 'string') ? x.bldgStyle : '';   // §BLDG-STYLE (v2.624) — unconditional so a cleared style stays cleared
+      order.missCleared = (x.missCleared && typeof x.missCleared === 'object' && !Array.isArray(x.missCleared)) ? x.missCleared : null;   // §MISS-CLEAR (v2.753)
+      order.legacyPay = (x.legacyPay && typeof x.legacyPay === 'object' && !Array.isArray(x.legacyPay)) ? x.legacyPay : null;   // §LEGACY-PAY (v2.753)
       order.spacaForm = (x.spacaForm && typeof x.spacaForm === 'object' && !Array.isArray(x.spacaForm)) ? x.spacaForm : null;   // §SPACA-SAVE (v2.673) — read back unconditionally
       // §MAP-VIEW (v2.171) — restore the exact saved map viewport (centre) for ALL orders.
       if (x.mapViewLat != null && x.mapViewLat !== '') order.mapViewLat = x.mapViewLat;
