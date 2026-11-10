@@ -38658,8 +38658,12 @@ function _ctrBalPill(v, label){
     + (label ? _ctrEsc(label) + ' ' : '') + _ctrBalText(v) + ' · ' + t.word + '</span>';
 }
 function _ctrPayNum(s){
-  var n = parseFloat(String(s == null ? '' : s).replace(/[^0-9.,\-]/g, '').replace(',', '.'));
-  return isFinite(n) ? Math.round(n * 100) / 100 : NaN;
+  // §PAY-AMT-COMMA (v2.771) — "1,500.00" used to read as 1.50 (the first comma became the decimal
+  //   point), so a payment typed with thousands separators would record a fraction of itself.
+  //   Same reading as the Custom amount box; a leading minus still makes it negative.
+  var t = String(s == null ? '' : s).trim(), neg = /^[^0-9]*-/.test(t);
+  var n = _caAmt(t);
+  return isFinite(n) ? (neg ? -n : n) : NaN;
 }
 
 function ctrIssuePayment(cid){
